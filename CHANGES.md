@@ -13,7 +13,7 @@
 | **Location** | `c:\B-Tech 1st year\Family Tree\` |
 | **Tech** | Modular React 18 + Vite 5 + Firebase v11 (Auth + Cloud Firestore + Hosting) |
 | **Cloud Backend** | Firebase Project `gupta-family-tree-akg` (Cloud Firestore `(default)` in `asia-south1`) |
-| **Live Deployments** | **Firebase Hosting:** https://gupta-family-tree-akg.web.app <br> **GitHub Pages:** https://arpitkumar81008-cmd.github.io/family-tree/ |
+| **Live Deployment** | **Firebase Hosting:** https://gupta-family-tree-akg.web.app |
 | **GitHub Repository** | https://github.com/arpitkumar81008-cmd/family-tree (`main` branch) |
 | **Local Storage** | Browser `localStorage` — canonical key `gupta-family-tree-v3` (with explicit allow-list migration from `v1`/`v2` and isolated `gupta_multi_trees_v1` for custom trees) |
 
