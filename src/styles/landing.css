@@ -89,14 +89,19 @@
 .nav-actions {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .stats-badge {
-  font-size: 12px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--muted);
-  padding: 4px 10px;
+  padding: 0 12px;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-xs);
   white-space: nowrap;
@@ -107,35 +112,78 @@
   align-items: center;
 }
 
+.site-nav .settings-btn {
+  min-width: 36px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+}
+
+.site-nav .settings-btn:hover {
+  border-color: var(--ink);
+}
+
 /* ---------- Landing page ---------- */
 .landing {
-  max-width: 1120px;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 0 max(16px, env(safe-area-inset-left, 0px)) 64px;
+  padding: 0 max(20px, env(safe-area-inset-left, 0px)) 72px;
 }
 
 .hero {
-  padding: 72px 0 48px;
+  padding: 68px 0 52px;
   border-bottom: 1px solid var(--line);
 }
 
 .hero-title {
   font-family: var(--display);
-  font-weight: 500;
-  font-size: clamp(36px, 6.5vw, 72px);
-  line-height: 1.05;
+  font-weight: 600;
+  font-size: clamp(42px, 6.2vw, 76px);
+  line-height: 1.06;
   letter-spacing: -0.015em;
   margin: 0;
-  max-width: 16ch;
+  max-width: 100%;
+  width: 100%;
   text-wrap: balance;
 }
 
 .hero-lede {
-  max-width: 58ch;
+  max-width: 72ch;
   color: var(--muted);
-  font-size: 17px;
+  font-size: 17.5px;
   line-height: 1.55;
-  margin: 20px 0 0;
+  margin: 18px 0 0;
+}
+
+/* Progressive Disclosure: Explanations appear on hover, keyboard focus, or scroll */
+.hover-explanation {
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.22s ease, max-height 0.26s ease, transform 0.22s ease, margin 0.22s ease;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.reveal-parent:hover .hover-explanation,
+.reveal-parent:focus-within .hover-explanation,
+.reveal-parent:focus .hover-explanation,
+.reveal-on-scroll.is-visible .hover-explanation {
+  opacity: 1;
+  max-height: 220px;
+  transform: translateY(0);
+  margin-top: 10px !important;
+}
+
+@media (hover: none) {
+  .hover-explanation {
+    opacity: 1;
+    max-height: 240px;
+    transform: none;
+    margin-top: 10px !important;
+  }
 }
 
 .hero-cta {
@@ -247,27 +295,52 @@
   border-bottom: 1px solid var(--line);
 }
 
-.spotlight-pair {
-  display: inline-flex;
+.spotlight-diagram {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 0;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
 }
 
-.spot-card {
-  width: 96px;
-  height: 138px;
+.spot-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.spot-node {
+  min-width: 78px;
+  height: 44px;
+  padding: 0 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface);
+  background: var(--bg);
   border: 1px solid var(--ink);
-  border-radius: var(--radius-sm);
-  font-family: var(--display);
-  font-size: 28px;
+  border-radius: var(--radius-xs);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.spot-node.sub {
+  border-color: var(--line);
+  color: var(--muted);
 }
 
 .spot-link {
-  width: 16px;
-  height: 1px;
+  width: 18px;
+  height: 2px;
+  background: var(--main-branch);
+}
+
+.spot-drop {
+  width: 2px;
+  height: 20px;
   background: var(--main-branch);
 }
 
@@ -275,12 +348,16 @@
   max-width: 56ch;
   color: var(--muted);
   line-height: 1.6;
-  margin: 0 0 20px;
+  margin: 0 0 16px;
 }
 
 .spotlight-text .eyebrow {
   color: var(--rel);
   margin-bottom: 6px;
+}
+
+.spotlight-text .btn {
+  margin-top: 14px;
 }
 
 .builder-banner {
@@ -293,10 +370,21 @@
   background: var(--surface);
   border: 1px solid var(--ink);
   border-radius: var(--radius-md);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.builder-banner.clickable-banner {
+  cursor: pointer;
+}
+
+.builder-banner.clickable-banner:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .builder-banner .section-title {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .builder-banner p {
@@ -304,6 +392,98 @@
   color: var(--muted);
   max-width: 56ch;
   line-height: 1.55;
+}
+
+.builder-cta-pill {
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.dock-pan-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.dock-mode-btn {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* ---------- Subtle Contextual Onboarding Toast ---------- */
+.onboard-toast {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 900;
+  width: 340px;
+  max-width: calc(100vw - 40px);
+  background: var(--surface);
+  border: 1px solid var(--ink);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.onboard-toast-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.onboard-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.onboard-toast-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.onboard-link-btn {
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.onboard-link-btn:hover {
+  color: var(--ink);
+}
+
+.onboard-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.onboard-close-btn:hover {
+  color: var(--ink);
+}
+
+.onboard-toast-body {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink);
 }
 
 /* ---------- Canvas dock ---------- */
@@ -527,31 +707,43 @@
 .nav-user {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .user-pill {
-  font-size: 12px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 12.5px;
   font-weight: 600;
-  padding: 5px 10px;
-  border: 1px solid var(--ink);
+  padding: 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: var(--radius-xs);
-  max-width: 140px;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.nav-signin-btn,
-.nav-share-btn {
-  height: 34px;
-  padding: 0 12px;
-  font-size: 12.5px;
+.nav-action-btn {
+  height: 36px !important;
+  padding: 0 12px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  border-radius: var(--radius-xs) !important;
+  border: 1px solid var(--line) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.nav-action-btn:hover {
+  border-color: var(--ink) !important;
 }
 
 @media (max-width: 760px) {
-  .user-pill,
-  .nav-share-btn {
+  .user-pill {
     display: none;
   }
 }

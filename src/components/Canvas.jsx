@@ -75,6 +75,12 @@ export function Canvas({
     }
   }, [searchQuery, searchMatches, layout, zoom]);
 
+  const handlePanBy = (dx, dy) => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dx, top: dy, behavior: "smooth" });
+  };
+
   // Spatial keyboard navigation
   const handleCardKeyDown = (e, personId) => {
     const vector = {
@@ -251,9 +257,11 @@ export function Canvas({
       onZoomIn={() => onZoom(0.1)}
       onZoomOut={() => onZoom(-0.1)}
       onFit={fitView}
+      onPan={handlePanBy}
       viewerName={viewer ? displayName(viewer) : ""}
       onReset={onResetViewer}
       t={t}
+      lang={lang}
     />
     </div>
   );

@@ -14,7 +14,7 @@
   --rel: #c20024;
   --scrim: rgba(10, 15, 13, 0.6);
   --av: #dce0da;
-  --display: "Bodoni Moda", "Tiro Devanagari Hindi", Georgia, serif;
+  --display: "Fraunces", "Tiro Devanagari Hindi", Georgia, serif;
   --body: "Familjen Grotesk", "Hind", system-ui, -apple-system, "Segoe UI", sans-serif;
   --deva: "Tiro Devanagari Hindi", "Noto Serif Devanagari", Georgia, serif;
   --radius-xs: 4px;
@@ -58,6 +58,7 @@
   --rel: #ff6b80;
   --scrim: rgba(0, 0, 0, 0.7);
   --av: #1e2622;
+  --display: "Bodoni Moda", "Tiro Devanagari Hindi", Georgia, serif;
   color-scheme: dark;
 }
 

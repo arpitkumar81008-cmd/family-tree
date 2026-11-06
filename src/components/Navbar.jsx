@@ -88,7 +88,7 @@ export function Navbar({
         {(!activeTreeId || cloudConfigured) && (
           <button
             type="button"
-            className="zbtn nav-share-btn"
+            className="zbtn nav-action-btn"
             onClick={copyShareLink}
             title={t('shareTreeBtn')}
           >
@@ -101,12 +101,12 @@ export function Navbar({
             <span className="user-pill" title={user.email}>
               {user.displayName}
             </span>
-            <button type="button" className="zbtn" onClick={onSignOut}>
+            <button type="button" className="zbtn nav-action-btn" onClick={onSignOut}>
               {t('signOut')}
             </button>
           </div>
         ) : (
-          <button type="button" className="btn nav-signin-btn" onClick={onOpenAuth}>
+          <button type="button" className="btn nav-action-btn" onClick={onOpenAuth}>
             {t('signIn')}
           </button>
         )}

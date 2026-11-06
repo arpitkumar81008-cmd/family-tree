@@ -65,11 +65,11 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
 
   return (
     <div className="finder">
-      <div className="row" style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-        <div className="field" style={{ flex: "1 1 200px" }}>
+      <div className="finder-grid">
+        <div className="field">
           <label htmlFor="fa">{t("first")}</label>
           <select id="fa" value={firstId} onChange={e => setFirstId(e.target.value)}>
-            <option value="" />
+            <option value="">{t("none")}</option>
             {people.map(p => (
               <option key={p.id} value={p.id}>
                 {displayName(p.id)}
@@ -77,10 +77,10 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
             ))}
           </select>
         </div>
-        <div className="field" style={{ flex: "1 1 200px" }}>
+        <div className="field">
           <label htmlFor="fb">{t("second")}</label>
           <select id="fb" value={secondId} onChange={e => setSecondId(e.target.value)}>
-            <option value="" />
+            <option value="">{t("none")}</option>
             {people.map(p => (
               <option key={p.id} value={p.id}>
                 {displayName(p.id)}
@@ -91,11 +91,11 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
       </div>
 
       {firstId && secondId && firstId === secondId && (
-        <p className="msg">{t("samePerson")}</p>
+        <p className="msg" role="status">{t("samePerson")}</p>
       )}
 
       {isValid && (
-        <ul className="res" style={{ listStyle: "none", padding: 0, marginTop: "8px" }}>
+        <ul className="res">
           {renderRelationLine(displayName(secondId), displayName(firstId), secondId, firstId)}
           {renderRelationLine(displayName(firstId), displayName(secondId), firstId, secondId)}
           {commonAncestor && (
@@ -162,12 +162,13 @@ export function BirthdaysList({ data, lang, t, displayName, openPerson }) {
   );
 }
 
-export function BackupPanel({ treeState, t, onImport, onReset, canEdit = true }) {
+export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = true }) {
   const [includePhotos, setIncludePhotos] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
   const [importText, setImportText] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
   const exportBoxRef = useRef(null);
+  const isHi = lang === "hi";
 
   const exportPayload = JSON.stringify({
     v: 2,
@@ -175,108 +176,138 @@ export function BackupPanel({ treeState, t, onImport, onReset, canEdit = true })
     ...(includePhotos ? { photos: treeState.photos } : {})
   });
 
+  const handleDownloadJson = () => {
+    try {
+      const blob = new Blob([exportPayload], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `family-tree-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setStatusMsg(isHi ? "JSON बैकअप डाउनलोड हो गया।" : "Backup JSON file downloaded.");
+    } catch {
+      setStatusMsg(t("copyFail"));
+    }
+  };
+
   return (
     <div className="backup">
-      <div className="field">
-        <label htmlFor="bx">{t("exportLbl")}</label>
-        <textarea
-          id="bx"
-          ref={exportBoxRef}
-          readOnly
-          rows={3}
-          value={exportPayload}
-          onFocus={e => e.currentTarget.select()}
-        />
-      </div>
-
-      <div className="row center" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-        <button
-          type="button"
-          className="btn"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(exportPayload);
-              setStatusMsg(t("copied"));
-            } catch {
-              exportBoxRef.current?.select();
-              setStatusMsg(t("copyFail"));
-            }
-          }}
-        >
-          {t("copy")}
-        </button>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={includePhotos}
-            onChange={e => setIncludePhotos(e.target.checked)}
-          />{" "}
-          {t("incl")}
-        </label>
-      </div>
-
-      {canEdit && (
-        <>
-          <div className="field" style={{ marginTop: "12px" }}>
-            <label htmlFor="bi">{t("importLbl")}</label>
+      <div className="backup-grid">
+        {/* Export Card */}
+        <div className="backup-section">
+          <div className="field">
+            <label htmlFor="bx">{t("exportLbl")}</label>
             <textarea
-              id="bi"
-              rows={3}
-              value={importText}
-              placeholder={t("importPh")}
-              onChange={e => setImportText(e.target.value)}
+              id="bx"
+              ref={exportBoxRef}
+              readOnly
+              rows={4}
+              value={exportPayload}
+              onFocus={e => e.currentTarget.select()}
             />
           </div>
 
-          <div className="row center" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <div className="backup-actions-row">
             <button
               type="button"
-              className="btn ghost"
-              disabled={!importText.trim()}
-              onClick={() => {
+              className="btn"
+              onClick={async () => {
                 try {
-                  const parsed = JSON.parse(importText);
-                  const d = parsed.data;
-                  const res = validateTreeData(d);
-                  if (!res.valid) {
-                    throw new Error(res.error);
-                  }
-                  onImport(
-                    { people: d.people, couples: d.couples },
-                    parsed.photos && typeof parsed.photos === "object" ? parsed.photos : undefined
-                  );
-                  setStatusMsg(t("importOk"));
-                  setImportText("");
+                  await navigator.clipboard.writeText(exportPayload);
+                  setStatusMsg(t("copied"));
                 } catch {
-                  setStatusMsg(t("importBad"));
+                  exportBoxRef.current?.select();
+                  setStatusMsg(t("copyFail"));
                 }
               }}
             >
-              {t("importBtn")}
+              {t("copy")}
             </button>
-
             <button
               type="button"
               className="btn ghost"
-              onClick={() => {
-                if (confirmReset) {
-                  onReset();
-                  setConfirmReset(false);
-                  setStatusMsg("");
-                } else {
-                  setConfirmReset(true);
-                }
-              }}
-              onBlur={() => setConfirmReset(false)}
+              onClick={handleDownloadJson}
             >
-              {confirmReset ? t("resetSure") : t("reset")}
+              {isHi ? "JSON डाउनलोड करें" : "Download .json"}
             </button>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={includePhotos}
+                onChange={e => setIncludePhotos(e.target.checked)}
+              />{" "}
+              {t("incl")}
+            </label>
           </div>
-        </>
-      )}
+        </div>
+
+        {/* Import & Restore Card */}
+        {canEdit && (
+          <div className="backup-section">
+            <div className="field">
+              <label htmlFor="bi">{t("importLbl")}</label>
+              <textarea
+                id="bi"
+                rows={4}
+                value={importText}
+                placeholder={t("importPh")}
+                onChange={e => setImportText(e.target.value)}
+              />
+            </div>
+
+            <div className="backup-actions-row">
+              <button
+                type="button"
+                className="btn"
+                disabled={!importText.trim()}
+                onClick={() => {
+                  try {
+                    const parsed = JSON.parse(importText);
+                    const d = parsed.data;
+                    const res = validateTreeData(d);
+                    if (!res.valid) {
+                      throw new Error(res.error);
+                    }
+                    onImport(
+                      { people: d.people, couples: d.couples },
+                      parsed.photos && typeof parsed.photos === "object" ? parsed.photos : undefined
+                    );
+                    setStatusMsg(t("importOk"));
+                    setImportText("");
+                  } catch {
+                    setStatusMsg(t("importBad"));
+                  }
+                }}
+              >
+                {t("importBtn")}
+              </button>
+
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => {
+                  if (confirmReset) {
+                    onReset();
+                    setConfirmReset(false);
+                    setStatusMsg("");
+                  } else {
+                    setConfirmReset(true);
+                  }
+                }}
+                onBlur={() => setConfirmReset(false)}
+              >
+                {confirmReset ? t("resetSure") : t("reset")}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {statusMsg && (
-        <p className="msg" role="status">
+        <p className="msg" role="status" aria-live="polite">
           {statusMsg}
         </p>
       )}
@@ -303,10 +334,33 @@ export function Tabs({
     { id: "backup", labelKey: "tabBackup" }
   ];
 
+  const handleTabKeyDown = (e, idx) => {
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      const next = tabKeys[(idx + 1) % tabKeys.length].id;
+      setActiveTab(next);
+      document.getElementById(`tab-${next}`)?.focus();
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      const prev = tabKeys[(idx - 1 + tabKeys.length) % tabKeys.length].id;
+      setActiveTab(prev);
+      document.getElementById(`tab-${prev}`)?.focus();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setActiveTab(tabKeys[0].id);
+      document.getElementById(`tab-${tabKeys[0].id}`)?.focus();
+    } else if (e.key === "End") {
+      e.preventDefault();
+      const last = tabKeys[tabKeys.length - 1].id;
+      setActiveTab(last);
+      document.getElementById(`tab-${last}`)?.focus();
+    }
+  };
+
   return (
     <section className="tools" aria-label={t("toolsAria")}>
       <div className="tabs" role="tablist">
-        {tabKeys.map(({ id, labelKey }) => (
+        {tabKeys.map(({ id, labelKey }, idx) => (
           <button
             key={id}
             role="tab"
@@ -317,6 +371,7 @@ export function Tabs({
             aria-selected={activeTab === id}
             tabIndex={activeTab === id ? 0 : -1}
             onClick={() => setActiveTab(id)}
+            onKeyDown={e => handleTabKeyDown(e, idx)}
           >
             {t(labelKey)}
           </button>
@@ -353,6 +408,7 @@ export function Tabs({
           <BackupPanel
             treeState={treeState}
             t={t}
+            lang={lang}
             onImport={onImport}
             onReset={onReset}
             canEdit={canEdit}

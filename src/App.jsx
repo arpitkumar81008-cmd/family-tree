@@ -30,6 +30,7 @@ import Sheet from './components/Sheet.jsx';
 import AddModal from './components/AddModal.jsx';
 import HelpModal from './components/HelpModal.jsx';
 import Tabs from './components/Tabs.jsx';
+import OnboardingToast from './components/OnboardingToast.jsx';
 
 export function App() {
   const [treeState, setTreeState] = useState(loadInitialTreeState);
@@ -623,6 +624,9 @@ export function App() {
 
   return (
     <>
+      <a href="#main-content" className="skip-link">
+        {treeState.lang === "hi" ? "मुख्य सामग्री पर जाएँ" : "Skip to main content"}
+      </a>
       <Navbar
         currentView={currentView}
         setCurrentView={setCurrentView}
@@ -654,7 +658,7 @@ export function App() {
       />
 
       {currentView === "home" ? (
-        <main>
+        <main id="main-content">
           <LandingPage
             t={t}
             memberCount={treeState.data.people.length}
@@ -665,12 +669,12 @@ export function App() {
           />
         </main>
       ) : (
-    <main className="page">
+    <main id="main-content" className="page">
       {/* Header */}
-      <header>
+      <header className="reveal-parent" tabIndex={0}>
         <p className="eyebrow">{t("eyebrow")}</p>
         <h1>{activeTreeMeta?.title || t("h1")}</h1>
-        <p className="lede">
+        <p className="lede hover-explanation">
           {t("lede")}{" "}
           <span className="count">{t("people", treeState.data.people.length)}</span>
         </p>
@@ -687,10 +691,8 @@ export function App() {
         t={t}
         lang={treeState.lang}
         onOpenAddModal={() => canEdit && setIsAddModalOpen(true)}
-        onOpenHelpModal={() => setIsHelpModalOpen(true)}
-        showGuideBanner={showGuideBanner}
-        setShowGuideBanner={handleDismissGuide}
         canEdit={canEdit}
+        familyIndex={familyIndex}
       />
 
       {/* Interactive Canvas */}
@@ -799,6 +801,13 @@ export function App() {
           onSignedIn={u => setUser(u)}
         />
       )}
+
+      <OnboardingToast
+        currentView={currentView}
+        activeTab={activeTab}
+        lang={treeState.lang}
+        onOpenHelpModal={() => setIsHelpModalOpen(true)}
+      />
     </>
   );
 }

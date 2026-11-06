@@ -5,12 +5,32 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  overflow: hidden;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
   height: min(78vh, 760px);
   min-height: 520px;
   margin-block: 16px;
   user-select: none;
-  touch-action: none;
+  touch-action: pan-x pan-y;
+}
+
+.treewrap::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.treewrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.treewrap::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
+}
+
+.treewrap::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
 
 .treewrap.is-panning {
@@ -167,9 +187,9 @@
 }
 
 .card .nm {
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.25;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
   margin-top: 6px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -180,39 +200,39 @@
 }
 
 .card .rl {
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--rel);
   margin-top: 3px;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .card .tag {
-  font-size: 8.5px;
+  font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #ef4444;
+  color: #e00030;
   margin-top: 3px;
-  padding: 1px 4px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  padding: 1px 5px;
+  background: rgba(224, 0, 48, 0.1);
+  border: 1px solid rgba(224, 0, 48, 0.3);
   border-radius: var(--radius-xs);
 }
 
 /* Avatar inside Card */
 .av {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-xs);
   background: var(--av);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--ink);
   overflow: hidden;
   flex-shrink: 0;
