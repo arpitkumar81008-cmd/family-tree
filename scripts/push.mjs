@@ -21,6 +21,7 @@ const run = (cmd, opts = {}) =>
   });
 
 try {
+  run(`git config credential.https://github.com.username ${GITHUB_OWNER}`);
   const currentRemote = execSync('git remote get-url origin', { encoding: 'utf8' }).trim();
   if (currentRemote !== EXPECTED_REMOTE) {
     console.log(`Updating origin remote -> ${EXPECTED_REMOTE}`);
