@@ -2,8 +2,8 @@
 
 > An interactive, accessible, bilingual (English & हिन्दी) family tree platform built with React, Vite, and an algorithmic dual-mode spatial layout engine. Designed for generational clarity, cultural relationship modeling, and seamless one-click cloud deployment.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FAKGupta_gkp%2Ffamily-tree)
-[![GitHub Pages](https://github.com/AKGupta_gkp/family-tree/actions/workflows/deploy.yml/badge.svg)](https://github.com/AKGupta_gkp/family-tree/actions/workflows/deploy.yml)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Farpitkumar81008-cmd%2Ffamily-tree)
+[![GitHub Pages](https://github.com/arpitkumar81008-cmd/family-tree/actions/workflows/deploy.yml/badge.svg)](https://github.com/arpitkumar81008-cmd/family-tree/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
@@ -89,7 +89,7 @@ family-tree/
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/AKGupta_gkp/family-tree.git
+   git clone https://github.com/arpitkumar81008-cmd/family-tree.git
    cd family-tree
    ```
 
@@ -117,7 +117,7 @@ family-tree/
 ### Deploying to Vercel (Recommended)
 
 1. Connect your GitHub account to [Vercel](https://vercel.com).
-2. Click **New Project** and import `AKGupta_gkp/family-tree`.
+2. Click **New Project** and import `arpitkumar81008-cmd/family-tree`.
 3. Vercel automatically detects the Vite configuration:
    - **Framework Preset**: Vite
    - **Build Command**: `npm run build`
@@ -130,7 +130,7 @@ This repository includes a pre-configured GitHub Actions workflow in `.github/wo
 1. In your GitHub repository, go to **Settings > Pages**.
 2. Under **Build and deployment > Source**, select **GitHub Actions**.
 3. Push to `main` — GitHub will build and publish the site automatically to:
-   `https://akgupta-gkp.github.io/family-tree/`
+   `https://arpitkumar81008-cmd.github.io/family-tree/`
 
 ---
 

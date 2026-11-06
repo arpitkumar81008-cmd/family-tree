@@ -9,6 +9,15 @@ import { transliterateToHindi } from './i18n/translit.js';
 import Navbar from './components/Navbar.jsx';
 import LandingPage from './components/LandingPage.jsx';
 import CreateTreeModal from './components/CreateTreeModal.jsx';
+import AuthModal, { loadLocalAuthUser, saveLocalAuthUser } from './components/AuthModal.jsx';
+import { subscribeToAuth, signOutUser, isFirebaseConfigured } from './services/firebase.js';
+import {
+  getTreeIdFromUrl,
+  setTreeIdInUrl,
+  subscribeToTree,
+  createUserTree,
+  saveUserTree
+} from './services/treeSync.js';
 import Toolbar from './components/Toolbar.jsx';
 import Canvas from './components/Canvas.jsx';
 import Sheet from './components/Sheet.jsx';
@@ -53,8 +62,12 @@ export function App() {
   });
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [currentView, setCurrentView] = useState("home");
+  const [currentView, setCurrentView] = useState(() => (getTreeIdFromUrl() ? "tree" : "home"));
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [user, setUser] = useState(() => loadLocalAuthUser());
+  const [activeTreeId, setActiveTreeId] = useState(() => getTreeIdFromUrl());
+  const [activeTreeMeta, setActiveTreeMeta] = useState(null);
 
   // Search & Navigation
   const [searchQuery, setSearchQuery] = useState("");
@@ -75,10 +88,61 @@ export function App() {
 
   const previousActiveElement = useRef(null);
 
-  // Save tree state whenever it changes
+  // Subscribe to Firebase Auth state (with local session fallback)
   useEffect(() => {
-    saveTreeState(treeState);
-  }, [treeState]);
+    if (!isFirebaseConfigured()) return;
+    return subscribeToAuth(fbUser => {
+      if (fbUser) {
+        setUser(fbUser);
+        saveLocalAuthUser(fbUser);
+      }
+    });
+  }, []);
+
+  // Subscribe to shared/custom tree when ?tree=<id> is active
+  useEffect(() => {
+    if (!activeTreeId) {
+      setActiveTreeMeta(null);
+      return;
+    }
+    return subscribeToTree(
+      activeTreeId,
+      docData => {
+        setActiveTreeMeta(docData);
+        if (docData?.data?.people) {
+          setTreeState(prev => ({
+            ...prev,
+            data: docData.data,
+            photos: docData.photos || {},
+            lang: docData.lang || prev.lang,
+            viewer: ""
+          }));
+        }
+      },
+      () => {
+        setActiveTreeId("");
+        setTreeIdInUrl("");
+      }
+    );
+  }, [activeTreeId]);
+
+  // Save tree state whenever it changes (local storage + cloud tree if owner)
+  useEffect(() => {
+    if (!activeTreeId) {
+      saveTreeState(treeState);
+    } else if (user && activeTreeMeta && activeTreeMeta.ownerUid === user.uid) {
+      saveUserTree(
+        activeTreeId,
+        {
+          ...activeTreeMeta,
+          data: treeState.data,
+          photos: treeState.photos,
+          lang: treeState.lang
+        },
+        user
+      );
+    }
+  }, [treeState, activeTreeId, activeTreeMeta, user]);
 
   // Sync theme attribute
   useEffect(() => {
@@ -414,14 +478,52 @@ export function App() {
     window.scrollTo({ top: 0 });
   };
 
-  const handleCreateBlank = async name => {
-    const hi = await transliterateToHindi(name);
+  const isOwner = Boolean(
+    user && (!activeTreeId || (activeTreeMeta && activeTreeMeta.ownerUid === user.uid))
+  );
+
+  const handleSelectTree = (treeId, treeDoc) => {
+    if (!treeId) {
+      setActiveTreeId("");
+      setActiveTreeMeta(null);
+      setTreeIdInUrl("");
+      setTreeState(loadInitialTreeState());
+    } else {
+      setActiveTreeId(treeId);
+      setTreeIdInUrl(treeId);
+      if (treeDoc?.data) {
+        setActiveTreeMeta(treeDoc);
+        setTreeState(prev => ({
+          ...prev,
+          data: treeDoc.data,
+          photos: treeDoc.photos || {},
+          viewer: ""
+        }));
+      }
+    }
+    enterTree();
+  };
+
+  const handleCreateBlank = async ({ title, rootName, isPublic }) => {
+    if (!user) {
+      setIsAuthOpen(true);
+      return;
+    }
+    const hi = await transliterateToHindi(rootName);
+    const newData = {
+      people: [{ id: "p" + Date.now().toString(36), name: rootName, hi, g: "M" }],
+      couples: []
+    };
+    const created = await createUserTree(
+      { title, data: newData, photos: {}, isPublic, lang: treeState.lang },
+      user
+    );
+    setActiveTreeId(created.id);
+    setActiveTreeMeta(created);
+    setTreeIdInUrl(created.id);
     setTreeState(prev => ({
       ...prev,
-      data: {
-        people: [{ id: "p" + Date.now().toString(36), name, hi, g: "M" }],
-        couples: []
-      },
+      data: newData,
       photos: {},
       viewer: ""
     }));
@@ -429,16 +531,42 @@ export function App() {
     enterTree();
   };
 
-  const handleCreateImport = (newData, newPhotos) => {
+  const handleCreateImport = async ({ title, data: newData, photos: newPhotos, isPublic }) => {
+    if (!user) {
+      setIsAuthOpen(true);
+      return;
+    }
+    const created = await createUserTree(
+      {
+        title,
+        data: newData,
+        photos: newPhotos || {},
+        isPublic,
+        lang: treeState.lang
+      },
+      user
+    );
+    setActiveTreeId(created.id);
+    setActiveTreeMeta(created);
+    setTreeIdInUrl(created.id);
     handleImport(newData, newPhotos);
     setIsCreateOpen(false);
     enterTree();
   };
 
   const handleCreateRestore = () => {
+    setActiveTreeId("");
+    setActiveTreeMeta(null);
+    setTreeIdInUrl("");
     handleReset();
     setIsCreateOpen(false);
     enterTree();
+  };
+
+  const handleSignOut = async () => {
+    await signOutUser();
+    saveLocalAuthUser(null);
+    setUser(null);
   };
 
   return (
@@ -448,6 +576,12 @@ export function App() {
         setCurrentView={setCurrentView}
         memberCount={treeState.data.people.length}
         generationCount={generationCount}
+        activeTreeTitle={activeTreeMeta?.title || ""}
+        isOwner={isOwner}
+        user={user}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onSignOut={handleSignOut}
+        onOpenTreesModal={() => setIsCreateOpen(true)}
         t={t}
         lang={treeState.lang}
         setLang={l => setTreeState(prev => ({ ...prev, lang: l }))}
@@ -585,13 +719,25 @@ export function App() {
     </main>
       )}
 
-      {isCreateOpen && (
+      {isCreateOpen && !isAuthOpen && (
         <CreateTreeModal
           t={t}
+          user={user}
+          activeTreeId={activeTreeId}
           close={() => setIsCreateOpen(false)}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          onSelectTree={handleSelectTree}
           onCreateBlank={handleCreateBlank}
           onImport={handleCreateImport}
           onRestore={handleCreateRestore}
+        />
+      )}
+
+      {isAuthOpen && (
+        <AuthModal
+          t={t}
+          close={() => setIsAuthOpen(false)}
+          onSignedIn={u => setUser(u)}
         />
       )}
     </>

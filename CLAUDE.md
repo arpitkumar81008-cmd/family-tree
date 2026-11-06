@@ -2,7 +2,7 @@
 
 > **Living Architecture, Design Tokens, & Figma MCP Integration Guidelines**  
 > **Workspace**: `c:\B-Tech 1st year\Family Tree\`  
-> **Repository**: `https://github.com/AKGupta_gkp/family-tree.git`  
+> **Repository**: `https://github.com/arpitkumar81008-cmd/family-tree.git`  
 > **Framework**: React 18 + Vite (SPA)
 
 ---

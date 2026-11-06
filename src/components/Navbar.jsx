@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import SettingsPopover from './SettingsPopover.jsx';
 
 export function Navbar({
@@ -6,6 +6,12 @@ export function Navbar({
   setCurrentView,
   memberCount,
   generationCount,
+  activeTreeTitle,
+  isOwner,
+  user,
+  onOpenAuth,
+  onSignOut,
+  onOpenTreesModal,
   t,
   lang,
   setLang,
@@ -20,6 +26,16 @@ export function Navbar({
   isSettingsOpen,
   setIsSettingsOpen
 }) {
+  const [copied, setCopied] = useState(false);
+
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {}
+  };
+
   return (
     <nav className="site-nav" aria-label="Primary">
       <button
@@ -30,7 +46,7 @@ export function Navbar({
       >
         <span className="brand-crest" aria-hidden="true">G</span>
         <span className="brand-text">
-          <span className="brand-title">GUPTA FAMILY TREE</span>
+          <span className="brand-title">{activeTreeTitle || 'GUPTA FAMILY TREE'}</span>
           <span className="brand-sub">{t('navBrandSub')}</span>
         </span>
       </button>
@@ -51,10 +67,45 @@ export function Navbar({
             {t(key)}
           </button>
         ))}
+        <button
+          type="button"
+          className="nav-tab"
+          onClick={onOpenTreesModal}
+        >
+          {t('landCtaCreate')}
+        </button>
       </div>
 
       <div className="nav-actions">
-        <span className="stats-badge">{t('statsBadge', memberCount, generationCount)}</span>
+        <span className="stats-badge">
+          {t('statsBadge', memberCount, generationCount)} ·{' '}
+          {isOwner ? t('ownerBadge') : t('readOnlyBadge')}
+        </span>
+
+        <button
+          type="button"
+          className="zbtn nav-share-btn"
+          onClick={copyShareLink}
+          title={t('shareTreeBtn')}
+        >
+          {copied ? t('linkCopied') : t('shareTreeBtn')}
+        </button>
+
+        {user ? (
+          <div className="nav-user">
+            <span className="user-pill" title={user.email}>
+              {user.displayName}
+            </span>
+            <button type="button" className="zbtn" onClick={onSignOut}>
+              {t('signOut')}
+            </button>
+          </div>
+        ) : (
+          <button type="button" className="btn nav-signin-btn" onClick={onOpenAuth}>
+            {t('signIn')}
+          </button>
+        )}
+
         <div className="settings-wrap">
           <button
             type="button"

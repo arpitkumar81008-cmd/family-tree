@@ -1,0 +1,184 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// This security rules file assumes the following data structures:
+//
+// Collection: trees
+// Document ID: {treeId} (auto-generated or custom tree identifier)
+// Fields:
+//   - title: string (required, 1..120 chars) - display title of the family tree
+//   - ownerUid: string (required, 1..128 chars, immutable) - UID of the tree creator/owner
+//   - ownerName: string (optional, 0..120 chars) - display name of the tree owner
+//   - isPublic: bool (required, owner-only mutable) - whether anyone can view this tree without signing in
+//   - collaboratorUids: list of strings (optional, max 50 items, owner-only mutable) - UIDs of authorized editors
+//   - data: map (required, keys: ['people', 'couples']) - lineage graph containing people and couples lists (max 5000 entries each)
+//   - photos: map (optional, max 500 entries) - map of personId -> photo URL or data URL
+//   - lang: string (optional, enum: ['en', 'hi']) - default language preference for the tree
+//   - createdAt: timestamp | number | string (optional, immutable on update) - creation timestamp
+//   - updatedAt: timestamp | number | string (optional) - last modification timestamp
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if the authenticated user is the owner of the existing tree document
+    function isTreeOwner() {
+      return isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // Check if the authenticated user is listed in collaboratorUids on the existing tree document
+    function isTreeCollaborator() {
+      return isAuthenticated() &&
+        ('collaboratorUids' in resource.data) &&
+        (resource.data.collaboratorUids is list) &&
+        (request.auth.uid in resource.data.collaboratorUids);
+    }
+
+    // Validate that all required fields exist on the incoming document
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // Validate that the incoming document contains only whitelisted fields
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Validate string type and length bounds
+    function validStringLength(field, minLen, maxLen) {
+      return (field in request.resource.data) &&
+        (request.resource.data[field] is string) &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    // Validate optional string field (if present and non-null, must be string within bounds)
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+        request.resource.data[field] == null ||
+        (request.resource.data[field] is string &&
+         request.resource.data[field].size() >= minLen &&
+         request.resource.data[field].size() <= maxLen);
+    }
+
+    // Validate optional timestamp/date representation (timestamp, number, or ISO/date string <= 64 chars)
+    function isValidOptionalTime(field) {
+      return !(field in request.resource.data) ||
+        request.resource.data[field] == null ||
+        request.resource.data[field] is timestamp ||
+        request.resource.data[field] is int ||
+        request.resource.data[field] is float ||
+        (request.resource.data[field] is string && request.resource.data[field].size() <= 64);
+    }
+
+    // Validate that specified fields have not been modified during an update
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // Validate nested tree data map ('people' and 'couples' lists)
+    function isValidTreeDataMap(treeData) {
+      return treeData is map &&
+        treeData.keys().hasAll(['people', 'couples']) &&
+        treeData.keys().hasOnly(['people', 'couples']) &&
+        treeData.people is list &&
+        treeData.people.size() <= 5000 &&
+        treeData.couples is list &&
+        treeData.couples.size() <= 5000;
+    }
+
+    // ===============================================================
+    // Domain Validators (Used in BOTH create and update)
+    // ===============================================================
+
+    function isValidTree(doc) {
+      return hasRequiredFields(['title', 'ownerUid', 'isPublic', 'data']) &&
+        hasOnlyAllowedFields([
+          'title',
+          'ownerUid',
+          'ownerName',
+          'isPublic',
+          'collaboratorUids',
+          'data',
+          'photos',
+          'lang',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        validStringLength('title', 1, 120) &&
+        validStringLength('ownerUid', 1, 128) &&
+        isValidOptionalString('ownerName', 0, 120) &&
+        (doc.isPublic is bool) &&
+        (!('collaboratorUids' in doc) ||
+          (doc.collaboratorUids is list && doc.collaboratorUids.size() <= 50)) &&
+        isValidTreeDataMap(doc.data) &&
+        (!('photos' in doc) ||
+          (doc.photos is map && doc.photos.size() <= 500)) &&
+        (!('lang' in doc) ||
+          (doc.lang is string && doc.lang in ['en', 'hi'])) &&
+        isValidOptionalTime('createdAt') &&
+        isValidOptionalTime('updatedAt');
+    }
+
+    // ===============================================================
+    // Collection Rules: /trees/{treeId}
+    // ===============================================================
+
+    match /trees/{treeId} {
+      // Read (get & list):
+      // Allowed for anyone (including unauthenticated visitors) if isPublic == true,
+      // or for authenticated owners and collaborators.
+      allow read: if resource.data.isPublic == true ||
+        isTreeOwner() ||
+        isTreeCollaborator();
+
+      // Create:
+      // Allowed only for authenticated users setting themselves as ownerUid with valid schema.
+      allow create: if isAuthenticated() &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        isValidTree(request.resource.data);
+
+      // Update:
+      // Allowed for the owner or an authorized collaborator.
+      // - Schema must remain valid (prevents Update Bypass).
+      // - ownerUid and existing createdAt are always immutable.
+      // - Collaborators cannot modify ownership, visibility (isPublic), or collaboratorUids.
+      allow update: if isAuthenticated() &&
+        isValidTree(request.resource.data) &&
+        request.resource.data.ownerUid == resource.data.ownerUid &&
+        (!('createdAt' in resource.data) ||
+          ('createdAt' in request.resource.data &&
+           request.resource.data.createdAt == resource.data.createdAt)) &&
+        (
+          isTreeOwner() ||
+          (isTreeCollaborator() &&
+           areImmutableFieldsUnchanged(['ownerUid', 'ownerName', 'isPublic', 'collaboratorUids', 'createdAt']))
+        );
+
+      // Delete:
+      // Allowed strictly for the tree owner.
+      allow delete: if isTreeOwner();
+    }
+
+    // ===============================================================
+    // Default Deny All Other Paths
+    // ===============================================================
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
