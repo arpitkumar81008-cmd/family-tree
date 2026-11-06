@@ -16,12 +16,10 @@ const msg =
 const run = (cmd, opts = {}) =>
   execSync(cmd, {
     stdio: 'inherit',
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' },
     ...opts
   });
 
 try {
-  run(`git config credential.https://github.com.username ${GITHUB_OWNER}`);
   const currentRemote = execSync('git remote get-url origin', { encoding: 'utf8' }).trim();
   if (currentRemote !== EXPECTED_REMOTE) {
     console.log(`Updating origin remote -> ${EXPECTED_REMOTE}`);
