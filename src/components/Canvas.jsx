@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card } from './Card.jsx';
+import CanvasDock from './CanvasDock.jsx';
 import { calculateKinship } from '../utils/kinship.js';
 
 export function Canvas({
@@ -16,7 +17,9 @@ export function Canvas({
   lang,
   t,
   displayName,
-  onCardClick
+  onCardClick,
+  onZoom,
+  onResetViewer
 }) {
   const [hoveredId, setHoveredId] = useState(null);
   const containerRef = useRef(null);
@@ -122,6 +125,7 @@ export function Canvas({
   const isSearchActive = !!searchQuery.trim();
 
   return (
+    <div className="treewrap-host">
     <div
       ref={containerRef}
       className="treewrap"
@@ -240,6 +244,16 @@ export function Canvas({
           })}
         </div>
       </div>
+    </div>
+    <CanvasDock
+      zoom={zoom}
+      onZoomIn={() => onZoom(0.1)}
+      onZoomOut={() => onZoom(-0.1)}
+      onFit={fitView}
+      viewerName={viewer ? displayName(viewer) : ""}
+      onReset={onResetViewer}
+      t={t}
+    />
     </div>
   );
 }

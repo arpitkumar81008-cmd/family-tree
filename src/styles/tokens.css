@@ -17,6 +17,12 @@
   --display: "Bodoni Moda", "Tiro Devanagari Hindi", Georgia, serif;
   --body: "Familjen Grotesk", "Hind", system-ui, -apple-system, "Segoe UI", sans-serif;
   --deva: "Tiro Devanagari Hindi", "Noto Serif Devanagari", Georgia, serif;
+  --radius-xs: 4px;
+  --radius-sm: 5px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --transition-fast: 0.12s ease;
+  --nav-height: 60px;
 }
 
 @media (prefers-color-scheme: dark) {

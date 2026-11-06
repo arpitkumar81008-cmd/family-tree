@@ -4,7 +4,11 @@ import { buildFamilyIndex, INITIAL_DATA } from './data/familyData.js';
 import { createTranslator } from './i18n/index.js';
 import { computeTreeLayout } from './layout/engine.js';
 import { dedup } from './utils/deduplication.js';
+import { transliterateToHindi } from './i18n/translit.js';
 
+import Navbar from './components/Navbar.jsx';
+import LandingPage from './components/LandingPage.jsx';
+import CreateTreeModal from './components/CreateTreeModal.jsx';
 import Toolbar from './components/Toolbar.jsx';
 import Canvas from './components/Canvas.jsx';
 import Sheet from './components/Sheet.jsx';
@@ -49,6 +53,8 @@ export function App() {
   });
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [currentView, setCurrentView] = useState("home");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   // Search & Navigation
   const [searchQuery, setSearchQuery] = useState("");
@@ -192,8 +198,27 @@ export function App() {
   };
 
   useEffect(() => {
-    fitView();
-  }, [treeState.viewer]);
+    if (currentView !== "tree") return;
+    const id = requestAnimationFrame(fitView);
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [treeState.viewer, currentView]);
+
+  const changeZoom = delta =>
+    setZoom(z => Math.max(0.4, Math.min(1.4, +(z + delta).toFixed(2))));
+
+  // Landing page statistics
+  const generationCount = useMemo(() => {
+    const memo = {};
+    const depth = id => {
+      if (memo[id] !== undefined) return memo[id];
+      memo[id] = 1;
+      const pars = familyIndex.parOf(id);
+      memo[id] = 1 + (pars.length ? Math.max(...pars.map(depth)) : 0);
+      return memo[id];
+    };
+    return treeState.data.people.reduce((m, p) => Math.max(m, depth(p.id)), 0);
+  }, [familyIndex, treeState.data.people]);
 
   // Search Filtering
   const cleanQuery = searchQuery.trim().toLowerCase();
@@ -384,7 +409,72 @@ export function App() {
     }));
   };
 
+  const enterTree = () => {
+    setCurrentView("tree");
+    window.scrollTo({ top: 0 });
+  };
+
+  const handleCreateBlank = async name => {
+    const hi = await transliterateToHindi(name);
+    setTreeState(prev => ({
+      ...prev,
+      data: {
+        people: [{ id: "p" + Date.now().toString(36), name, hi, g: "M" }],
+        couples: []
+      },
+      photos: {},
+      viewer: ""
+    }));
+    setIsCreateOpen(false);
+    enterTree();
+  };
+
+  const handleCreateImport = (newData, newPhotos) => {
+    handleImport(newData, newPhotos);
+    setIsCreateOpen(false);
+    enterTree();
+  };
+
+  const handleCreateRestore = () => {
+    handleReset();
+    setIsCreateOpen(false);
+    enterTree();
+  };
+
   return (
+    <>
+      <Navbar
+        currentView={currentView}
+        setCurrentView={setCurrentView}
+        memberCount={treeState.data.people.length}
+        generationCount={generationCount}
+        t={t}
+        lang={treeState.lang}
+        setLang={l => setTreeState(prev => ({ ...prev, lang: l }))}
+        theme={theme}
+        setTheme={setTheme}
+        textSize={textSize}
+        setTextSize={setTextSize}
+        contrast={contrast}
+        setContrast={setContrast}
+        motion={motion}
+        setMotion={setMotion}
+        isSettingsOpen={isSettingsOpen}
+        setIsSettingsOpen={setIsSettingsOpen}
+      />
+
+      {currentView === "home" ? (
+        <main>
+          <LandingPage
+            t={t}
+            memberCount={treeState.data.people.length}
+            generationCount={generationCount}
+            branchCount={treeState.data.couples.length}
+            onExplore={enterTree}
+            onCreate={() => setIsCreateOpen(true)}
+          />
+        </main>
+      ) : (
     <main className="page">
       {/* Header */}
       <header>
@@ -406,17 +496,6 @@ export function App() {
         displayName={displayName}
         t={t}
         lang={treeState.lang}
-        setLang={l => setTreeState(prev => ({ ...prev, lang: l }))}
-        theme={theme}
-        setTheme={setTheme}
-        textSize={textSize}
-        setTextSize={setTextSize}
-        contrast={contrast}
-        setContrast={setContrast}
-        motion={motion}
-        setMotion={setMotion}
-        isSettingsOpen={isSettingsOpen}
-        setIsSettingsOpen={setIsSettingsOpen}
         onOpenAddModal={() => setIsAddModalOpen(true)}
         onOpenHelpModal={() => setIsHelpModalOpen(true)}
         showGuideBanner={showGuideBanner}
@@ -439,6 +518,8 @@ export function App() {
         t={t}
         displayName={displayName}
         onCardClick={openPersonDetails}
+        onZoom={changeZoom}
+        onResetViewer={() => setTreeState(prev => ({ ...prev, viewer: "" }))}
       />
 
       {/* Tools & Details Tabs */}
@@ -502,6 +583,18 @@ export function App() {
         />
       )}
     </main>
+      )}
+
+      {isCreateOpen && (
+        <CreateTreeModal
+          t={t}
+          close={() => setIsCreateOpen(false)}
+          onCreateBlank={handleCreateBlank}
+          onImport={handleCreateImport}
+          onRestore={handleCreateRestore}
+        />
+      )}
+    </>
   );
 }
 

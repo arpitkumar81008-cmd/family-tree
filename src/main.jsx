@@ -5,6 +5,7 @@ import App from './App.jsx';
 import './styles/tokens.css';
 import './styles/components.css';
 import './styles/tree.css';
+import './styles/landing.css';
 
 const rootElement = document.getElementById('root');
 if (rootElement) {

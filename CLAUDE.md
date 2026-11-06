@@ -1,145 +1,172 @@
-# Gupta Family Tree — Design System & Engineering Rules
+# Gupta Family Tree & Lineage Platform — Design System & Engineering Rules
 
-> **Living Architecture & Design System Guidelines for AI Agents & Engineers**  
-> Primary file: [`Gupta Family Tree.html`](file:///c:/B-Tech%201st%20year/Family%20Tree/Gupta%20Family%20Tree.html)
+> **Living Architecture, Design Tokens, & Figma MCP Integration Guidelines**  
+> **Workspace**: `c:\B-Tech 1st year\Family Tree\`  
+> **Repository**: `https://github.com/AKGupta_gkp/family-tree.git`  
+> **Framework**: React 18 + Vite (SPA)
 
 ---
 
 ## 🏛️ Design System Structure
 
 ### 1. Token Definitions
-All design tokens are defined as native CSS custom properties on `:root` and automatically adapted for dark mode via `@media (prefers-color-scheme: dark)`.
 
-#### Color Tokens
-| Token | Light Theme | Dark Theme | Purpose |
-|---|---|---|---|
-| `--bg` | `#eceeea` (bone-white) | `#0b0f0d` (deep charcoal) | Canvas ground background |
-| `--surface` | `#f8f9f6` (pure warm white) | `#121816` (elevated dark surface) | Cards, sheets, dialog surfaces |
-| `--ink` | `#0a0f0d` (near-black ink) | `#f1f3ee` (soft off-white) | Primary typography & strong borders |
-| `--muted` | `#4a524e` (slate gray) | `#a3aba6` (muted gray) | Secondary text, generation labels, subtitles |
-| `--line` | `#b9beb8` (hairline gray) | `#2c3531` (hairline dark) | Subtle borders, guide lines, dividers |
-| `--branch` | `#0a0f0d` | `#f1f3ee` | Flowchart SVG connector paths |
-| `--accent` | `#e4002b` (editorial crimson) | `#ff4560` (vivid coral-red) | Primary action buttons, active tags, highlights |
-| `--rel` | `#c20024` | `#ff6b80` | Kinship tags (Dada, Nani, Chacha, etc.) |
-| `--scrim` | `rgba(10,15,13,0.6)` | `rgba(0,0,0,0.7)` | Modal & sheet backdrop overlay |
-| `--av` | `#dce0da` | `#1e2622` | Avatar background placeholder |
+Design tokens are defined as native CSS custom properties on `:root` and structured systematically in [`src/styles/tokens.css`](file:///c:/B-Tech%201st%20year/Family%20Tree/src/styles/tokens.css). Tokens automatically adjust for Dark Mode via `@media (prefers-color-scheme: dark)` and user theme overrides (`[data-theme="dark"]`, `[data-theme="light"]`).
 
-#### Typography Tokens
+#### A. Color Palette Tokens
 ```css
---display: "Bodoni Moda", "Tiro Devanagari Hindi", Georgia, serif;
---body: "Familjen Grotesk", "Hind", system-ui, -apple-system, "Segoe UI", sans-serif;
---deva: "Tiro Devanagari Hindi", "Noto Serif Devanagari", Georgia, serif;
-```
-- **Display font (`Bodoni Moda`)**: Reserved for title, family names on cards, modal headers.
-- **Body font (`Familjen Grotesk`)**: Clean, industrial grotesque for controls, search, meta text.
-- **Devanagari font (`Tiro Devanagari Hindi`, `Hind`)**: Applied automatically via `:root[lang="hi"]` for parliamentary Hindi typography.
-- **Numbers**: Always rendered with tabular figures (`font-variant-numeric: tabular-nums`).
+:root {
+  /* Surface & Ground */
+  --bg: #eceeea;           /* Archetypal warm bone-white background */
+  --surface: #f8f9f6;      /* Elevated white card & dialog surface */
+  --ink: #0a0f0d;          /* Near-black authoritative ink typography */
+  --muted: #4a524e;        /* Balanced slate gray for secondary labels */
+  --line: #b9beb8;         /* Hairline gray divider & subtle border */
 
-#### Spacing & Geometry Rules
-- **Corners**: Subtle curvature (`border-radius: 5px` for cards, `4px` for buttons, inputs, pills, chips, and `6px` for modals/sheets). Elegant and restrained ("small curvature at the corner, not very round, not very sharp").
-- **Card Size**: Width `96px`, Height `138px` (`148px` with late/badge).
-- **Gaps**: `COUPLE_GAP = 16px`, `SIBLING_GAP = 20px`, `SECTOR_GAP = 60px`, `ROW_GAP = 84px`.
-- **Borders**: 1px solid hairline (`border: 1px solid var(--ink)` or `var(--line)`). No heavy drop shadows; only crisp 1px ambient elevation.
-- **Connectors**: Strictly orthogonal Manhattan lines (`V`, `H`, 90° right angles). No curved bezier lines. True branch integration with zero artificial "extended family" dump sections.
+  /* Branching & Flowchart Connections */
+  --branch: #0a0f0d;       /* Standard generational flowchart stroke */
+  --main-branch: #e4002b;  /* Primary bloodline lineage connector (Badri Prasad) */
+  --other-branch: #4a524e; /* In-law & secondary lineage connector (slate dashed) */
+  --bridge-line: #4a524e;  /* Inter-branch marital bus bridge connector */
 
----
-
-### 2. Component Library
-
-UI components are organized as modular React functional components:
-
-1. **Card (`.card`)**:
-   - Represents an individual family member on the canvas.
-   - Contains Avatar initial (`.av`), full name (`.nm`), kinship tag (`.rl`), and status badge (`.tag`).
-   - Supports keyboard arrow-key 2D navigation between adjacent family members.
-2. **Detail Sheet (`.sheet`)**:
-   - Slides from side/bottom on mobile when a card is clicked.
-   - Contains person details, Hindi translation toggle (`✨`), relatives quick-jump chips (`.chip`), photo upload, and primary action (`★ View Tree From Here`).
-3. **Modal Dialog (`AddModal`)**:
-   - Accessible dialog (`role="dialog"`, `aria-modal="true"`) for adding Child, Spouse, Sibling, or Parent.
-   - Features background click dismissal, rapid-click protection, and duplicate name confirmation.
-4. **Flowchart Canvas (`.tree`, `.canvas`, SVG `<svg>`)**:
-   - Renders interactive pan/zoom SVG canvas with smooth cubic bezier connectors.
-5. **Control Bar (`.bar`)**:
-   - Flexbox container housing Search (`#search`), Relation Selector (`#viewer`), Reset (`.reset-btn`), Zoom controls (`.zoom`), Add Member button (`.btn`), and the Three-Dot Accessibility & Settings Popover Menu (`.settings-btn`, `⋮`).
-   - The Three-Dot Popover Menu centralizes:
-     - Language toggle (English / हिन्दी)
-     - Theme selector (Light / Dark / System)
-     - Text size scaling (Default / Large / XL)
-     - High contrast mode (Off / On)
-     - Reduced motion mode (Off / On)
-     - Full keyboard accessibility (`Escape` dismissal, focus-visible outlines, click-outside handling).
-6. **Tabs (`.tabs`, `.tab`, `.panel`)**:
-   - ARIA-compliant tablist (`role="tablist"`, `role="tab"`, `role="tabpanel"`) for tools:
-     - "How are we related?" relation finder
-     - Upcoming birthdays
-     - Backup & restore (JSON export/import)
-
----
-
-### 3. Frameworks & Libraries
-
-- **UI Framework**: React 18 (`react`, `react-dom/client`) using functional components and hooks (`useState`, `useEffect`, `useRef`, `useMemo`).
-- **Styling**: Pure CSS with CSS Custom Properties. Zero heavy CSS frameworks (no Tailwind, no Bootstrap).
-- **Bundler**: Parcel v2 (`@parcel/transformer-js`) with inlined single-file production HTML deliverable.
-- **Dual-Engine Transliteration**:
-  - Online: Google Input Tools API for phonetic English-to-Hindi conversion.
-  - Offline fallback: Built-in Sanskrit/Hindi phonetic Devanagari dictionary and character mapping engine.
-
----
-
-### 4. Asset Management
-
-- **User Photos**: Converted to base64 `data:image/...` strings client-side, cropped square, and stored in browser `localStorage`.
-- **Avatars**: When no photo is uploaded, falls back to a 2-letter typographic monogram generated by function `b(name)` using `Bodoni Moda` on `--av` background.
-- **Web Fonts**: Sourced via Google Fonts CDN (`Bodoni Moda`, `Familjen Grotesk`, `Hind`, `Tiro Devanagari Hindi`).
-- **Zero External Heavy Assets**: All UI icons, lines, and textures are native SVG or system unicode symbols, ensuring instant offline-capable loads.
-
----
-
-### 5. Icon System
-
-- Native high-contrast typographic and unicode glyphs are used for lightweight, razor-sharp rendering:
-  - `↺` : Reset to top-level overview
-  - `★` : Focus / bilateral flowchart branch
-  - `+` / `−` : Zoom in / zoom out
-  - `×` : Modal / sheet dismiss
-  - `✨` : Automated English-to-Hindi transliteration
-  - `🔍` : Search indicator
-  - Directional branch indicators: `↖` (Paternal), `↗` (Maternal/In-laws), `↓` (Children)
-
----
-
-### 6. Styling Approach
-
-- **Methodology**: Component-scoped BEM-like class naming with global theme tokens (`.card`, `.card.dim`, `.sheet`, `.btn`, `.btn.ghost`, `.branch-pill`).
-- **Elevation**:
-  - Card hover: 1px ink border darkening + subtle 2px translate.
-  - Active sheet: `box-shadow: -8px 0 24px rgba(0,0,0,0.12)`.
-  - Scrim: `backdrop-filter: blur(2px)` with `--scrim`.
-- **Accessibility & Focus**:
-  - Focus rings: `outline: 2px solid var(--accent); outline-offset: 2px;`.
-  - Contrast: Minimum 4.5:1 for body text (achieving 14:1+ AAA in light mode, 12:1+ AAA in dark mode).
-
----
-
-### 7. Project Structure
-
-```
-c:\B-Tech 1st year\Family Tree/
-├── Gupta Family Tree.html              # Main deliverable (Single-file bundled React web app)
-├── Gupta Family Tree Project Summary.md# Project genesis & handoff records
-├── Gupta Family Tree.md                # Quick summary
-├── CLAUDE.md                           # This design system & engineering reference
-└── CHANGES.md                          # Comprehensive version-by-version change log
+  /* Accents & Cultural Kinship */
+  --accent: #e4002b;       /* Editorial crimson for focus & primary CTAs */
+  --rel: #c20024;          /* Cultural kinship badges (Chacha, Bua, Tauji, etc.) */
+  --scrim: rgba(10, 15, 13, 0.6); /* Backdrop overlay scrim */
+  --av: #dce0da;           /* Avatar placeholder background */
+}
 ```
 
+Dark Mode Overrides (`[data-theme="dark"]` and `@media (prefers-color-scheme: dark)`):
+```css
+:root[data-theme="dark"],
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0f0d;
+    --surface: #121816;
+    --ink: #f1f3ee;
+    --muted: #a3aba6;
+    --line: #2c3531;
+    --branch: #f1f3ee;
+    --main-branch: #ff4560;
+    --other-branch: #8e9792;
+    --bridge-line: #8e9792;
+    --accent: #ff4560;
+    --rel: #ff6b80;
+    --scrim: rgba(0, 0, 0, 0.75);
+    --av: #1e2622;
+  }
+}
+```
+
+#### B. Typography Tokens
+```css
+:root {
+  --display: "Bodoni Moda", "Tiro Devanagari Hindi", Georgia, serif;
+  --body: "Familjen Grotesk", "Hind", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --deva: "Tiro Devanagari Hindi", "Noto Serif Devanagari", Georgia, serif;
+}
+```
+- **Display font (`--display`)**: High-contrast modern serif used for the hero title, landing page headings, and family cards.
+- **Body font (`--body`)**: Technical grotesque used for UI labels, search bar, buttons, and metadata.
+- **Devanagari font (`--deva`)**: Premium Devanagari serif used for Hindi typography and honorific badges.
+- **Numerics**: Monospace tabular numbers (`font-variant-numeric: tabular-nums`) for dates, ages, and counters.
+
+#### C. Geometry & Spacing Tokens
+- **Corner Curvature**: Small, refined radii — not round, not sharp:
+  ```css
+  --radius-xs: 4px;   /* Buttons, inputs, pills, chips, tags */
+  --radius-sm: 5px;   /* EXACT 5px border-radius for family member cards */
+  --radius-md: 6px;   /* Modal dialogs, sheets, and popovers */
+  --radius-lg: 10px;  /* Landing hero containers */
+  ```
+- **Spatial Grid Units**:
+  - `CARD_W = 96px`, `CARD_H = 138px`
+  - `COUPLE_GAP = 16px`, `SIBLING_GAP = 20px`, `ROW_GAP = 84px`, `SECTOR_GAP = 60px`
+  - Zero diagonal or overlapping lines; strictly Manhattan orthogonal paths.
+
 ---
 
-## 🚫 "Anti-AI-Slop" Craft Manifesto
+## 🧩 Component Library
 
-When updating or designing components for this project, you **MUST** uphold these rules:
-1. **No Gradients, Blobs, or Bubbly Cards**: Cards must have crisp 90-degree corners, fine hairline borders, and authoritative editorial typography.
-2. **Editorial Gravitas**: Treat the Gupta Family Tree like an archival heirloom folio or university library chronicle.
-3. **Respectful Hindi**: All kinship terms use respectful honorifics (जी / Ji) in Hindi and English.
-4. **Mathematical Layout Rigor**: Never allow cards to overlap. Subtrees use post-order bounding box allocations, and directional flowcharts respect directional vectors ($\nwarrow, \nearrow, \downarrow, \leftrightarrow$).
+Components are implemented as modular, functional React components in [`src/components/`](file:///c:/B-Tech%201st%20year/Family%20Tree/src/components/):
+
+1. **`Navbar.jsx`**:
+   - Modern sticky navigation bar with editorial monogram logo, view switcher (`Home` / `Tree Canvas`), live statistics badge, and three-dot settings popover button.
+2. **`LandingPage.jsx`**:
+   - Modern editorial landing page featuring:
+     - Hero section with live generation metrics and Dual CTAs ("Explore Gupta Family Tree" & "Create / Import Tree").
+     - Interactive Feature Grid (Dual-Mode Spatial Engine, Cultural Kinship Resolver, Real-Time Transliteration, Data Sovereignty).
+     - Ancestral Spotlight honoring the foundational roots (Badri Prasad & Haudi Devi).
+     - Family Tree Builder preview & workflow modal.
+3. **`Canvas.jsx`**:
+   - High-performance, hardware-accelerated spatial canvas with pan, zoom, click-and-drag, touch-pinch support, and strictly orthogonal SVG Manhattan bus lines.
+   - Floating zoom & fit control dock.
+4. **`Card.jsx`**:
+   - Member node card with 5px corner radius, hairline borders, avatar monogram/photo, Hindi/English names, relationship tags, and deceased honorific badge.
+   - Built-in 2D spatial keyboard arrow navigation (`↑`, `↓`, `←`, `→`).
+5. **`Sheet.jsx`**:
+   - Slide-out profile drawer displaying complete family connections (Parents, Spouse, Children, Siblings), interactive photo uploader, quick-add relations, and directional tree launcher.
+6. **`SettingsPopover.jsx`**:
+   - Floating popover triggered by the `⋮` three-dot icon:
+     - Language: English / हिन्दी
+     - Theme: Light / Dark / System
+     - Text Size: Normal / Large / Extra Large
+     - High Contrast: Off / On
+     - Reduced Motion: Off / On
+7. **`AddModal.jsx`**:
+   - Modal dialog for adding relatives (Child, Spouse, Sibling, Parent, Root) with real-time Devanagari transliteration ✨ and duplicate detection.
+8. **`Tabs.jsx`**:
+   - ARIA-compliant tablist housing the Kinship Resolver ("How are we related?"), Upcoming Birthdays chronicle, and JSON Backup / Export / Import.
+
+---
+
+## 🛠️ Frameworks & Libraries
+
+- **Core UI**: React 18.3.1 (`react`, `react-dom`) with hooks (`useState`, `useEffect`, `useMemo`, `useRef`).
+- **Build System**: Vite 6.0.7 with `@vitejs/plugin-react` and ECMAScript modules (`"type": "module"`).
+- **Styling Architecture**: Vanilla modular CSS utilizing CSS Custom Properties, flexbox, CSS Grid, and zero external runtime overhead (no Tailwind or CSS-in-JS runtimes).
+- **Transliteration Engine**:
+  - Primary: Google Input Tools API endpoint (`hi-t-i0-und`).
+  - Fallback: Comprehensive local Sanskrit/Devanagari phonetic dictionary.
+
+---
+
+## 🖼️ Asset Management
+
+- **User Photos**: Compressed and cropped client-side using HTML5 Canvas (`toDataURL("image/jpeg", 0.84)`) up to 320×320px, saved in `localStorage`.
+- **Avatars**: Elegant typographic monogram generated dynamically from 2 initials.
+- **Web Fonts**: Hosted via Google Fonts with `<link rel="preconnect">` for sub-100ms first paint.
+- **Zero Heavy Binary Assets**: Vector SVGs and CSS geometry for all UI elements.
+
+---
+
+## 🔣 Icon System
+
+All icons are high-precision SVGs or crisp typographic unicode symbols for zero layout shift:
+- `⋮` : Accessibility & settings popover
+- `★` : Directional tree flowchart perspective
+- `+` / `−` : Zoom controls
+- `⛶` : Fit to viewport
+- `✨` : Automatic Hindi transliteration
+- `↺` / `✕` : Reset perspective to full lineage
+- `↖` : Paternal ancestry vector
+- `↗` : Maternal / In-law ancestry vector
+- `↓` : Descendants vector
+
+---
+
+## 🎨 Styling Approach & Craft Manifesto
+
+1. **No "AI-Slop"**:
+   - No generic purple gradients, neon drop shadows, or bubbly cards.
+   - Crisp hairline borders (`1px solid var(--line)` or `var(--ink)`).
+   - Authoritative editorial layout reminiscent of an archival historical manuscript.
+2. **Exact Radii**:
+   - Cards: **Exact 5px**.
+   - Buttons, Pills, Chips: **Exact 4px**.
+   - Modals, Drawers: **Exact 6px**.
+3. **Respectful Indian Kinship**:
+   - All relationships calculated with respectful honorifics in both English and parliamentary Hindi.
+4. **Collision-Free Geometry**:
+   - Algorithmic post-order subtree allocation guarantees zero overlapping cards.

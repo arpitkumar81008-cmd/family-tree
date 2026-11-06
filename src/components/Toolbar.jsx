@@ -1,5 +1,4 @@
 import React, { useRef } from 'react';
-import SettingsPopover from './SettingsPopover.jsx';
 
 export function Toolbar({
   viewer,
@@ -10,17 +9,6 @@ export function Toolbar({
   displayName,
   t,
   lang,
-  setLang,
-  theme,
-  setTheme,
-  textSize,
-  setTextSize,
-  contrast,
-  setContrast,
-  motion,
-  setMotion,
-  isSettingsOpen,
-  setIsSettingsOpen,
   onOpenAddModal,
   onOpenHelpModal,
   showGuideBanner,
@@ -86,34 +74,6 @@ export function Toolbar({
         >
           + {t("addMember")}
         </button>
-
-        {/* Settings Popover Toggle (3-Dot Icon) */}
-        <div className="settings-wrap">
-          <button
-            type="button"
-            className="settings-btn"
-            aria-label={t("settingsBtnAria")}
-            aria-expanded={isSettingsOpen}
-            onClick={() => setIsSettingsOpen(prev => !prev)}
-          >
-            ⋮
-          </button>
-          <SettingsPopover
-            isOpen={isSettingsOpen}
-            onClose={() => setIsSettingsOpen(false)}
-            theme={theme}
-            setTheme={setTheme}
-            textSize={textSize}
-            setTextSize={setTextSize}
-            contrast={contrast}
-            setContrast={setContrast}
-            motion={motion}
-            setMotion={setMotion}
-            lang={lang}
-            setLang={setLang}
-            t={t}
-          />
-        </div>
       </div>
 
       {/* Quick Guide Banner */}

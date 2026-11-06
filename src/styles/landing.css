@@ -1,0 +1,465 @@
+/* Landing page + site navigation + canvas dock */
+
+/* ---------- Sticky navigation ---------- */
+.site-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--nav-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 max(16px, env(safe-area-inset-left, 0px));
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.nav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.brand-crest {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ink);
+  color: var(--bg);
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.brand-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.brand-sub {
+  font-family: var(--deva);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.nav-center {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.nav-tab {
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+}
+
+.nav-tab:hover {
+  color: var(--ink);
+}
+
+.nav-tab.active {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.nav-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stats-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.site-nav .settings-wrap {
+  align-items: center;
+}
+
+/* ---------- Landing page ---------- */
+.landing {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 max(16px, env(safe-area-inset-left, 0px)) 64px;
+}
+
+.hero {
+  padding: 72px 0 48px;
+  border-bottom: 1px solid var(--line);
+}
+
+.hero-title {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(36px, 6.5vw, 72px);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  margin: 0;
+  max-width: 16ch;
+  text-wrap: balance;
+}
+
+.hero-lede {
+  max-width: 58ch;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.55;
+  margin: 20px 0 0;
+}
+
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.btn-lg {
+  height: 46px;
+  padding: 0 22px;
+  font-size: 14.5px;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid var(--line);
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 28px 20px 28px 0;
+}
+
+.metric + .metric {
+  padding-left: 20px;
+  border-left: 1px solid var(--line);
+}
+
+.metric-value {
+  font-family: var(--display);
+  font-size: clamp(32px, 4.5vw, 52px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.section-title {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(26px, 3.5vw, 38px);
+  line-height: 1.15;
+  margin: 0 0 20px;
+  text-wrap: balance;
+}
+
+.features {
+  padding: 56px 0;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.feature-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  transition: border-color var(--transition-fast);
+}
+
+.feature-card:hover {
+  border-color: var(--ink);
+}
+
+.feature-num {
+  display: block;
+  font-family: var(--display);
+  font-size: 14px;
+  color: var(--accent);
+  margin-bottom: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.feature-card h3 {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 21px;
+  margin: 0 0 8px;
+}
+
+.feature-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.spotlight {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 40px;
+  align-items: center;
+  padding: 48px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.spotlight-pair {
+  display: inline-flex;
+  align-items: center;
+}
+
+.spot-card {
+  width: 96px;
+  height: 138px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-sm);
+  font-family: var(--display);
+  font-size: 28px;
+}
+
+.spot-link {
+  width: 16px;
+  height: 1px;
+  background: var(--main-branch);
+}
+
+.spotlight-text p {
+  max-width: 56ch;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0 0 20px;
+}
+
+.spotlight-text .eyebrow {
+  color: var(--rel);
+  margin-bottom: 6px;
+}
+
+.builder-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 48px;
+  padding: 32px;
+  background: var(--surface);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-md);
+}
+
+.builder-banner .section-title {
+  margin-bottom: 8px;
+}
+
+.builder-banner p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 56ch;
+  line-height: 1.55;
+}
+
+/* ---------- Canvas dock ---------- */
+.treewrap-host {
+  position: relative;
+}
+
+.canvas-dock {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+  max-width: calc(100% - 24px);
+  flex-wrap: wrap;
+}
+
+.dock-pill {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.dock-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--line);
+}
+
+.dock-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+}
+
+.dock-btn.text {
+  font-size: 12.5px;
+}
+
+.dock-btn:hover {
+  border-color: var(--ink);
+}
+
+.dock-zoom {
+  min-width: 42px;
+  text-align: center;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+/* ---------- Create / import modal ---------- */
+.create-sheet {
+  max-width: 520px;
+}
+
+.create-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+
+.create-option:first-of-type {
+  margin-top: 12px;
+}
+
+.create-option h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.create-option p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.create-option .field {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.create-option .field label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.create-option .field input,
+.create-option .field textarea {
+  width: 100%;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 760px) {
+  .brand-text,
+  .stats-badge {
+    display: none;
+  }
+  .hero {
+    padding: 44px 0 32px;
+  }
+  .metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .metric:nth-child(3) {
+    padding-left: 0;
+    border-left: none;
+  }
+  .metric:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
+  }
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+  .spotlight {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .builder-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Compact header on the tree workspace */
+.page header h1 {
+  font-size: clamp(26px, 4vw, 40px);
+}
+.page {
+  padding-block: 20px 48px;
+}
