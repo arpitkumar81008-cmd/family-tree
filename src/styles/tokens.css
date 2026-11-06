@@ -1,0 +1,149 @@
+:root {
+  color-scheme: light;
+  box-sizing: border-box;
+  --bg: #eceeea;
+  --surface: #f8f9f6;
+  --ink: #0a0f0d;
+  --muted: #4a524e;
+  --line: #b9beb8;
+  --branch: #0a0f0d;
+  --main-branch: #e4002b;
+  --other-branch: #4a524e;
+  --bridge-line: #4a524e;
+  --accent: #e4002b;
+  --rel: #c20024;
+  --scrim: rgba(10, 15, 13, 0.6);
+  --av: #dce0da;
+  --display: "Bodoni Moda", "Tiro Devanagari Hindi", Georgia, serif;
+  --body: "Familjen Grotesk", "Hind", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --deva: "Tiro Devanagari Hindi", "Noto Serif Devanagari", Georgia, serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0f0d;
+    --surface: #121816;
+    --ink: #f1f3ee;
+    --muted: #a3aba6;
+    --line: #2c3531;
+    --branch: #f1f3ee;
+    --main-branch: #ff4560;
+    --other-branch: #a3aba6;
+    --bridge-line: #a3aba6;
+    --accent: #ff4560;
+    --rel: #ff6b80;
+    --scrim: rgba(0, 0, 0, 0.7);
+    --av: #1e2622;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0b0f0d;
+  --surface: #121816;
+  --ink: #f1f3ee;
+  --muted: #a3aba6;
+  --line: #2c3531;
+  --branch: #f1f3ee;
+  --main-branch: #ff4560;
+  --other-branch: #a3aba6;
+  --bridge-line: #a3aba6;
+  --accent: #ff4560;
+  --rel: #ff6b80;
+  --scrim: rgba(0, 0, 0, 0.7);
+  --av: #1e2622;
+  color-scheme: dark;
+}
+
+:root[data-text-size="large"] {
+  font-size: 17px;
+}
+:root[data-text-size="large"] h1 {
+  font-size: clamp(38px, 8vw, 66px);
+}
+:root[data-text-size="large"] .card .nm {
+  font-size: 15px;
+}
+:root[data-text-size="large"] .card .rl {
+  font-size: 12px;
+}
+
+:root[data-text-size="xlarge"] {
+  font-size: 19px;
+}
+:root[data-text-size="xlarge"] h1 {
+  font-size: clamp(42px, 9vw, 72px);
+}
+:root[data-text-size="xlarge"] .card .nm {
+  font-size: 16.5px;
+}
+:root[data-text-size="xlarge"] .card .rl {
+  font-size: 13px;
+}
+
+:root[data-contrast="high"] {
+  --line: #000;
+  --muted: #111;
+  --branch: #000;
+  --main-branch: #d00020;
+  --other-branch: #000;
+}
+:root[data-theme="dark"][data-contrast="high"] {
+  --line: #fff;
+  --muted: #eee;
+  --branch: #fff;
+  --main-branch: #ff4560;
+  --other-branch: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-contrast="high"] {
+    --line: #fff;
+    --muted: #eee;
+    --branch: #fff;
+    --main-branch: #ff4560;
+    --other-branch: #fff;
+  }
+}
+:root[data-contrast="high"] .card {
+  border-width: 2px !important;
+}
+:root[data-contrast="high"] .btn,
+:root[data-contrast="high"] .zbtn {
+  border-width: 2px !important;
+}
+:root[data-contrast="high"] .lines path {
+  stroke-width: 2.5px !important;
+}
+
+:root[data-motion="reduce"] * {
+  transition: none !important;
+  animation: none !important;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+:root[lang="hi"] * {
+  letter-spacing: 0 !important;
+}
+
+img {
+  max-width: 100%;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}

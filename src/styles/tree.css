@@ -1,0 +1,232 @@
+/* Tree Canvas, SVG Connectors, Cards, and Spatial Layout */
+
+.treewrap {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  height: min(78vh, 760px);
+  min-height: 520px;
+  margin-block: 16px;
+  user-select: none;
+  touch-action: none;
+}
+
+.treewrap.is-panning {
+  cursor: grabbing !important;
+}
+
+.treewrap:not(.is-panning) {
+  cursor: grab;
+}
+
+.stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.sizer {
+  position: relative;
+}
+
+/* SVG Line Paths */
+.lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.guide-line {
+  stroke: var(--line);
+  stroke-width: 1px;
+  stroke-dasharray: 4 6;
+  opacity: 0.45;
+}
+
+.main-branch-line {
+  stroke: var(--main-branch);
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.other-branch-line {
+  stroke: var(--other-branch);
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 5 4;
+  fill: none;
+  opacity: 0.85;
+}
+
+.bridge-line {
+  stroke: var(--bridge-line);
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 3 3;
+  fill: none;
+  opacity: 0.7;
+}
+
+/* Branch & Generation Pills */
+.branch-pill {
+  position: absolute;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  pointer-events: none;
+  z-index: 2;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.gen-rail {
+  position: absolute;
+  left: 12px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.gen-pill {
+  position: absolute;
+  left: 0;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+}
+
+/* Family Member Cards */
+.card {
+  position: absolute;
+  width: 96px;
+  height: 138px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm); /* Exact 5px requested by user & CLAUDE.md */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 8px 6px;
+  box-sizing: border-box;
+  text-align: center;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  z-index: 3;
+  color: var(--ink);
+  outline: none;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: var(--ink);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  z-index: 5;
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  z-index: 6;
+}
+
+.card.me {
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.card.hit {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px #f59e0b;
+}
+
+.card.dim {
+  opacity: 0.28;
+}
+
+.card .nm {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+.card .rl {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--rel);
+  margin-top: 3px;
+  line-height: 1.2;
+}
+
+.card .tag {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ef4444;
+  margin-top: 3px;
+  padding: 1px 4px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--radius-xs);
+}
+
+/* Avatar inside Card */
+.av {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-xs);
+  background: var(--av);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.av img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.av.big {
+  width: 72px;
+  height: 72px;
+  font-size: 24px;
+  border-radius: var(--radius-sm);
+}

@@ -1,0 +1,32 @@
+{
+  "name": "family-tree",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Interactive Bilingual Family Tree & Lineage Application with Dual-Mode Layout Engine",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.7"
+  },
+  "keywords": [
+    "family-tree",
+    "genealogy",
+    "react",
+    "bilingual",
+    "hindi",
+    "lineage",
+    "flowchart",
+    "dag"
+  ],
+  "author": "Arpit Kumar Gupta",
+  "license": "MIT"
+}
