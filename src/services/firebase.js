@@ -25,12 +25,14 @@ const RUNTIME_CONFIG_KEY = 'gupta_firebase_config';
 
 export function loadFirebaseConfig() {
   const envConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCMrukS1JDWCudcEuvHlp0nUP2zWrXuxu4',
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'gupta-family-tree-akg.firebaseapp.com',
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'gupta-family-tree-akg',
+    storageBucket:
+      import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'gupta-family-tree-akg.firebasestorage.app',
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '377567252946',
+    appId:
+      import.meta.env.VITE_FIREBASE_APP_ID || '1:377567252946:web:6043388686762243ce380b',
     databaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)'
   };
 

@@ -1,5 +1,7 @@
 {
   "firestore": {
+    "database": "(default)",
+    "location": "asia-south1",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
@@ -9,7 +11,12 @@
       "emailPassword": true,
       "googleSignIn": {
         "oAuthBrandDisplayName": "Gupta Family Tree",
-        "supportEmail": "arpitkumar81008@gmail.com"
+        "supportEmail": "arpitkumar81008@gmail.com",
+        "authorizedRedirectUris": [
+          "https://gupta-family-tree-akg.firebaseapp.com/__/auth/handler",
+          "https://arpitkumar81008-cmd.github.io/family-tree/",
+          "http://localhost:3000"
+        ]
       }
     }
   },
