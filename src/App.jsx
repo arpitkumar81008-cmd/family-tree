@@ -9,14 +9,20 @@ import { transliterateToHindi } from './i18n/translit.js';
 import Navbar from './components/Navbar.jsx';
 import LandingPage from './components/LandingPage.jsx';
 import CreateTreeModal from './components/CreateTreeModal.jsx';
-import AuthModal, { loadLocalAuthUser, saveLocalAuthUser } from './components/AuthModal.jsx';
+import AuthModal, {
+  LOCAL_AUTH_KEY,
+  loadLocalAuthUser,
+  saveLocalAuthUser
+} from './components/AuthModal.jsx';
 import { subscribeToAuth, signOutUser, isFirebaseConfigured } from './services/firebase.js';
 import {
   getTreeIdFromUrl,
   setTreeIdInUrl,
   subscribeToTree,
   createUserTree,
-  saveUserTree
+  saveUserTreeDebounced,
+  canUserEditTree,
+  isPhotosPayloadWithinLimit
 } from './services/treeSync.js';
 import Toolbar from './components/Toolbar.jsx';
 import Canvas from './components/Canvas.jsx';
@@ -65,7 +71,7 @@ export function App() {
   const [currentView, setCurrentView] = useState(() => (getTreeIdFromUrl() ? "tree" : "home"));
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [user, setUser] = useState(() => loadLocalAuthUser());
+  const [user, setUser] = useState(() => (isFirebaseConfigured() ? null : loadLocalAuthUser()));
   const [activeTreeId, setActiveTreeId] = useState(() => getTreeIdFromUrl());
   const [activeTreeMeta, setActiveTreeMeta] = useState(null);
 
@@ -87,15 +93,27 @@ export function App() {
   const [cardHeight, setCardHeight] = useState(138);
 
   const previousActiveElement = useRef(null);
+  const isLocalMutationRef = useRef(false);
+  const activeTreeMetaRef = useRef(null);
 
-  // Subscribe to Firebase Auth state (with local session fallback)
   useEffect(() => {
-    if (!isFirebaseConfigured()) return;
+    activeTreeMetaRef.current = activeTreeMeta;
+  }, [activeTreeMeta]);
+
+  // Subscribe to Firebase Auth state (single source of truth when Firebase is configured)
+  useEffect(() => {
+    if (!isFirebaseConfigured()) {
+      const onStorage = e => {
+        if (e.key === LOCAL_AUTH_KEY) {
+          setUser(loadLocalAuthUser());
+        }
+      };
+      window.addEventListener("storage", onStorage);
+      return () => window.removeEventListener("storage", onStorage);
+    }
     return subscribeToAuth(fbUser => {
-      if (fbUser) {
-        setUser(fbUser);
-        saveLocalAuthUser(fbUser);
-      }
+      setUser(fbUser);
+      saveLocalAuthUser(fbUser);
     });
   }, []);
 
@@ -110,6 +128,7 @@ export function App() {
       docData => {
         setActiveTreeMeta(docData);
         if (docData?.data?.people) {
+          isLocalMutationRef.current = false;
           setTreeState(prev => ({
             ...prev,
             data: docData.data,
@@ -126,15 +145,18 @@ export function App() {
     );
   }, [activeTreeId]);
 
-  // Save tree state whenever it changes (local storage + cloud tree if owner)
+  // Save tree state ONLY on local user mutations (prevents infinite Firestore snapshot/write loop)
   useEffect(() => {
+    if (!isLocalMutationRef.current) return;
+    isLocalMutationRef.current = false;
+
     if (!activeTreeId) {
       saveTreeState(treeState);
-    } else if (user && activeTreeMeta && activeTreeMeta.ownerUid === user.uid) {
-      saveUserTree(
+    } else if (user && canUserEditTree(activeTreeMetaRef.current, user)) {
+      saveUserTreeDebounced(
         activeTreeId,
         {
-          ...activeTreeMeta,
+          ...activeTreeMetaRef.current,
           data: treeState.data,
           photos: treeState.photos,
           lang: treeState.lang
@@ -142,7 +164,7 @@ export function App() {
         user
       );
     }
-  }, [treeState, activeTreeId, activeTreeMeta, user]);
+  }, [treeState, activeTreeId, user]);
 
   // Sync theme attribute
   useEffect(() => {
@@ -306,8 +328,17 @@ export function App() {
     previousActiveElement.current?.focus?.();
   };
 
+  const isOwner = Boolean(
+    user && (!activeTreeId || canUserEditTree(activeTreeMeta, user))
+  );
+  // Guests can freely explore/edit their local browser copy of the canonical Gupta tree (!activeTreeId),
+  // whereas shared trees (?tree=<id>) are strictly editable only by their owner or collaborators.
+  const canEdit = !activeTreeId || canUserEditTree(activeTreeMeta, user);
+
   // Person mutation actions
   const handlePatchPerson = (id, patch) => {
+    if (!canEdit) return;
+    isLocalMutationRef.current = true;
     setTreeState(prev => ({
       ...prev,
       data: {
@@ -318,6 +349,8 @@ export function App() {
   };
 
   const handleAddMember = ({ rel, target, person }) => {
+    if (!canEdit) return;
+    isLocalMutationRef.current = true;
     const newId = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const newPerson = { id: newId, ...person };
 
@@ -413,6 +446,8 @@ export function App() {
   };
 
   const handleRemovePerson = id => {
+    if (!canEdit) return;
+    isLocalMutationRef.current = true;
     setTreeState(prev => {
       const remainingPeople = prev.data.people.filter(p => p.id !== id);
       const remainingCouples = prev.data.couples
@@ -438,23 +473,24 @@ export function App() {
   };
 
   const handleSetPhoto = (id, dataUrl) => {
+    if (!canEdit) return false;
     const updatedPhotos = { ...treeState.photos };
     if (dataUrl) {
       updatedPhotos[id] = dataUrl;
     } else {
       delete updatedPhotos[id];
     }
-    const nextState = { ...treeState, photos: updatedPhotos };
-    try {
-      saveTreeState(nextState);
-      setTreeState(nextState);
-      return true;
-    } catch {
+    if (Object.keys(updatedPhotos).length > 100 || !isPhotosPayloadWithinLimit(updatedPhotos)) {
       return false;
     }
+    isLocalMutationRef.current = true;
+    setTreeState(prev => ({ ...prev, photos: updatedPhotos }));
+    return true;
   };
 
   const handleImport = (newData, newPhotos) => {
+    if (!canEdit) return;
+    isLocalMutationRef.current = true;
     setTreeState(prev =>
       dedup({
         ...prev,
@@ -466,6 +502,7 @@ export function App() {
   };
 
   const handleReset = () => {
+    isLocalMutationRef.current = true;
     setTreeState(prev => ({
       ...prev,
       data: JSON.parse(JSON.stringify(INITIAL_DATA)),
@@ -478,11 +515,8 @@ export function App() {
     window.scrollTo({ top: 0 });
   };
 
-  const isOwner = Boolean(
-    user && (!activeTreeId || (activeTreeMeta && activeTreeMeta.ownerUid === user.uid))
-  );
-
   const handleSelectTree = (treeId, treeDoc) => {
+    isLocalMutationRef.current = false;
     if (!treeId) {
       setActiveTreeId("");
       setActiveTreeMeta(null);
@@ -518,6 +552,7 @@ export function App() {
       { title, data: newData, photos: {}, isPublic, lang: treeState.lang },
       user
     );
+    isLocalMutationRef.current = false;
     setActiveTreeId(created.id);
     setActiveTreeMeta(created);
     setTreeIdInUrl(created.id);
@@ -546,10 +581,18 @@ export function App() {
       },
       user
     );
+    isLocalMutationRef.current = false;
     setActiveTreeId(created.id);
     setActiveTreeMeta(created);
     setTreeIdInUrl(created.id);
-    handleImport(newData, newPhotos);
+    setTreeState(prev =>
+      dedup({
+        ...prev,
+        data: newData,
+        photos: newPhotos ?? prev.photos,
+        viewer: ""
+      })
+    );
     setIsCreateOpen(false);
     enterTree();
   };
@@ -576,6 +619,7 @@ export function App() {
         setCurrentView={setCurrentView}
         memberCount={treeState.data.people.length}
         generationCount={generationCount}
+        activeTreeId={activeTreeId}
         activeTreeTitle={activeTreeMeta?.title || ""}
         isOwner={isOwner}
         user={user}
@@ -584,7 +628,10 @@ export function App() {
         onOpenTreesModal={() => setIsCreateOpen(true)}
         t={t}
         lang={treeState.lang}
-        setLang={l => setTreeState(prev => ({ ...prev, lang: l }))}
+        setLang={l => {
+          isLocalMutationRef.current = true;
+          setTreeState(prev => ({ ...prev, lang: l }));
+        }}
         theme={theme}
         setTheme={setTheme}
         textSize={textSize}
@@ -613,7 +660,7 @@ export function App() {
       {/* Header */}
       <header>
         <p className="eyebrow">{t("eyebrow")}</p>
-        <h1>{t("h1")}</h1>
+        <h1>{activeTreeMeta?.title || t("h1")}</h1>
         <p className="lede">
           {t("lede")}{" "}
           <span className="count">{t("people", treeState.data.people.length)}</span>
@@ -630,10 +677,11 @@ export function App() {
         displayName={displayName}
         t={t}
         lang={treeState.lang}
-        onOpenAddModal={() => setIsAddModalOpen(true)}
+        onOpenAddModal={() => canEdit && setIsAddModalOpen(true)}
         onOpenHelpModal={() => setIsHelpModalOpen(true)}
         showGuideBanner={showGuideBanner}
         setShowGuideBanner={handleDismissGuide}
+        canEdit={canEdit}
       />
 
       {/* Interactive Canvas */}
@@ -668,6 +716,7 @@ export function App() {
         openPerson={openPersonDetails}
         onImport={handleImport}
         onReset={handleReset}
+        canEdit={canEdit}
       />
 
       {/* Footer */}
@@ -692,11 +741,12 @@ export function App() {
           }
           remove={handleRemovePerson}
           setPhoto={handleSetPhoto}
+          canEdit={canEdit}
         />
       )}
 
       {/* Add Member Modal */}
-      {isAddModalOpen && (
+      {isAddModalOpen && canEdit && (
         <AddModal
           familyIndex={familyIndex}
           t={t}

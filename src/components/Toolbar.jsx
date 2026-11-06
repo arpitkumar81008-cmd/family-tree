@@ -12,7 +12,8 @@ export function Toolbar({
   onOpenAddModal,
   onOpenHelpModal,
   showGuideBanner,
-  setShowGuideBanner
+  setShowGuideBanner,
+  canEdit = true
 }) {
   const searchInputRef = useRef(null);
 
@@ -65,15 +66,17 @@ export function Toolbar({
           </div>
         </div>
 
-        {/* Add Member Button */}
-        <button
-          type="button"
-          className="btn"
-          style={{ height: "38px" }}
-          onClick={onOpenAddModal}
-        >
-          + {t("addMember")}
-        </button>
+        {/* Add Member Button (only shown when user can edit this tree) */}
+        {canEdit && (
+          <button
+            type="button"
+            className="btn"
+            style={{ height: "38px" }}
+            onClick={onOpenAddModal}
+          >
+            + {t("addMember")}
+          </button>
+        )}
       </div>
 
       {/* Quick Guide Banner */}

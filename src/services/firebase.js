@@ -1,5 +1,5 @@
 /**
- * Modular Firebase v11 Service (Authentication + Cloud Firestore).
+ * Modular Firebase v11 Service (Authentication + Cloud Firestore with persistent IndexedDB cache).
  * Supports both Vite build-time env vars (VITE_FIREBASE_*) and runtime config stored in localStorage.
  * Gracefully falls back to local-only mode when Firebase is not yet configured.
  */
@@ -14,7 +14,12 @@ import {
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
+} from 'firebase/firestore';
 
 const RUNTIME_CONFIG_KEY = 'gupta_firebase_config';
 
@@ -55,6 +60,7 @@ export function saveRuntimeFirebaseConfig(configObj) {
   if (typeof window === 'undefined' || !window.localStorage) return false;
   try {
     localStorage.setItem(RUNTIME_CONFIG_KEY, JSON.stringify(configObj));
+    cachedClients = null;
     return true;
   } catch {
     return false;
@@ -76,12 +82,28 @@ export function getFirebaseClients() {
   }
 
   try {
-    const app = getApps().length ? getApp() : initializeApp(cfg);
+    const isNewApp = getApps().length === 0;
+    const app = isNewApp ? initializeApp(cfg) : getApp();
     const auth = getAuth(app);
-    const db =
-      cfg.databaseId && cfg.databaseId !== '(default)'
-        ? getFirestore(app, cfg.databaseId)
-        : getFirestore(app);
+    let db;
+    const dbId = cfg.databaseId && cfg.databaseId !== '(default)' ? cfg.databaseId : undefined;
+    if (isNewApp) {
+      try {
+        db = initializeFirestore(
+          app,
+          {
+            localCache: persistentLocalCache({
+              tabManager: persistentMultipleTabManager()
+            })
+          },
+          dbId
+        );
+      } catch {
+        db = dbId ? getFirestore(app, dbId) : getFirestore(app);
+      }
+    } else {
+      db = dbId ? getFirestore(app, dbId) : getFirestore(app);
+    }
     cachedClients = { app, auth, db };
     return cachedClients;
   } catch (err) {

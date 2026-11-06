@@ -6,7 +6,7 @@ import {
   signUpWithEmail
 } from '../services/firebase.js';
 
-const LOCAL_AUTH_KEY = 'gupta_local_auth_user';
+export const LOCAL_AUTH_KEY = 'gupta_local_auth_user';
 
 export function loadLocalAuthUser() {
   if (typeof window === 'undefined' || !window.localStorage) return null;
@@ -27,6 +27,7 @@ export function saveLocalAuthUser(user) {
 }
 
 export function AuthModal({ t, close, onSignedIn }) {
+  const cloudConfigured = isFirebaseConfigured();
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -45,10 +46,10 @@ export function AuthModal({ t, close, onSignedIn }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [close]);
 
-  const finishLocalFallback = (emailAddr, nameStr) => {
-    const cleanEmail = (emailAddr || 'user@familytree.local').trim().toLowerCase();
+  const finishLocalDemoProfile = (emailAddr, nameStr) => {
+    const cleanEmail = emailAddr.trim().toLowerCase();
     const uid =
-      'usr_' +
+      'local_' +
       Array.from(cleanEmail)
         .reduce((acc, ch) => ((acc << 5) - acc + ch.charCodeAt(0)) | 0, 0)
         .toString(36)
@@ -56,7 +57,8 @@ export function AuthModal({ t, close, onSignedIn }) {
     const userObj = {
       uid,
       email: cleanEmail,
-      displayName: (nameStr || cleanEmail.split('@')[0] || 'Member').trim()
+      displayName: (nameStr || cleanEmail.split('@')[0] || 'Member').trim(),
+      isLocalDemo: true
     };
     saveLocalAuthUser(userObj);
     onSignedIn?.(userObj);
@@ -64,21 +66,21 @@ export function AuthModal({ t, close, onSignedIn }) {
   };
 
   const handleGoogle = async () => {
+    if (!cloudConfigured) {
+      setErr('Google Sign-In requires Firebase Cloud Auth to be configured. Use the local profile form below on this device.');
+      return;
+    }
     setErr('');
     setBusy(true);
     try {
-      if (isFirebaseConfigured()) {
-        const u = await signInWithGoogle();
-        onSignedIn?.({
-          uid: u.uid,
-          email: u.email || '',
-          displayName: u.displayName || u.email?.split('@')[0] || 'Member',
-          photoURL: u.photoURL || ''
-        });
-        close();
-      } else {
-        finishLocalFallback('arpitkumar81008@gmail.com', 'Arpit Kumar Gupta');
-      }
+      const u = await signInWithGoogle();
+      onSignedIn?.({
+        uid: u.uid,
+        email: u.email || '',
+        displayName: u.displayName || u.email?.split('@')[0] || 'Member',
+        photoURL: u.photoURL || ''
+      });
+      close();
     } catch (e) {
       setErr(e?.message || 'Sign-in failed');
     } finally {
@@ -95,7 +97,7 @@ export function AuthModal({ t, close, onSignedIn }) {
     }
     setBusy(true);
     try {
-      if (isFirebaseConfigured()) {
+      if (cloudConfigured) {
         const u =
           mode === 'signup'
             ? await signUpWithEmail(email, password, displayName)
@@ -107,7 +109,7 @@ export function AuthModal({ t, close, onSignedIn }) {
         });
         close();
       } else {
-        finishLocalFallback(email, displayName);
+        finishLocalDemoProfile(email, displayName);
       }
     } catch (e) {
       setErr(e?.message || 'Authentication failed');
@@ -129,33 +131,54 @@ export function AuthModal({ t, close, onSignedIn }) {
           ×
         </button>
         <h2 id="auth-title">{t('authTitle')}</h2>
-        <p className="muted" style={{ marginTop: 6, marginBottom: 16 }}>
+        <p className="muted" style={{ marginTop: 6, marginBottom: 12 }}>
           {t('authSubtitle')}
         </p>
 
-        <button
-          ref={firstRef}
-          type="button"
-          className="btn auth-google-btn"
-          disabled={busy}
-          onClick={handleGoogle}
-          style={{ width: '100%' }}
-        >
-          G · {t('continueGoogle')}
-        </button>
+        {!cloudConfigured && (
+          <p
+            className="muted"
+            role="note"
+            style={{
+              padding: '8px 10px',
+              marginBottom: 14,
+              border: '1px solid var(--line)',
+              borderRadius: 'var(--radius-xs)',
+              fontSize: '12px'
+            }}
+          >
+            <strong>Local Demo Mode (This Device Only):</strong> Cloud Firebase keys are not configured on this deployment. Profiles and custom trees created below are stored in this browser&apos;s localStorage.
+          </p>
+        )}
 
-        <div className="auth-divider">
-          <span>{t('orEmail')}</span>
-        </div>
+        {cloudConfigured && (
+          <>
+            <button
+              ref={firstRef}
+              type="button"
+              className="btn auth-google-btn"
+              disabled={busy}
+              onClick={handleGoogle}
+              style={{ width: '100%' }}
+            >
+              G · {t('continueGoogle')}
+            </button>
+
+            <div className="auth-divider">
+              <span>{t('orEmail')}</span>
+            </div>
+          </>
+        )}
 
         <form className="newform" onSubmit={handleEmailSubmit}>
-          {mode === 'signup' && (
+          {(mode === 'signup' || !cloudConfigured) && (
             <div className="field">
               <label htmlFor="auth-name">{t('displayNameLabel')}</label>
               <input
+                ref={!cloudConfigured ? firstRef : null}
                 id="auth-name"
                 value={displayName}
-                placeholder="e.g. Arpit Kumar Gupta"
+                placeholder="e.g. Your Name"
                 onChange={e => setDisplayName(e.target.value)}
               />
             </div>
@@ -163,6 +186,7 @@ export function AuthModal({ t, close, onSignedIn }) {
           <div className="field">
             <label htmlFor="auth-email">{t('emailLabel')}</label>
             <input
+              ref={cloudConfigured && mode !== 'signup' ? firstRef : null}
               id="auth-email"
               type="email"
               required
@@ -193,16 +217,18 @@ export function AuthModal({ t, close, onSignedIn }) {
             <button type="submit" className="btn" disabled={busy}>
               {mode === 'signup' ? t('signUp') : t('signIn')}
             </button>
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() => {
-                setMode(m => (m === 'signup' ? 'signin' : 'signup'));
-                setErr('');
-              }}
-            >
-              {mode === 'signup' ? t('switchToSignIn') : t('switchToSignUp')}
-            </button>
+            {cloudConfigured && (
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => {
+                  setMode(m => (m === 'signup' ? 'signin' : 'signup'));
+                  setErr('');
+                }}
+              >
+                {mode === 'signup' ? t('switchToSignIn') : t('switchToSignUp')}
+              </button>
+            )}
           </div>
         </form>
       </div>

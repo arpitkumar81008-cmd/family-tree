@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { validateTreeData } from '../data/schema.js';
-import { listAvailableTrees } from '../services/treeSync.js';
+import { listAvailableTrees, isPhotosPayloadWithinLimit } from '../services/treeSync.js';
 
 export function CreateTreeModal({
   t,
@@ -15,9 +15,11 @@ export function CreateTreeModal({
 }) {
   const [treeTitle, setTreeTitle] = useState('');
   const [name, setName] = useState('');
-  const [isPublic, setIsPublic] = useState(true);
+  // Default to Private (false) to protect living family members' PII by default
+  const [isPublic, setIsPublic] = useState(false);
   const [importText, setImportText] = useState('');
   const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
   const [confirmRestore, setConfirmRestore] = useState(false);
   const [publicTrees, setPublicTrees] = useState([]);
   const ref = useRef(null);
@@ -48,7 +50,7 @@ export function CreateTreeModal({
     return () => document.removeEventListener('keydown', onKey);
   }, [close, user]);
 
-  const startBlank = e => {
+  const startBlank = async e => {
     e.preventDefault();
     if (!user) {
       onOpenAuth?.();
@@ -58,30 +60,55 @@ export function CreateTreeModal({
       setMsg(t('createNeedName'));
       return;
     }
-    onCreateBlank({
-      title: treeTitle.trim() || `${name.trim()} Family Tree`,
-      rootName: name.trim(),
-      isPublic
-    });
+    setBusy(true);
+    setMsg('');
+    try {
+      await onCreateBlank({
+        title: treeTitle.trim() || `${name.trim()} Family Tree`,
+        rootName: name.trim(),
+        isPublic
+      });
+    } catch (err) {
+      setMsg(err?.message || 'Could not create tree. Please try again.');
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const doImport = () => {
+  const doImport = async () => {
     if (!user) {
       onOpenAuth?.();
       return;
     }
+    setMsg('');
+    let parsed;
     try {
-      const parsed = JSON.parse(importText);
+      parsed = JSON.parse(importText);
       const res = validateTreeData(parsed.data);
       if (!res.valid) throw new Error(res.error);
-      onImport({
-        title: treeTitle.trim() || parsed.title || 'Imported Family Tree',
-        data: parsed.data,
-        photos: parsed.photos && typeof parsed.photos === 'object' ? parsed.photos : undefined,
-        isPublic
-      });
     } catch {
       setMsg(t('importBad'));
+      return;
+    }
+
+    const photos = parsed.photos && typeof parsed.photos === 'object' ? parsed.photos : {};
+    if (!isPhotosPayloadWithinLimit(photos)) {
+      setMsg(t('noSpace'));
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await onImport({
+        title: treeTitle.trim() || parsed.title || 'Imported Family Tree',
+        data: parsed.data,
+        photos,
+        isPublic
+      });
+    } catch (err) {
+      setMsg(err?.message || t('importBad'));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -99,7 +126,7 @@ export function CreateTreeModal({
         </button>
         <h2 id="create-title">{t('createTitle')}</h2>
 
-        {/* 1. Always-Open Public Tree Directory (No login required to view!) */}
+        {/* 1. Always-Open Public Tree Directory (No login required to view; omits owner PII) */}
         <div className="create-option">
           <h3>{t('browsePublicTitle')}</h3>
           <p className="muted">{t('browsePublicBody')}</p>
@@ -195,22 +222,22 @@ export function CreateTreeModal({
                   <button
                     type="button"
                     className="zbtn"
-                    aria-pressed={isPublic}
-                    onClick={() => setIsPublic(true)}
-                  >
-                    {t('visPublic')}
-                  </button>
-                  <button
-                    type="button"
-                    className="zbtn"
                     aria-pressed={!isPublic}
                     onClick={() => setIsPublic(false)}
                   >
                     {t('visPrivate')}
                   </button>
+                  <button
+                    type="button"
+                    className="zbtn"
+                    aria-pressed={isPublic}
+                    onClick={() => setIsPublic(true)}
+                  >
+                    {t('visPublic')}
+                  </button>
                 </div>
               </div>
-              <button type="submit" className="btn">
+              <button type="submit" className="btn" disabled={busy}>
                 {t('createBlankStart')}
               </button>
             </form>
@@ -234,7 +261,7 @@ export function CreateTreeModal({
               <button
                 type="button"
                 className="btn ghost"
-                disabled={!importText.trim()}
+                disabled={!importText.trim() || busy}
                 onClick={doImport}
               >
                 {t('createImportBtn')}

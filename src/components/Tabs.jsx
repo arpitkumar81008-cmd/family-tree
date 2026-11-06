@@ -161,7 +161,7 @@ export function BirthdaysList({ data, lang, t, displayName, openPerson }) {
   );
 }
 
-export function BackupPanel({ treeState, t, onImport, onReset }) {
+export function BackupPanel({ treeState, t, onImport, onReset, canEdit = true }) {
   const [includePhotos, setIncludePhotos] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
   const [importText, setImportText] = useState("");
@@ -214,72 +214,76 @@ export function BackupPanel({ treeState, t, onImport, onReset }) {
         </label>
       </div>
 
-      <div className="field" style={{ marginTop: "12px" }}>
-        <label htmlFor="bi">{t("importLbl")}</label>
-        <textarea
-          id="bi"
-          rows={3}
-          value={importText}
-          placeholder={t("importPh")}
-          onChange={e => setImportText(e.target.value)}
-        />
-      </div>
+      {canEdit && (
+        <>
+          <div className="field" style={{ marginTop: "12px" }}>
+            <label htmlFor="bi">{t("importLbl")}</label>
+            <textarea
+              id="bi"
+              rows={3}
+              value={importText}
+              placeholder={t("importPh")}
+              onChange={e => setImportText(e.target.value)}
+            />
+          </div>
 
-      <div className="row center" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-        <button
-          type="button"
-          className="btn ghost"
-          disabled={!importText.trim()}
-          onClick={() => {
-            try {
-              const parsed = JSON.parse(importText);
-              const d = parsed.data;
-              if (!d || !Array.isArray(d.people) || !Array.isArray(d.couples)) {
-                throw new Error("Invalid shape");
-              }
-              const ids = new Set();
-              d.people.forEach(p => {
-                if (typeof p.id !== "string" || typeof p.name !== "string") {
-                  throw new Error("Invalid person");
+          <div className="row center" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={!importText.trim()}
+              onClick={() => {
+                try {
+                  const parsed = JSON.parse(importText);
+                  const d = parsed.data;
+                  if (!d || !Array.isArray(d.people) || !Array.isArray(d.couples)) {
+                    throw new Error("Invalid shape");
+                  }
+                  const ids = new Set();
+                  d.people.forEach(p => {
+                    if (typeof p.id !== "string" || typeof p.name !== "string") {
+                      throw new Error("Invalid person");
+                    }
+                    ids.add(p.id);
+                  });
+                  d.couples.forEach(c => {
+                    if ((c.h && !ids.has(c.h)) || (c.w && !ids.has(c.w)) || !Array.isArray(c.kids)) {
+                      throw new Error("Invalid couple");
+                    }
+                  });
+                  onImport(
+                    { people: d.people, couples: d.couples },
+                    parsed.photos && typeof parsed.photos === "object" ? parsed.photos : undefined
+                  );
+                  setStatusMsg(t("importOk"));
+                  setImportText("");
+                } catch {
+                  setStatusMsg(t("importBad"));
                 }
-                ids.add(p.id);
-              });
-              d.couples.forEach(c => {
-                if (!ids.has(c.h) || !ids.has(c.w) || !Array.isArray(c.kids)) {
-                  throw new Error("Invalid couple");
-                }
-              });
-              onImport(
-                { people: d.people, couples: d.couples },
-                parsed.photos && typeof parsed.photos === "object" ? parsed.photos : undefined
-              );
-              setStatusMsg(t("importOk"));
-              setImportText("");
-            } catch {
-              setStatusMsg(t("importBad"));
-            }
-          }}
-        >
-          {t("importBtn")}
-        </button>
+              }}
+            >
+              {t("importBtn")}
+            </button>
 
-        <button
-          type="button"
-          className="btn ghost"
-          onClick={() => {
-            if (confirmReset) {
-              onReset();
-              setConfirmReset(false);
-              setStatusMsg("");
-            } else {
-              setConfirmReset(true);
-            }
-          }}
-          onBlur={() => setConfirmReset(false)}
-        >
-          {confirmReset ? t("resetSure") : t("reset")}
-        </button>
-      </div>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => {
+                if (confirmReset) {
+                  onReset();
+                  setConfirmReset(false);
+                  setStatusMsg("");
+                } else {
+                  setConfirmReset(true);
+                }
+              }}
+              onBlur={() => setConfirmReset(false)}
+            >
+              {confirmReset ? t("resetSure") : t("reset")}
+            </button>
+          </div>
+        </>
+      )}
 
       {statusMsg && (
         <p className="msg" role="status">
@@ -300,7 +304,8 @@ export function Tabs({
   displayName,
   openPerson,
   onImport,
-  onReset
+  onReset,
+  canEdit = true
 }) {
   const tabKeys = [
     { id: "rel", labelKey: "tabRel" },
@@ -360,6 +365,7 @@ export function Tabs({
             t={t}
             onImport={onImport}
             onReset={onReset}
+            canEdit={canEdit}
           />
         )}
       </div>

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import SettingsPopover from './SettingsPopover.jsx';
+import { isFirebaseConfigured } from '../services/firebase.js';
 
 export function Navbar({
   currentView,
   setCurrentView,
   memberCount,
   generationCount,
+  activeTreeId,
   activeTreeTitle,
   isOwner,
   user,
@@ -27,12 +29,13 @@ export function Navbar({
   setIsSettingsOpen
 }) {
   const [copied, setCopied] = useState(false);
+  const cloudConfigured = isFirebaseConfigured();
 
   const copyShareLink = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
+      setTimeout(() => setCopied(false), 2000);
     } catch {}
   };
 
@@ -82,14 +85,16 @@ export function Navbar({
           {isOwner ? t('ownerBadge') : t('readOnlyBadge')}
         </span>
 
-        <button
-          type="button"
-          className="zbtn nav-share-btn"
-          onClick={copyShareLink}
-          title={t('shareTreeBtn')}
-        >
-          {copied ? t('linkCopied') : t('shareTreeBtn')}
-        </button>
+        {(!activeTreeId || cloudConfigured) && (
+          <button
+            type="button"
+            className="zbtn nav-share-btn"
+            onClick={copyShareLink}
+            title={t('shareTreeBtn')}
+          >
+            {copied ? t('linkCopied') : t('shareTreeBtn')}
+          </button>
+        )}
 
         {user ? (
           <div className="nav-user">

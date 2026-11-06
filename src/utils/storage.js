@@ -1,10 +1,18 @@
 /**
- * LocalStorage and persistence management for the Family Tree.
+ * LocalStorage and persistence management for the canonical Gupta Family Tree.
+ * Uses an explicit allow-list of legacy keys so auth/config/multi-tree keys are never merged.
  */
 import { INITIAL_DATA } from "../data/familyData.js";
 import { dedup, deepMergeTree, STORAGE_KEY } from "./deduplication.js";
 
 const clone = obj => JSON.parse(JSON.stringify(obj));
+
+const LEGACY_KEYS = [
+  STORAGE_KEY,
+  "gupta-family-tree-v2",
+  "gupta-family-tree-v1",
+  "gupta-family-tree-state"
+];
 
 export function loadInitialTreeState() {
   const baseState = {
@@ -20,28 +28,15 @@ export function loadInitialTreeState() {
 
   try {
     const list = [];
-    const keysToCheck = [
-      STORAGE_KEY,
-      "gupta-family-tree-v2",
-      "gupta-family-tree-v1",
-      "gupta-family-tree-state"
-    ];
 
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.includes("gupta") && !keysToCheck.includes(k)) {
-          keysToCheck.push(k);
-        }
-      }
-    } catch {}
-
-    for (const k of keysToCheck) {
+    for (const k of LEGACY_KEYS) {
       try {
         const raw = localStorage.getItem(k);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === "object") list.push(parsed);
+          if (parsed && typeof parsed === "object" && Array.isArray(parsed.data?.people)) {
+            list.push(parsed);
+          }
         }
       } catch {}
     }
@@ -56,10 +51,12 @@ export function loadInitialTreeState() {
 }
 
 export function saveTreeState(treeState) {
-  if (typeof window === "undefined" || !window.localStorage) return;
+  if (typeof window === "undefined" || !window.localStorage) return false;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(treeState));
+    return true;
   } catch (err) {
     console.error("Failed to save tree state:", err);
+    return false;
   }
 }

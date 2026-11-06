@@ -2,12 +2,11 @@
  * Cloud & Local Multi-Tree Synchronization Service.
  * - Anyone (including unauthenticated guests) can view public trees (canonical Gupta tree + shared public trees).
  * - Authenticated users can create their own trees and edit trees where they are owner/collaborator.
- * - All Firestore writes strictly conform to the schema validated in `firestore.rules`.
+ * - Prevents infinite write loops by ignoring local pending-write snapshots and debouncing cloud updates (1200ms).
  */
 import {
   collection,
   doc,
-  getDoc,
   getDocs,
   setDoc,
   updateDoc,
@@ -20,6 +19,9 @@ import {
 import { getFirebaseClients, isFirebaseConfigured } from './firebase.js';
 
 const LOCAL_TREES_KEY = 'gupta_multi_trees_v1';
+const MAX_PHOTOS_BYTES = 750 * 1024; // 750 KB safety cap to stay well below Firestore's 1 MiB limit
+
+let debounceTimer = null;
 
 function readLocalTrees() {
   if (typeof window === 'undefined' || !window.localStorage) return {};
@@ -31,10 +33,31 @@ function readLocalTrees() {
 }
 
 function writeLocalTrees(map) {
-  if (typeof window === 'undefined' || !window.localStorage) return;
+  if (typeof window === 'undefined' || !window.localStorage) return false;
   try {
     localStorage.setItem(LOCAL_TREES_KEY, JSON.stringify(map));
-  } catch {}
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function isPhotosPayloadWithinLimit(photos) {
+  if (!photos || typeof photos !== 'object') return true;
+  try {
+    return JSON.stringify(photos).length <= MAX_PHOTOS_BYTES;
+  } catch {
+    return false;
+  }
+}
+
+export function canUserEditTree(treeMeta, user) {
+  if (!user?.uid || !treeMeta) return false;
+  if (treeMeta.ownerUid === user.uid) return true;
+  if (Array.isArray(treeMeta.collaboratorUids) && treeMeta.collaboratorUids.includes(user.uid)) {
+    return true;
+  }
+  return false;
 }
 
 export function getTreeIdFromUrl() {
@@ -61,6 +84,7 @@ export function setTreeIdInUrl(treeId) {
 
 /**
  * Subscribes to a specific tree by ID (from Firestore if configured, otherwise local registry).
+ * Ignores snapshots triggered by local pending writes to prevent infinite update loops.
  */
 export function subscribeToTree(treeId, onUpdate, onError) {
   if (!treeId) return () => {};
@@ -71,6 +95,9 @@ export function subscribeToTree(treeId, onUpdate, onError) {
     return onSnapshot(
       ref,
       snap => {
+        if (snap.metadata.hasPendingWrites) {
+          return;
+        }
         if (snap.exists()) {
           onUpdate({ id: snap.id, ...snap.data() });
         } else {
@@ -98,7 +125,6 @@ export function subscribeToTree(treeId, onUpdate, onError) {
 export async function listAvailableTrees(user) {
   const results = new Map();
 
-  // Always include any locally saved trees
   const localMap = readLocalTrees();
   for (const [id, tree] of Object.entries(localMap)) {
     if (tree.isPublic || (user && tree.ownerUid === user.uid)) {
@@ -136,11 +162,14 @@ export async function listAvailableTrees(user) {
 
 /**
  * Creates a new family tree owned by the authenticated user.
- * Enforces authentication before creation.
+ * Writes to Firestore first (when configured) so failed cloud writes never leave orphaned local ghost trees.
  */
-export async function createUserTree({ title, data, photos = {}, isPublic = true, lang = 'en' }, user) {
+export async function createUserTree({ title, data, photos = {}, isPublic = false, lang = 'en' }, user) {
   if (!user || !user.uid) {
     throw new Error('AUTH_REQUIRED');
+  }
+  if (!isPhotosPayloadWithinLimit(photos)) {
+    throw new Error('PHOTOS_TOO_LARGE');
   }
 
   const treeId =
@@ -148,26 +177,27 @@ export async function createUserTree({ title, data, photos = {}, isPublic = true
   const cleanTitle = (title || 'Family Tree').trim().slice(0, 120);
   const nowIso = new Date().toISOString();
 
+  const safePhotos = photos && typeof photos === 'object' ? photos : {};
+  const totalPhotos = Object.keys(safePhotos).length;
+  if (totalPhotos > 100) {
+    throw new Error('TOO_MANY_PHOTOS');
+  }
+
   const payload = {
     title: cleanTitle,
     ownerUid: user.uid,
-    ownerName: (user.displayName || user.email || 'Owner').slice(0, 120),
+    ownerName: (user.displayName || 'Family Member').slice(0, 120),
     isPublic: Boolean(isPublic),
     collaboratorUids: [],
     data: {
       people: Array.isArray(data?.people) ? data.people : [],
       couples: Array.isArray(data?.couples) ? data.couples : []
     },
-    photos: photos && typeof photos === 'object' ? photos : {},
+    photos: safePhotos,
     lang: lang === 'hi' ? 'hi' : 'en',
     createdAt: nowIso,
     updatedAt: nowIso
   };
-
-  // Save in local multi-tree cache for instant offline availability
-  const localMap = readLocalTrees();
-  localMap[treeId] = payload;
-  writeLocalTrees(localMap);
 
   const { db } = getFirebaseClients();
   if (db && isFirebaseConfigured()) {
@@ -178,6 +208,11 @@ export async function createUserTree({ title, data, photos = {}, isPublic = true
     });
   }
 
+  // Only persist to local cache after cloud creation succeeds (or in local-only mode)
+  const localMap = readLocalTrees();
+  localMap[treeId] = payload;
+  writeLocalTrees(localMap);
+
   return { id: treeId, ...payload };
 }
 
@@ -186,11 +221,11 @@ export async function createUserTree({ title, data, photos = {}, isPublic = true
  */
 export async function saveUserTree(treeId, treeDoc, user) {
   if (!treeId || !user?.uid) return false;
-  if (
-    treeDoc.ownerUid &&
-    treeDoc.ownerUid !== user.uid &&
-    !(treeDoc.collaboratorUids || []).includes(user.uid)
-  ) {
+  if (!canUserEditTree(treeDoc, user)) {
+    return false;
+  }
+  if (!isPhotosPayloadWithinLimit(treeDoc.photos)) {
+    console.warn('Photos payload exceeds 750 KB cloud limit');
     return false;
   }
 
@@ -198,8 +233,8 @@ export async function saveUserTree(treeId, treeDoc, user) {
   const updated = {
     title: (treeDoc.title || 'Family Tree').slice(0, 120),
     ownerUid: treeDoc.ownerUid || user.uid,
-    ownerName: (treeDoc.ownerName || user.displayName || 'Owner').slice(0, 120),
-    isPublic: Boolean(treeDoc.isPublic ?? true),
+    ownerName: (treeDoc.ownerName || user.displayName || 'Family Member').slice(0, 120),
+    isPublic: Boolean(treeDoc.isPublic ?? false),
     collaboratorUids: Array.isArray(treeDoc.collaboratorUids) ? treeDoc.collaboratorUids : [],
     data: {
       people: Array.isArray(treeDoc.data?.people) ? treeDoc.data.people : [],
@@ -226,7 +261,18 @@ export async function saveUserTree(treeId, treeDoc, user) {
       });
     } catch (err) {
       console.warn('Cloud tree update deferred:', err);
+      return false;
     }
   }
   return true;
+}
+
+/**
+ * Debounced (1200ms) wrapper around saveUserTree to prevent rapid Firestore write bursts.
+ */
+export function saveUserTreeDebounced(treeId, treeDoc, user) {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    saveUserTree(treeId, treeDoc, user);
+  }, 1200);
 }

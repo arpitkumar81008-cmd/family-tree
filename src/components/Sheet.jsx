@@ -18,7 +18,8 @@ export function Sheet({
   patch,
   add,
   remove,
-  setPhoto
+  setPhoto,
+  canEdit = true
 }) {
   const person = familyIndex.byId[id];
   const [editingNote, setEditingNote] = useState(false);
@@ -33,6 +34,15 @@ export function Sheet({
 
   const sheetRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    setNoteVal(person?.note || "");
+    setEditingNote(false);
+    setAddMode(null);
+    setPhotoMsg("");
+    setConfirmRemove(false);
+    setErrMsg("");
+  }, [id, person?.note]);
 
   useEffect(() => {
     const handleKeyDown = e => {
@@ -65,7 +75,7 @@ export function Sheet({
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const maxDim = 320;
+        const maxDim = 160;
         let w = img.width;
         let h = img.height;
         if (w > h) {
@@ -83,7 +93,7 @@ export function Sheet({
         canvas.height = h;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, w, h);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.84);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
         const ok = setPhoto(person.id, dataUrl);
         setPhotoMsg(ok ? t("added") : t("noSpace"));
       };
@@ -164,42 +174,44 @@ export function Sheet({
         </div>
 
         {/* Photo Upload / Change / Remove */}
-        <div className="row" style={{ marginBottom: "14px", gap: "8px" }}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={handlePhotoUpload}
-          />
-          <button
-            type="button"
-            className="btn ghost"
-            style={{ fontSize: "12px", height: "32px", padding: "0 10px" }}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {photo ? t("change") : t("add")}
-          </button>
-          {photo && (
+        {canEdit && (
+          <div className="row" style={{ marginBottom: "14px", gap: "8px" }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={handlePhotoUpload}
+            />
             <button
               type="button"
               className="btn ghost"
               style={{ fontSize: "12px", height: "32px", padding: "0 10px" }}
-              onClick={() => {
-                setPhoto(person.id, null);
-                setPhotoMsg("");
-              }}
+              onClick={() => fileInputRef.current?.click()}
             >
-              {t("removePhoto")}
+              {photo ? t("change") : t("add")}
             </button>
-          )}
-          {photoMsg && <span className="muted" style={{ fontSize: "12px" }}>{photoMsg}</span>}
-        </div>
+            {photo && (
+              <button
+                type="button"
+                className="btn ghost"
+                style={{ fontSize: "12px", height: "32px", padding: "0 10px" }}
+                onClick={() => {
+                  setPhoto(person.id, null);
+                  setPhotoMsg("");
+                }}
+              >
+                {t("removePhoto")}
+              </button>
+            )}
+            {photoMsg && <span className="muted" style={{ fontSize: "12px" }}>{photoMsg}</span>}
+          </div>
+        )}
 
         {/* Note / Bio */}
         <div className="field" style={{ marginBottom: "16px" }}>
           <label htmlFor="sh-note">{t("note")}</label>
-          {editingNote ? (
+          {canEdit && editingNote ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               <textarea
                 id="sh-note"
@@ -233,10 +245,14 @@ export function Sheet({
             </div>
           ) : (
             <p
-              style={{ margin: "4px 0", cursor: "pointer", color: person.note ? "inherit" : "var(--muted)" }}
-              onClick={() => setEditingNote(true)}
+              style={{
+                margin: "4px 0",
+                cursor: canEdit ? "pointer" : "default",
+                color: person.note ? "inherit" : "var(--muted)"
+              }}
+              onClick={() => canEdit && setEditingNote(true)}
             >
-              {person.note || t("notePh")}
+              {person.note || (canEdit ? t("notePh") : "—")}
             </p>
           )}
         </div>
@@ -308,161 +324,167 @@ export function Sheet({
           )}
         </div>
 
-        {/* Quick Add Relations */}
-        <div style={{ marginTop: "20px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
-          {!spouseId && (
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() => {
-                setAddMode("spouse");
-                setSubGender(person.g === "M" ? "F" : "M");
-              }}
-            >
-              + {t("addSpouse")}
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn ghost"
-            onClick={() => {
-              setAddMode("child");
-              setSubGender("M");
-            }}
-          >
-            + {t("addChild")}
-          </button>
-          <button
-            type="button"
-            className="btn ghost"
-            onClick={() => {
-              setAddMode("sibling");
-              setSubGender("M");
-            }}
-          >
-            + {t("addSibling")}
-          </button>
-          {parents.length < 2 && (
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() => {
-                setAddMode("parent");
-                setSubGender(parents.length === 0 ? "M" : (familyIndex.byId[parents[0]]?.g === "M" ? "F" : "M"));
-              }}
-            >
-              + {t("addParent")}
-            </button>
-          )}
-        </div>
-
-        {/* Inline Sub-Form for Adding Relative */}
-        {addMode && (
-          <form className="newform" onSubmit={handleSubAdd} style={{ marginTop: "14px" }}>
-            <h3>
-              {t(
-                addMode === "spouse"
-                  ? "formSpouse"
-                  : addMode === "child"
-                  ? "formChild"
-                  : addMode === "parent"
-                  ? "formParent"
-                  : "formSibling",
-                name
-              )}
-            </h3>
-            <div className="field">
-              <label htmlFor="sub-name">{t("name")}</label>
-              <input
-                id="sub-name"
-                value={subName}
-                autoFocus
-                onChange={e => {
-                  const val = e.target.value;
-                  setSubName(val);
-                  transliterateToHindi(val).then(hi => setSubHi(hi));
-                }}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="sub-hi">{t("hiName")}</label>
-              <div className="hi-field-wrap">
-                <input
-                  id="sub-hi"
-                  value={subHi}
-                  onChange={e => setSubHi(e.target.value)}
-                />
+        {/* Quick Add Relations & Danger Zone (only shown when user can edit this tree) */}
+        {canEdit ? (
+          <>
+            <div style={{ marginTop: "20px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+              {!spouseId && (
                 <button
                   type="button"
-                  className="hi-btn"
-                  title={t("autoHindi")}
-                  aria-label={t("autoHindi")}
-                  onClick={async () => {
-                    if (subName) setSubHi(await transliterateToHindi(subName));
+                  className="btn ghost"
+                  onClick={() => {
+                    setAddMode("spouse");
+                    setSubGender(person.g === "M" ? "F" : "M");
                   }}
                 >
-                  ✨
+                  + {t("addSpouse")}
                 </button>
-              </div>
-            </div>
-            <div className="seg" role="group">
+              )}
               <button
                 type="button"
-                className="zbtn"
-                aria-pressed={subGender === "M"}
-                onClick={() => setSubGender("M")}
+                className="btn ghost"
+                onClick={() => {
+                  setAddMode("child");
+                  setSubGender("M");
+                }}
               >
-                {t("male")}
-              </button>
-              <button
-                type="button"
-                className="zbtn"
-                aria-pressed={subGender === "F"}
-                onClick={() => setSubGender("F")}
-              >
-                {t("female")}
-              </button>
-            </div>
-            {errMsg && <p className="msg">{errMsg}</p>}
-            <div className="actions">
-              <button type="submit" className="btn">
-                {t("save")}
+                + {t("addChild")}
               </button>
               <button
                 type="button"
                 className="btn ghost"
-                onClick={() => setAddMode(null)}
+                onClick={() => {
+                  setAddMode("sibling");
+                  setSubGender("M");
+                }}
               >
-                {t("cancel")}
+                + {t("addSibling")}
               </button>
+              {parents.length < 2 && (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => {
+                    setAddMode("parent");
+                    setSubGender(parents.length === 0 ? "M" : (familyIndex.byId[parents[0]]?.g === "M" ? "F" : "M"));
+                  }}
+                >
+                  + {t("addParent")}
+                </button>
+              )}
             </div>
-          </form>
-        )}
 
-        {/* Danger zone / Remove person */}
-        <div className="danger">
-          {canRemove ? (
-            <button
-              type="button"
-              className="btn ghost"
-              style={{ color: "#ef4444" }}
-              onClick={() => {
-                if (confirmRemove) {
-                  remove(person.id);
-                } else {
-                  setConfirmRemove(true);
-                }
-              }}
-              onBlur={() => setConfirmRemove(false)}
-            >
-              {confirmRemove ? t("removeSure") : t("removePerson")}
-            </button>
-          ) : (
-            <p className="muted" style={{ fontSize: "12px" }}>
-              {t("cantRemove")}
-            </p>
-          )}
-        </div>
+            {addMode && (
+              <form className="newform" onSubmit={handleSubAdd} style={{ marginTop: "14px" }}>
+                <h3>
+                  {t(
+                    addMode === "spouse"
+                      ? "formSpouse"
+                      : addMode === "child"
+                      ? "formChild"
+                      : addMode === "parent"
+                      ? "formParent"
+                      : "formSibling",
+                    name
+                  )}
+                </h3>
+                <div className="field">
+                  <label htmlFor="sub-name">{t("name")}</label>
+                  <input
+                    id="sub-name"
+                    value={subName}
+                    autoFocus
+                    onChange={e => {
+                      const val = e.target.value;
+                      setSubName(val);
+                      transliterateToHindi(val).then(hi => setSubHi(hi));
+                    }}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="sub-hi">{t("hiName")}</label>
+                  <div className="hi-field-wrap">
+                    <input
+                      id="sub-hi"
+                      value={subHi}
+                      onChange={e => setSubHi(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="hi-btn"
+                      title={t("autoHindi")}
+                      aria-label={t("autoHindi")}
+                      onClick={async () => {
+                        if (subName) setSubHi(await transliterateToHindi(subName));
+                      }}
+                    >
+                      ✨
+                    </button>
+                  </div>
+                </div>
+                <div className="seg" role="group">
+                  <button
+                    type="button"
+                    className="zbtn"
+                    aria-pressed={subGender === "M"}
+                    onClick={() => setSubGender("M")}
+                  >
+                    {t("male")}
+                  </button>
+                  <button
+                    type="button"
+                    className="zbtn"
+                    aria-pressed={subGender === "F"}
+                    onClick={() => setSubGender("F")}
+                  >
+                    {t("female")}
+                  </button>
+                </div>
+                {errMsg && <p className="msg">{errMsg}</p>}
+                <div className="actions">
+                  <button type="submit" className="btn">
+                    {t("save")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => setAddMode(null)}
+                  >
+                    {t("cancel")}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="danger">
+              {canRemove ? (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  style={{ color: "#ef4444" }}
+                  onClick={() => {
+                    if (confirmRemove) {
+                      remove(person.id);
+                    } else {
+                      setConfirmRemove(true);
+                    }
+                  }}
+                  onBlur={() => setConfirmRemove(false)}
+                >
+                  {confirmRemove ? t("removeSure") : t("removePerson")}
+                </button>
+              ) : (
+                <p className="muted" style={{ fontSize: "12px" }}>
+                  {t("cantRemove")}
+                </p>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="muted" style={{ marginTop: "18px", fontSize: "12px" }}>
+            {t("readOnlyBadge")}
+          </p>
+        )}
       </div>
     </div>
   );
