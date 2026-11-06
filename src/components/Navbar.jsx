@@ -9,6 +9,7 @@ export function Navbar({
   generationCount,
   activeTreeId,
   activeTreeTitle,
+  isPrivateTree,
   isOwner,
   user,
   onOpenAuth,
@@ -25,6 +26,8 @@ export function Navbar({
   setContrast,
   motion,
   setMotion,
+  viewportMode,
+  setViewportMode,
   isSettingsOpen,
   setIsSettingsOpen
 }) {
@@ -47,9 +50,9 @@ export function Navbar({
         onClick={() => setCurrentView('home')}
         aria-label={t('navHome')}
       >
-        <span className="brand-crest" aria-hidden="true">G</span>
+        <span className="brand-crest" aria-hidden="true">V</span>
         <span className="brand-text">
-          <span className="brand-title">{activeTreeTitle || 'GUPTA FAMILY TREE'}</span>
+          <span className="brand-title">{activeTreeTitle || 'FAMILY TREE'}</span>
           <span className="brand-sub">{t('navBrandSub')}</span>
         </span>
       </button>
@@ -80,10 +83,12 @@ export function Navbar({
       </div>
 
       <div className="nav-actions">
-        <span className="stats-badge">
-          {t('statsBadge', memberCount, generationCount)} ·{' '}
-          {isOwner ? t('ownerBadge') : t('readOnlyBadge')}
-        </span>
+        {currentView !== 'home' && (
+          <span className="stats-badge">
+            {t('statsBadge', memberCount, generationCount)} ·{' '}
+            {isPrivateTree ? t('privateBadge') : isOwner ? t('ownerBadge') : t('readOnlyBadge')}
+          </span>
+        )}
 
         {(!activeTreeId || cloudConfigured) && (
           <button
@@ -100,7 +105,7 @@ export function Navbar({
           href="https://github.com/arpitkumar81008-cmd"
           target="_blank"
           rel="noopener noreferrer"
-          className="zbtn nav-action-btn"
+          className="zbtn nav-action-btn nav-github-link"
           title="GitHub · arpitkumar81008-cmd"
           aria-label="GitHub profile (arpitkumar81008-cmd)"
         >
@@ -144,6 +149,8 @@ export function Navbar({
             setContrast={setContrast}
             motion={motion}
             setMotion={setMotion}
+            viewportMode={viewportMode}
+            setViewportMode={setViewportMode}
             lang={lang}
             setLang={setLang}
             t={t}

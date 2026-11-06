@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { animate, stagger } from 'motion';
 import { Card } from './Card.jsx';
 import CanvasDock from './CanvasDock.jsx';
 import { calculateKinship } from '../utils/kinship.js';
@@ -21,10 +22,38 @@ export function Canvas({
   onZoom,
   onResetViewer
 }) {
-  const [hoveredId, setHoveredId] = useState(null);
   const containerRef = useRef(null);
   const stageRef = useRef(null);
   const panRef = useRef({ active: false, hasDragged: false, sx: 0, sy: 0, sl: 0, st: 0 });
+
+  // Clean staggered card & SVG line entrance when switching perspective or loading tree
+  useEffect(() => {
+    const stageEl = stageRef.current;
+    if (!stageEl) return;
+
+    const isReduced =
+      document.documentElement.getAttribute('data-motion') === 'reduce' ||
+      window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    if (isReduced) return;
+
+    const cards = stageEl.querySelectorAll('.card');
+    if (cards.length) {
+      animate(
+        cards,
+        { opacity: [0, 1] },
+        { delay: stagger(0.008), duration: 0.28, easing: [0.22, 1, 0.36, 1] }
+      );
+    }
+
+    const lines = stageEl.querySelectorAll('.lines path');
+    if (lines.length) {
+      animate(
+        lines,
+        { opacity: [0, 1] },
+        { duration: 0.35, easing: 'ease-out' }
+      );
+    }
+  }, [viewer, treeState.data.people.length]);
 
   // Pan interaction with mouse drag
   useEffect(() => {
@@ -132,137 +161,137 @@ export function Canvas({
 
   return (
     <div className="treewrap-host">
-    <div
-      ref={containerRef}
-      className="treewrap"
-      tabIndex={0}
-      role="region"
-      aria-label={t("treeRegion")}
-      onMouseDown={e => {
-        if (e.button === 0 && containerRef.current) {
-          panRef.current = {
-            active: true,
-            hasDragged: false,
-            sx: e.clientX,
-            sy: e.clientY,
-            sl: containerRef.current.scrollLeft,
-            st: containerRef.current.scrollTop
-          };
-        }
-      }}
-    >
       <div
-        className="sizer"
-        style={{
-          width: layout.W * zoom,
-          height: layout.H * zoom
+        ref={containerRef}
+        className="treewrap"
+        tabIndex={0}
+        role="region"
+        aria-label={t("treeRegion")}
+        onMouseDown={e => {
+          if (e.button === 0 && containerRef.current) {
+            panRef.current = {
+              active: true,
+              hasDragged: false,
+              sx: e.clientX,
+              sy: e.clientY,
+              sl: containerRef.current.scrollLeft,
+              st: containerRef.current.scrollTop
+            };
+          }
         }}
       >
         <div
-          ref={stageRef}
-          className="stage"
+          className="sizer"
           style={{
-            width: layout.W,
-            height: layout.H,
-            transform: `scale(${zoom})`
+            width: layout.W * zoom,
+            height: layout.H * zoom
           }}
         >
-          {/* SVG Connector Lines */}
-          <svg
-            className="lines"
-            width={layout.W}
-            height={layout.H}
-            viewBox={`0 0 ${layout.W} ${layout.H}`}
-            aria-hidden="true"
+          <div
+            ref={stageRef}
+            className="stage"
+            style={{
+              width: layout.W,
+              height: layout.H,
+              transform: `scale(${zoom})`
+            }}
           >
-            {layout.guideLines && (
-              <path className="guide-line" d={layout.guideLines} />
-            )}
-            {layout.otherPath && (
-              <path className="other-branch-line" d={layout.otherPath} />
-            )}
-            {layout.bridgePath && (
-              <path className="bridge-line" d={layout.bridgePath} />
-            )}
-            {layout.mainPath && (
-              <path className="main-branch-line" d={layout.mainPath} />
-            )}
-            {!layout.mainPath && !layout.otherPath && layout.path && (
-              <path className="main-branch-line" d={layout.path} />
-            )}
-          </svg>
-
-          {/* Branch Header Pills */}
-          {(layout.branchLabels || []).map((b, idx) => (
-            <div
-              key={`br_${idx}`}
-              className="branch-pill"
-              style={{ left: `${b.x}px`, top: `${b.y}px` }}
+            {/* SVG Connector Lines */}
+            <svg
+              className="lines"
+              width={layout.W}
+              height={layout.H}
+              viewBox={`0 0 ${layout.W} ${layout.H}`}
+              aria-hidden="true"
             >
-              {b.text}
-            </div>
-          ))}
+              {layout.guideLines && (
+                <path className="guide-line" d={layout.guideLines} />
+              )}
+              {layout.otherPath && (
+                <path className="other-branch-line" d={layout.otherPath} />
+              )}
+              {layout.bridgePath && (
+                <path className="bridge-line" d={layout.bridgePath} />
+              )}
+              {layout.mainPath && (
+                <path className="main-branch-line" d={layout.mainPath} />
+              )}
+              {!layout.mainPath && !layout.otherPath && layout.path && (
+                <path className="main-branch-line" d={layout.path} />
+              )}
+            </svg>
 
-          {/* Generation Rail & Pills */}
-          {(layout.genLabels || []).map(g => (
-            <div
-              key={g.g}
-              className="gen-rail"
-              style={{ top: `${g.labelY}px` }}
-            >
-              <span className="gen-pill">{g.labelText}</span>
-            </div>
-          ))}
+            {/* Branch Header Pills */}
+            {(layout.branchLabels || []).map((b, idx) => (
+              <div
+                key={`br_${idx}`}
+                className="branch-pill"
+                style={{ left: `${b.x}px`, top: `${b.y}px` }}
+              >
+                {b.text}
+              </div>
+            ))}
 
-          {/* Member Cards */}
-          {treeState.data.people.map(person => {
-            const pos = layout.pos[person.id];
-            if (!pos) return null;
+            {/* Generation Rail & Pills */}
+            {(layout.genLabels || []).map(g => (
+              <div
+                key={g.g}
+                className="gen-rail"
+                style={{ top: `${g.labelY}px` }}
+              >
+                <span className="gen-pill">{g.labelText}</span>
+              </div>
+            ))}
 
-            const isMe = viewer === person.id;
-            const isHit = isSearchActive && searchMatches.some(m => m.id === person.id);
-            const isDim = isSearchActive && !isHit;
+            {/* Member Cards */}
+            {treeState.data.people.map(person => {
+              const pos = layout.pos[person.id];
+              if (!pos) return null;
 
-            const relLabel = viewer
-              ? calculateKinship(familyIndex, viewer, person.id, lang)[0]
-              : "";
+              const isMe = viewer === person.id;
+              const isHit = isSearchActive && searchMatches.some(m => m.id === person.id);
+              const isDim = isSearchActive && !isHit;
 
-            return (
-              <Card
-                key={person.id}
-                person={person}
-                pos={pos}
-                cardHeight={cardHeight}
-                relationLabel={relLabel}
-                photo={treeState.photos[person.id]}
-                isMe={isMe}
-                isHit={isHit}
-                isDim={isDim}
-                t={t}
-                displayName={displayName}
-                onClick={() => {
-                  if (!panRef.current.hasDragged) {
-                    onCardClick(person.id);
-                  }
-                }}
-                onKeyDown={e => handleCardKeyDown(e, person.id)}
-              />
-            );
-          })}
+              const relLabel = viewer
+                ? calculateKinship(familyIndex, viewer, person.id, lang)[0]
+                : "";
+
+              return (
+                <Card
+                  key={person.id}
+                  person={person}
+                  pos={pos}
+                  cardHeight={cardHeight}
+                  relationLabel={relLabel}
+                  photo={treeState.photos[person.id]}
+                  isMe={isMe}
+                  isHit={isHit}
+                  isDim={isDim}
+                  t={t}
+                  displayName={displayName}
+                  onClick={() => {
+                    if (!panRef.current.hasDragged) {
+                      onCardClick(person.id);
+                    }
+                  }}
+                  onKeyDown={e => handleCardKeyDown(e, person.id)}
+                />
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
-    <CanvasDock
-      zoom={zoom}
-      onZoomIn={() => onZoom(0.1)}
-      onZoomOut={() => onZoom(-0.1)}
-      onFit={fitView}
-      onPan={handlePanBy}
-      viewerName={viewer ? displayName(viewer) : ""}
-      onReset={onResetViewer}
-      t={t}
-      lang={lang}
-    />
+      <CanvasDock
+        zoom={zoom}
+        onZoomIn={() => onZoom(0.1)}
+        onZoomOut={() => onZoom(-0.1)}
+        onFit={fitView}
+        onPan={handlePanBy}
+        viewerName={viewer ? displayName(viewer) : ""}
+        onReset={onResetViewer}
+        t={t}
+        lang={lang}
+      />
     </div>
   );
 }

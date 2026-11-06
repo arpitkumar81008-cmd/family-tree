@@ -11,6 +11,8 @@ export function SettingsPopover({
   setContrast,
   motion,
   setMotion,
+  viewportMode = 'auto',
+  setViewportMode,
   lang,
   setLang,
   t
@@ -79,6 +81,39 @@ export function SettingsPopover({
           </button>
         </div>
       </div>
+
+      {/* Display / Visibility Mode (Laptop vs Mobile Optimization) */}
+      {setViewportMode && (
+        <div className="settings-group">
+          <span className="lbl">{t("viewportLabel")}</span>
+          <div className="settings-seg">
+            <button
+              type="button"
+              className="zbtn"
+              aria-pressed={viewportMode === "auto"}
+              onClick={() => setViewportMode("auto")}
+            >
+              {t("viewAuto")}
+            </button>
+            <button
+              type="button"
+              className="zbtn"
+              aria-pressed={viewportMode === "laptop"}
+              onClick={() => setViewportMode("laptop")}
+            >
+              💻 {t("viewLaptop")}
+            </button>
+            <button
+              type="button"
+              className="zbtn"
+              aria-pressed={viewportMode === "mobile"}
+              onClick={() => setViewportMode("mobile")}
+            >
+              📱 {t("viewMobile")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Theme */}
       <div className="settings-group">

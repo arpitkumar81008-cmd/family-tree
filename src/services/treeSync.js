@@ -268,11 +268,37 @@ export async function saveUserTree(treeId, treeDoc, user) {
 }
 
 /**
- * Debounced (1200ms) wrapper around saveUserTree to prevent rapid Firestore write bursts.
+ * Immediately caches the updated tree to localStorage (0ms latency so HMR/reloads never lose edits)
+ * and debounces (600ms) the network write to Cloud Firestore.
  */
 export function saveUserTreeDebounced(treeId, treeDoc, user) {
+  if (!treeId || !user?.uid) return;
+  if (!canUserEditTree(treeDoc, user)) return;
+
+  // Immediate synchronous local cache write so code updates or refreshes never drop newly added members
+  try {
+    const nowIso = new Date().toISOString();
+    const localMap = readLocalTrees();
+    localMap[treeId] = {
+      ...(localMap[treeId] || {}),
+      title: (treeDoc.title || 'Family Tree').slice(0, 120),
+      ownerUid: treeDoc.ownerUid || user.uid,
+      ownerName: (treeDoc.ownerName || user.displayName || 'Family Member').slice(0, 120),
+      isPublic: Boolean(treeDoc.isPublic ?? false),
+      collaboratorUids: Array.isArray(treeDoc.collaboratorUids) ? treeDoc.collaboratorUids : [],
+      data: {
+        people: Array.isArray(treeDoc.data?.people) ? treeDoc.data.people : [],
+        couples: Array.isArray(treeDoc.data?.couples) ? treeDoc.data.couples : []
+      },
+      photos: treeDoc.photos && typeof treeDoc.photos === 'object' ? treeDoc.photos : {},
+      lang: treeDoc.lang === 'hi' ? 'hi' : 'en',
+      updatedAt: nowIso
+    };
+    writeLocalTrees(localMap);
+  } catch {}
+
   if (debounceTimer) clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
     saveUserTree(treeId, treeDoc, user);
-  }, 1200);
+  }, 600);
 }

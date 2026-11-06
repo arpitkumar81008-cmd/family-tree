@@ -5,6 +5,7 @@ import {
   signInWithEmail,
   signUpWithEmail
 } from '../services/firebase.js';
+import { useSmartAutoAnimate } from '../utils/useSmartAutoAnimate.js';
 
 export const LOCAL_AUTH_KEY = 'gupta_local_auth_user';
 
@@ -36,6 +37,7 @@ export function AuthModal({ t, close, onSignedIn }) {
   const [err, setErr] = useState('');
   const ref = useRef(null);
   const firstRef = useRef(null);
+  const formAnimRef = useSmartAutoAnimate();
 
   useEffect(() => {
     firstRef.current?.focus();
@@ -122,7 +124,7 @@ export function AuthModal({ t, close, onSignedIn }) {
     <div className="overlay" onMouseDown={e => e.target === e.currentTarget && close()}>
       <div
         ref={ref}
-        className="sheet auth-sheet"
+        className="sheet auth-sheet reveal-parent"
         role="dialog"
         aria-modal="true"
         aria-labelledby="auth-title"
@@ -131,7 +133,7 @@ export function AuthModal({ t, close, onSignedIn }) {
           ×
         </button>
         <h2 id="auth-title">{t('authTitle')}</h2>
-        <p className="muted" style={{ marginTop: 6, marginBottom: 12 }}>
+        <p className="muted hover-explanation" style={{ marginBottom: 12 }}>
           {t('authSubtitle')}
         </p>
 
@@ -170,7 +172,7 @@ export function AuthModal({ t, close, onSignedIn }) {
           </>
         )}
 
-        <form className="newform" onSubmit={handleEmailSubmit}>
+        <form className="newform" ref={formAnimRef} onSubmit={handleEmailSubmit}>
           {(mode === 'signup' || !cloudConfigured) && (
             <div className="field">
               <label htmlFor="auth-name">{t('displayNameLabel')}</label>

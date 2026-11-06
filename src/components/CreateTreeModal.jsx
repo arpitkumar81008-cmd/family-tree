@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { validateTreeData } from '../data/schema.js';
 import { listAvailableTrees, isPhotosPayloadWithinLimit } from '../services/treeSync.js';
+import { useSmartAutoAnimate } from '../utils/useSmartAutoAnimate.js';
 
 export function CreateTreeModal({
   t,
@@ -24,10 +25,22 @@ export function CreateTreeModal({
   const [publicTrees, setPublicTrees] = useState([]);
   const ref = useRef(null);
   const firstRef = useRef(null);
+  const directoryListRef = useSmartAutoAnimate();
 
   useEffect(() => {
     firstRef.current?.focus();
-    listAvailableTrees(user).then(setPublicTrees).catch(() => {});
+    listAvailableTrees(user)
+      .then(list => {
+        // Sort private/owned trees first so the signed-in owner immediately sees their private tree
+        const sorted = [...list].sort((a, b) => {
+          const aOwned = Boolean(user && a.ownerUid === user.uid);
+          const bOwned = Boolean(user && b.ownerUid === user.uid);
+          if (aOwned !== bOwned) return aOwned ? -1 : 1;
+          return 0;
+        });
+        setPublicTrees(sorted);
+      })
+      .catch(() => {});
     const onKey = e => {
       if (e.key === 'Escape') close();
       if (e.key === 'Tab' && ref.current) {
@@ -126,11 +139,11 @@ export function CreateTreeModal({
         </button>
         <h2 id="create-title">{t('createTitle')}</h2>
 
-        {/* 1. Always-Open Public Tree Directory (No login required to view; omits owner PII) */}
-        <div className="create-option">
+        {/* 1. Always-Open Public & Personal Tree Directory */}
+        <div className="create-option reveal-parent" tabIndex={0}>
           <h3>{t('browsePublicTitle')}</h3>
-          <p className="muted">{t('browsePublicBody')}</p>
-          <ul className="tree-directory">
+          <p className="muted hover-explanation">{t('browsePublicBody')}</p>
+          <ul className="tree-directory" ref={directoryListRef}>
             <li>
               <div>
                 <strong>{t('canonicalTreeName')}</strong>
@@ -149,37 +162,46 @@ export function CreateTreeModal({
                 {t('openTreeBtn')}
               </button>
             </li>
-            {publicTrees.map(tr => (
-              <li key={tr.id}>
-                <div>
-                  <strong>{tr.title}</strong>
-                  <span className="muted">
-                    {' '}
-                    · {tr.data?.people?.length || 0} ·{' '}
-                    {user && tr.ownerUid === user.uid ? t('ownerBadge') : t('readOnlyBadge')}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="chip"
-                  onClick={() => {
-                    onSelectTree?.(tr.id, tr);
-                    close();
-                  }}
-                >
-                  {activeTreeId === tr.id ? '✓ ' : ''}
-                  {t('openTreeBtn')}
-                </button>
-              </li>
-            ))}
+            {publicTrees
+              .filter(tr => tr.id !== 'tree_demo_sharma')
+              .map(tr => {
+                const isUserOwner = Boolean(user && tr.ownerUid === user.uid);
+                const badgeText = !tr.isPublic
+                  ? t('privateBadge')
+                  : isUserOwner
+                  ? t('ownerBadge')
+                  : t('readOnlyBadge');
+                return (
+                  <li key={tr.id}>
+                    <div>
+                      <strong>{tr.title}</strong>
+                      <span className="muted">
+                        {' '}
+                        · {tr.data?.people?.length || 0} · {badgeText}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="chip"
+                      onClick={() => {
+                        onSelectTree?.(tr.id, tr);
+                        close();
+                      }}
+                    >
+                      {activeTreeId === tr.id ? '✓ ' : ''}
+                      {t('openTreeBtn')}
+                    </button>
+                  </li>
+                );
+              })}
           </ul>
         </div>
 
         {/* 2. Auth Gate for Creating or Importing Your Own Tree */}
         {!user ? (
-          <div className="create-option auth-gate-box">
+          <div className="create-option auth-gate-box reveal-parent" tabIndex={0}>
             <h3>{t('createBlankTitle')}</h3>
-            <p className="muted">{t('authRequiredNotice')}</p>
+            <p className="muted hover-explanation">{t('authRequiredNotice')}</p>
             <button
               type="button"
               className="btn"
@@ -192,9 +214,9 @@ export function CreateTreeModal({
           </div>
         ) : (
           <>
-            <form className="create-option" onSubmit={startBlank}>
+            <form className="create-option reveal-parent" onSubmit={startBlank}>
               <h3>{t('createBlankTitle')}</h3>
-              <p className="muted">{t('createBlankBody')}</p>
+              <p className="muted hover-explanation">{t('createBlankBody')}</p>
               <div className="field">
                 <label htmlFor="ct-title">{t('treeTitleLabel')}</label>
                 <input
@@ -242,9 +264,9 @@ export function CreateTreeModal({
               </button>
             </form>
 
-            <div className="create-option">
+            <div className="create-option reveal-parent" tabIndex={0}>
               <h3>{t('createImportTitle')}</h3>
-              <p className="muted">{t('createImportBody')}</p>
+              <p className="muted hover-explanation">{t('createImportBody')}</p>
               <div className="field">
                 <label htmlFor="ct-import">{t('importLbl')}</label>
                 <textarea
@@ -270,9 +292,9 @@ export function CreateTreeModal({
           </>
         )}
 
-        <div className="create-option">
+        <div className="create-option reveal-parent" tabIndex={0}>
           <h3>{t('createRestoreTitle')}</h3>
-          <p className="muted">{t('createRestoreBody')}</p>
+          <p className="muted hover-explanation">{t('createRestoreBody')}</p>
           <button
             type="button"
             className="btn ghost"

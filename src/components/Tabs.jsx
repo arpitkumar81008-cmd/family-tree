@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { calculateKinship } from '../utils/kinship.js';
 import { validateTreeData } from '../data/schema.js';
+import { useSmartAutoAnimate } from '../utils/useSmartAutoAnimate.js';
 
 export function RelationshipFinder({ familyIndex, lang, t, displayName, people, startPerson }) {
   const [firstId, setFirstId] = useState(startPerson || "");
   const [secondId, setSecondId] = useState("");
+  const finderAnimRef = useSmartAutoAnimate();
 
   const isValid =
     firstId &&
@@ -64,7 +66,8 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
   const commonAncestor = isValid ? findCommonAncestors(firstId, secondId) : null;
 
   return (
-    <div className="finder">
+    <div className="finder reveal-parent" ref={finderAnimRef}>
+      <p className="muted hover-explanation">{t("relHelpSub")}</p>
       <div className="finder-grid">
         <div className="field">
           <label htmlFor="fa">{t("first")}</label>
@@ -110,6 +113,7 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
 }
 
 export function BirthdaysList({ data, lang, t, displayName, openPerson }) {
+  const bdayAnimRef = useSmartAutoAnimate();
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -132,33 +136,36 @@ export function BirthdaysList({ data, lang, t, displayName, openPerson }) {
   }
 
   return (
-    <ul className="blist">
-      {upcoming.map(item => (
-        <li key={item.p.id}>
-          <button
-            type="button"
-            className="chip"
-            onClick={() => openPerson(item.p.id)}
-          >
-            {displayName(item.p.id)}
-          </button>
-          <span>
-            {item.next.toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", {
-              day: "numeric",
-              month: "long"
-            })}
-          </span>
-          <span className="muted">
-            {item.days === 0
-              ? t("today")
-              : item.days === 1
-              ? t("tomorrow")
-              : t("inDays", item.days)}
-            {item.turns > 0 ? " · " + t("turns", item.turns) : ""}
-          </span>
-        </li>
-      ))}
-    </ul>
+    <div className="reveal-parent">
+      <p className="muted hover-explanation" style={{ marginBottom: 10 }}>{t("bdayHelpSub")}</p>
+      <ul className="blist" ref={bdayAnimRef}>
+        {upcoming.map(item => (
+          <li key={item.p.id}>
+            <button
+              type="button"
+              className="chip"
+              onClick={() => openPerson(item.p.id)}
+            >
+              {displayName(item.p.id)}
+            </button>
+            <span>
+              {item.next.toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", {
+                day: "numeric",
+                month: "long"
+              })}
+            </span>
+            <span className="muted">
+              {item.days === 0
+                ? t("today")
+                : item.days === 1
+                ? t("tomorrow")
+                : t("inDays", item.days)}
+              {item.turns > 0 ? " · " + t("turns", item.turns) : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -168,6 +175,7 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
   const [importText, setImportText] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
   const exportBoxRef = useRef(null);
+  const backupAnimRef = useSmartAutoAnimate();
   const isHi = lang === "hi";
 
   const exportPayload = JSON.stringify({
@@ -194,7 +202,8 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
   };
 
   return (
-    <div className="backup">
+    <div className="backup reveal-parent" ref={backupAnimRef}>
+      <p className="muted hover-explanation">{t("backupHelpSub")}</p>
       <div className="backup-grid">
         {/* Export Card */}
         <div className="backup-section">
@@ -328,6 +337,7 @@ export function Tabs({
   onReset,
   canEdit = true
 }) {
+  const panelAnimRef = useSmartAutoAnimate();
   const tabKeys = [
     { id: "rel", labelKey: "tabRel" },
     { id: "bday", labelKey: "tabBday" },
@@ -379,6 +389,7 @@ export function Tabs({
       </div>
 
       <div
+        ref={panelAnimRef}
         className="panel"
         role="tabpanel"
         id={`panel-${activeTab}`}

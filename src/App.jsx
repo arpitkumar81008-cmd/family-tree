@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef, useLayoutEffect } from 'react';
-import { loadInitialTreeState, saveTreeState } from './utils/storage.js';
+import {
+  loadInitialTreeState,
+  saveTreeState,
+  mergeCloudTreeWithLocalHistory,
+  recordDeletedId,
+  clearDeletedIds
+} from './utils/storage.js';
 import { buildFamilyIndex, INITIAL_DATA } from './data/familyData.js';
 import { createTranslator } from './i18n/index.js';
 import { computeTreeLayout } from './layout/engine.js';
@@ -19,6 +25,7 @@ import {
   getTreeIdFromUrl,
   setTreeIdInUrl,
   subscribeToTree,
+  listAvailableTrees,
   createUserTree,
   saveUserTreeDebounced,
   canUserEditTree,
@@ -65,6 +72,14 @@ export function App() {
       return localStorage.getItem("gupta_motion") || "normal";
     } catch {
       return "normal";
+    }
+  });
+
+  const [viewportMode, setViewportMode] = useState(() => {
+    try {
+      return localStorage.getItem("gupta_viewport_mode") || "auto";
+    } catch {
+      return "auto";
     }
   });
 
@@ -118,6 +133,44 @@ export function App() {
     });
   }, []);
 
+  // Automatically load the signed-in user's private family tree if no URL tree is active
+  useEffect(() => {
+    if (!user?.uid || activeTreeId) return;
+    let cancelled = false;
+    listAvailableTrees(user)
+      .then(trees => {
+        if (cancelled) return;
+        const privateOwned = trees.find(
+          tr => tr.ownerUid === user.uid && tr.isPublic === false
+        );
+        if (privateOwned) {
+          isLocalMutationRef.current = false;
+          setActiveTreeId(privateOwned.id);
+          setActiveTreeMeta(privateOwned);
+          setTreeIdInUrl(privateOwned.id);
+          if (privateOwned.data?.people) {
+            const merged = mergeCloudTreeWithLocalHistory(
+              privateOwned.id,
+              privateOwned.data,
+              privateOwned.photos || {},
+              privateOwned.lang
+            );
+            setTreeState(prev => ({
+              ...prev,
+              data: merged.data,
+              photos: merged.photos,
+              lang: merged.lang || prev.lang,
+              viewer: ""
+            }));
+          }
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user, activeTreeId]);
+
   // Subscribe to shared/custom tree when ?tree=<id> is active
   useEffect(() => {
     if (!activeTreeId) {
@@ -129,12 +182,20 @@ export function App() {
       docData => {
         setActiveTreeMeta(docData);
         if (docData?.data?.people) {
-          isLocalMutationRef.current = false;
+          const merged = mergeCloudTreeWithLocalHistory(
+            activeTreeId,
+            docData.data,
+            docData.photos || {},
+            docData.lang
+          );
+          const recoveredNewMembers =
+            merged.data.people.length > (docData.data.people?.length || 0);
+          isLocalMutationRef.current = recoveredNewMembers;
           setTreeState(prev => ({
             ...prev,
-            data: docData.data,
-            photos: docData.photos || {},
-            lang: docData.lang || prev.lang,
+            data: merged.data,
+            photos: merged.photos,
+            lang: merged.lang || prev.lang,
             viewer: ""
           }));
         }
@@ -220,6 +281,18 @@ export function App() {
       localStorage.setItem("gupta_motion", motion);
     } catch {}
   }, [motion]);
+
+  // Sync viewport display mode attribute (laptop vs mobile)
+  useEffect(() => {
+    try {
+      if (viewportMode === "laptop" || viewportMode === "mobile") {
+        document.documentElement.setAttribute("data-viewport", viewportMode);
+      } else {
+        document.documentElement.removeAttribute("data-viewport");
+      }
+      localStorage.setItem("gupta_viewport_mode", viewportMode);
+    } catch {}
+  }, [viewportMode]);
 
   // Sync document language
   useEffect(() => {
@@ -453,6 +526,7 @@ export function App() {
 
   const handleRemovePerson = id => {
     if (!canEdit) return;
+    recordDeletedId(id, activeTreeId || "public_demo");
     isLocalMutationRef.current = true;
     setTreeState(prev => {
       const remainingPeople = prev.data.people.filter(p => p.id !== id);
@@ -508,6 +582,7 @@ export function App() {
   };
 
   const handleReset = () => {
+    clearDeletedIds(activeTreeId || "public_demo");
     isLocalMutationRef.current = true;
     setTreeState(prev => ({
       ...prev,
@@ -620,6 +695,13 @@ export function App() {
     await signOutUser();
     saveLocalAuthUser(null);
     setUser(null);
+    if (activeTreeId && (!activeTreeMeta || !activeTreeMeta.isPublic)) {
+      isLocalMutationRef.current = false;
+      setActiveTreeId("");
+      setActiveTreeMeta(null);
+      setTreeIdInUrl("");
+      setTreeState(loadInitialTreeState());
+    }
   };
 
   return (
@@ -634,6 +716,7 @@ export function App() {
         generationCount={generationCount}
         activeTreeId={activeTreeId}
         activeTreeTitle={activeTreeMeta?.title || ""}
+        isPrivateTree={Boolean(activeTreeMeta && activeTreeMeta.isPublic === false)}
         isOwner={isOwner}
         user={user}
         onOpenAuth={() => setIsAuthOpen(true)}
@@ -653,6 +736,8 @@ export function App() {
         setContrast={setContrast}
         motion={motion}
         setMotion={setMotion}
+        viewportMode={viewportMode}
+        setViewportMode={setViewportMode}
         isSettingsOpen={isSettingsOpen}
         setIsSettingsOpen={setIsSettingsOpen}
       />

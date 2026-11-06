@@ -21,11 +21,13 @@
 /* Base typography, layouts, and interactive components */
 
 .page {
-  max-width: 1120px;
-  padding-block: 32px 48px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding-block: 24px 48px;
+  padding-left: clamp(20px, 3vw, 48px);
+  padding-right: clamp(20px, 3vw, 48px);
+  margin: 0;
 }
 
 .eyebrow {
@@ -594,9 +596,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .tools {
   margin-top: 32px;
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  padding: 20px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
+  padding: 24px 0;
 }
 
 .tabs {

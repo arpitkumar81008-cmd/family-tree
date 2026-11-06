@@ -2,14 +2,18 @@
 
 .treewrap {
   position: relative;
+  width: 100%;
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
   overflow: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
-  height: min(78vh, 760px);
-  min-height: 520px;
+  height: calc(100vh - 210px);
+  min-height: 540px;
   margin-block: 16px;
   user-select: none;
   touch-action: pan-x pan-y;

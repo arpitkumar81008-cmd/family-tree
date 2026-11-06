@@ -45,8 +45,8 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       (c.kids || []).forEach(k => childToCouple.set(k, c));
     });
 
-    // 1. Identify Main Patriarch (Badri Prasad or topmost ancestor)
-    let mainPatriarchId = byId['badri'] ? 'badri' : (people[0]?.id || '');
+    // 1. Identify Main Patriarch (Topmost founding ancestor of the tree)
+    let mainPatriarchId = people[0]?.id || '';
     if (mainPatriarchId) {
       let cur = mainPatriarchId;
       let visitedUp = new Set();
@@ -327,11 +327,11 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
     // 8. Position Spouse Branches Hierarchically as Trees!
     let branchLabels = [];
     let mainPatriarchPerson = mainPatriarchId ? byId[mainPatriarchId] : null;
-    let mainBranchLabelText = mainPatriarchPerson && mainPatriarchId !== 'badri'
+    let mainBranchLabelText = mainPatriarchPerson
       ? (lang === 'hi'
           ? `★ मुख्य वंश (${mainPatriarchPerson.hi || mainPatriarchPerson.name} कुल)`
           : `★ Main Family Branch (${mainPatriarchPerson.name} Lineage)`)
-      : (lang === 'hi' ? '★ मुख्य वंश (बद्री प्रसाद कुल)' : '★ Main Family Branch (Badri Prasad Lineage)');
+      : (lang === 'hi' ? '★ मुख्य वंश' : '★ Main Family Branch');
     branchLabels.push({
       text: mainBranchLabelText,
       x: mainTreeMinX,
@@ -439,7 +439,7 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
 
       let branchTitle = lang === 'hi' ? '✦ ससुराल पक्ष (मायका)' : "✦ In-Law Family Branch";
       let linkedSpouseId = (rc.kids || []).find(k => mainDescendants.has(k) || personMainCouple.has(k));
-      let linkedPerson = (linkedSpouseId && byId[linkedSpouseId]) || people.find(p => p.id === 'minal');
+      let linkedPerson = linkedSpouseId ? byId[linkedSpouseId] : null;
       if (linkedPerson) {
         branchTitle = lang === 'hi'
           ? (linkedPerson.hi || linkedPerson.name) + ' का मायका (ससुराल पक्ष)'
@@ -570,7 +570,7 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       }
 
       // Connecting line from spouse branch bus across to the married spouse in the main branch!
-      let linkedChildId = (sc.kids || []).find(k => pos[k] && (mainDescendants.has(k) || personMainCouple.has(k) || k === 'minal'));
+      let linkedChildId = (sc.kids || []).find(k => pos[k] && (mainDescendants.has(k) || personMainCouple.has(k)));
       if (linkedChildId && pos[linkedChildId]) {
         let spousePos = pos[linkedChildId];
         let spouseCx = spousePos.x + CARD_W / 2;

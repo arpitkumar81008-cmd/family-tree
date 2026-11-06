@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { animate, stagger } from 'motion';
 
 export function LandingPage({
   t,
@@ -12,7 +13,33 @@ export function LandingPage({
 
   useEffect(() => {
     const el = rootRef.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return;
+    if (!el) return;
+
+    const isReduced =
+      document.documentElement.getAttribute('data-motion') === 'reduce' ||
+      window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+
+    if (!isReduced) {
+      const heroNodes = el.querySelectorAll('.hero .eyebrow, .hero .hero-title, .hero .hero-cta');
+      if (heroNodes.length) {
+        animate(
+          heroNodes,
+          { opacity: [0, 1], transform: ['translateY(12px)', 'translateY(0px)'] },
+          { delay: stagger(0.06), duration: 0.42, easing: [0.22, 1, 0.36, 1] }
+        );
+      }
+
+      const metricNodes = el.querySelectorAll('.metric');
+      if (metricNodes.length) {
+        animate(
+          metricNodes,
+          { opacity: [0, 1], transform: ['translateY(10px)', 'translateY(0px)'] },
+          { delay: stagger(0.05, { start: 0.1 }), duration: 0.38, easing: [0.22, 1, 0.36, 1] }
+        );
+      }
+    }
+
+    if (typeof IntersectionObserver === 'undefined') return;
     const targets = el.querySelectorAll('.reveal-on-scroll');
     const io = new IntersectionObserver(
       entries => {
@@ -39,6 +66,18 @@ export function LandingPage({
     ['02', 'feat2Title', 'feat2Body'],
     ['03', 'feat3Title', 'feat3Body'],
     ['04', 'feat4Title', 'feat4Body']
+  ];
+  const tutorials = [
+    ['tut1Step', 'tut1Title', 'tut1Body'],
+    ['tut2Step', 'tut2Title', 'tut2Body'],
+    ['tut3Step', 'tut3Title', 'tut3Body'],
+    ['tut4Step', 'tut4Title', 'tut4Body']
+  ];
+  const faqs = [
+    ['faq1Q', 'faq1A'],
+    ['faq2Q', 'faq2A'],
+    ['faq3Q', 'faq3A'],
+    ['faq4Q', 'faq4A']
   ];
 
   return (
@@ -99,6 +138,33 @@ export function LandingPage({
           <button type="button" className="btn ghost" onClick={onExplore}>
             {t('spotlightCta')}
           </button>
+        </div>
+      </section>
+
+      {/* Quick Start Tutorials Section */}
+      <section className="tutorials-section">
+        <h2 className="section-title">{t('tutorialsTitle')}</h2>
+        <div className="feature-grid">
+          {tutorials.map(([stepKey, titleKey, bodyKey]) => (
+            <article className="feature-card reveal-parent reveal-on-scroll" key={stepKey} tabIndex={0}>
+              <span className="feature-num" aria-hidden="true">{t(stepKey)}</span>
+              <h3>{t(titleKey)}</h3>
+              <p className="hover-explanation">{t(bodyKey)}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* Frequently Asked Questions (FAQ) Section */}
+      <section className="faq-section">
+        <h2 className="section-title">{t('faqTitle')}</h2>
+        <div className="faq-grid">
+          {faqs.map(([qKey, aKey]) => (
+            <article className="faq-card reveal-parent reveal-on-scroll" key={qKey} tabIndex={0}>
+              <h3>{t(qKey)}</h3>
+              <p className="hover-explanation">{t(aKey)}</p>
+            </article>
+          ))}
         </div>
       </section>
 
