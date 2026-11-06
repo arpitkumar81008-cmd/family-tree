@@ -103,17 +103,12 @@ export function dedup(treeState) {
     delete photos[dupId];
   }
 
-  const cleaned = {
+  return {
     ...treeState,
     data: { people: uniquePeople, couples: uniqueCouples },
-    photos
+    photos,
+    viewer: remap.get(treeState.viewer) || treeState.viewer
   };
-
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
-  } catch {}
-
-  return cleaned;
 }
 
 export function deepMergeTree(base, storedList) {

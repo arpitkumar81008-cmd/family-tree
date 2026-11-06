@@ -261,6 +261,11 @@ export function App() {
     return treeState.lang === "hi" && p.hi ? p.hi : p.name;
   };
 
+  // Sync cardHeight dynamically with textSize so cards and orthogonal connectors never overlap
+  useEffect(() => {
+    setCardHeight(textSize === "xlarge" ? 168 : textSize === "large" ? 152 : 138);
+  }, [textSize]);
+
   // Spatial Layout Calculation
   const layout = useMemo(() => {
     return computeTreeLayout(
@@ -571,11 +576,17 @@ export function App() {
       setIsAuthOpen(true);
       return;
     }
+    const deduped = dedup({
+      data: newData,
+      photos: newPhotos || {},
+      lang: treeState.lang,
+      viewer: ""
+    });
     const created = await createUserTree(
       {
         title,
-        data: newData,
-        photos: newPhotos || {},
+        data: deduped.data,
+        photos: deduped.photos,
         isPublic,
         lang: treeState.lang
       },
@@ -585,14 +596,12 @@ export function App() {
     setActiveTreeId(created.id);
     setActiveTreeMeta(created);
     setTreeIdInUrl(created.id);
-    setTreeState(prev =>
-      dedup({
-        ...prev,
-        data: newData,
-        photos: newPhotos ?? prev.photos,
-        viewer: ""
-      })
-    );
+    setTreeState(prev => ({
+      ...prev,
+      data: deduped.data,
+      photos: deduped.photos,
+      viewer: ""
+    }));
     setIsCreateOpen(false);
     enterTree();
   };

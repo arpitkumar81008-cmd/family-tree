@@ -16,6 +16,7 @@ export function Avatar({ photo, label, text, big = false }) {
 export function Card({
   person,
   pos,
+  cardHeight = 138,
   relationLabel,
   photo,
   isMe,
@@ -39,7 +40,7 @@ export function Card({
         left: `${pos.x}px`,
         top: `${pos.y}px`,
         width: "96px",
-        height: "138px"
+        height: `${cardHeight}px`
       }}
       aria-label={`${name}, ${relationLabel || ""}`}
       onClick={onClick}

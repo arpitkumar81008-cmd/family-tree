@@ -226,6 +226,7 @@ export function Canvas({
                 key={person.id}
                 person={person}
                 pos={pos}
+                cardHeight={cardHeight}
                 relationLabel={relLabel}
                 photo={treeState.photos[person.id]}
                 isMe={isMe}

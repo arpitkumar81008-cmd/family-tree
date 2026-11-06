@@ -87,9 +87,14 @@ export function buildFamilyIndex(data) {
       spouse[c.h] = c.w;
       spouse[c.w] = c.h;
     }
-    if (c.h) children[c.h] = c.kids || [];
-    if (c.w) children[c.w] = c.kids || [];
-    (c.kids || []).forEach(k => {
+    const kids = c.kids || [];
+    if (c.h) {
+      children[c.h] = Array.from(new Set([...(children[c.h] || []), ...kids]));
+    }
+    if (c.w) {
+      children[c.w] = Array.from(new Set([...(children[c.w] || []), ...kids]));
+    }
+    kids.forEach(k => {
       parents[k] = [c.h, c.w].filter(Boolean);
       cok[k] = c;
     });

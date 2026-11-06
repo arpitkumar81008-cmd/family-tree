@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { calculateKinship } from '../utils/kinship.js';
+import { validateTreeData } from '../data/schema.js';
 
 export function RelationshipFinder({ familyIndex, lang, t, displayName, people, startPerson }) {
   const [firstId, setFirstId] = useState(startPerson || "");
@@ -236,21 +237,10 @@ export function BackupPanel({ treeState, t, onImport, onReset, canEdit = true })
                 try {
                   const parsed = JSON.parse(importText);
                   const d = parsed.data;
-                  if (!d || !Array.isArray(d.people) || !Array.isArray(d.couples)) {
-                    throw new Error("Invalid shape");
+                  const res = validateTreeData(d);
+                  if (!res.valid) {
+                    throw new Error(res.error);
                   }
-                  const ids = new Set();
-                  d.people.forEach(p => {
-                    if (typeof p.id !== "string" || typeof p.name !== "string") {
-                      throw new Error("Invalid person");
-                    }
-                    ids.add(p.id);
-                  });
-                  d.couples.forEach(c => {
-                    if ((c.h && !ids.has(c.h)) || (c.w && !ids.has(c.w)) || !Array.isArray(c.kids)) {
-                      throw new Error("Invalid couple");
-                    }
-                  });
                   onImport(
                     { people: d.people, couples: d.couples },
                     parsed.photos && typeof parsed.photos === "object" ? parsed.photos : undefined

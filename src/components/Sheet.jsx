@@ -108,7 +108,7 @@ export function Sheet({
       setErrMsg(t("needName"));
       return;
     }
-    add(person.id, addMode, subName.trim(), subHi.trim(), subGender);
+    add(person.id, addMode, subName.trim(), subHi.trim() || undefined, subGender);
     setAddMode(null);
     setSubName("");
     setSubHi("");

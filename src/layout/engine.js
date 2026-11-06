@@ -46,10 +46,8 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
     });
 
     // 1. Identify Main Patriarch (Badri Prasad or topmost ancestor)
-    let mainPatriarchId = 'badri';
-    if (!byId[mainPatriarchId]) {
-      mainPatriarchId = people[0]?.id || '';
-    } else {
+    let mainPatriarchId = byId['badri'] ? 'badri' : (people[0]?.id || '');
+    if (mainPatriarchId) {
       let cur = mainPatriarchId;
       let visitedUp = new Set();
       while (cur && childToCouple.has(cur) && !visitedUp.has(cur)) {
@@ -143,12 +141,22 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
     });
 
     let nodeSubtreeWidth = new Map();
-    function calcSubtree(item) {
+    function calcSubtree(item, visitedItems = new Set()) {
+      if (visitedItems.has(item)) {
+        let fallbackW = typeof item === 'string'
+          ? CARD_W
+          : ((item.h && item.w) ? CARD_W * 2 + COUPLE_GAP : CARD_W);
+        nodeSubtreeWidth.set(item, fallbackW);
+        return fallbackW;
+      }
+      let nextVisited = new Set(visitedItems);
+      nextVisited.add(item);
+
       if (typeof item === 'string') {
         let pId = item;
         let c = personToCouple.get(pId);
         if (c && (c.kids?.length || (c.h && c.w))) {
-          let w = calcSubtree(c);
+          let w = calcSubtree(c, nextVisited);
           nodeSubtreeWidth.set(pId, w);
           return w;
         }
@@ -179,7 +187,7 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
 
         let totalChildW = 0;
         childItems.forEach((ci, idx) => {
-          let cw = calcSubtree(ci);
+          let cw = calcSubtree(ci, nextVisited);
           totalChildW += cw;
           if (idx > 0) totalChildW += SIBLING_GAP;
         });
@@ -196,14 +204,18 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
     let pos = {};
     let placedCards = [];
 
-    function positionSubtree(item, leftX, depth) {
+    function positionSubtree(item, leftX, depth, visitedItems = new Set()) {
+      if (visitedItems.has(item)) return;
+      let nextVisited = new Set(visitedItems);
+      nextVisited.add(item);
+
       let rowY = TOP_PAD + depth * (cardHeight + ROW_GAP);
       let subW = nodeSubtreeWidth.get(item) || CARD_W;
 
       if (typeof item === 'string') {
         let pId = item;
         let c = personMainCouple.get(pId);
-        if (c) return positionSubtree(c, leftX, depth);
+        if (c) return positionSubtree(c, leftX, depth, nextVisited);
         let cardX = leftX + (subW - CARD_W) / 2;
         pos[pId] = { x: cardX, y: rowY };
         placedCards.push({ id: pId, x: cardX, y: rowY });
@@ -250,7 +262,7 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
           let curKidX = leftX + (subW - totalChildW) / 2;
           childItems.forEach(ci => {
             let cw = nodeSubtreeWidth.get(ci) || CARD_W;
-            positionSubtree(ci, curKidX, depth + 1);
+            positionSubtree(ci, curKidX, depth + 1, nextVisited);
             curKidX += cw + SIBLING_GAP;
           });
         }
@@ -314,8 +326,14 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
 
     // 8. Position Spouse Branches Hierarchically as Trees!
     let branchLabels = [];
+    let mainPatriarchPerson = mainPatriarchId ? byId[mainPatriarchId] : null;
+    let mainBranchLabelText = mainPatriarchPerson && mainPatriarchId !== 'badri'
+      ? (lang === 'hi'
+          ? `★ मुख्य वंश (${mainPatriarchPerson.hi || mainPatriarchPerson.name} कुल)`
+          : `★ Main Family Branch (${mainPatriarchPerson.name} Lineage)`)
+      : (lang === 'hi' ? '★ मुख्य वंश (बद्री प्रसाद कुल)' : '★ Main Family Branch (Badri Prasad Lineage)');
     branchLabels.push({
-      text: lang === 'hi' ? '★ मुख्य वंश (बद्री प्रसाद कुल)' : '★ Main Family Branch (Badri Prasad Lineage)',
+      text: mainBranchLabelText,
       x: mainTreeMinX,
       y: TOP_PAD - 32
     });
@@ -342,12 +360,16 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
 
     let spouseStartX = mainTreeMaxX + SECTOR_GAP;
 
-    function positionInLawSubtree(item, leftX, depth) {
+    function positionInLawSubtree(item, leftX, depth, visitedItems = new Set()) {
+      if (visitedItems.has(item)) return;
+      let nextVisited = new Set(visitedItems);
+      nextVisited.add(item);
+
       let rowY = TOP_PAD + depth * (cardHeight + ROW_GAP);
       if (typeof item === 'string') {
         let pId = item;
         let c = personSpouseCouple.get(pId);
-        if (c && !pos[c.h || c.w]) return positionInLawSubtree(c, leftX, depth);
+        if (c && !pos[c.h || c.w]) return positionInLawSubtree(c, leftX, depth, nextVisited);
         if (!pos[pId]) {
           let sw = nodeSubtreeWidth.get(pId) || CARD_W;
           let cardX = leftX + (sw - CARD_W) / 2;
@@ -377,7 +399,7 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
           placedCards.push({ id: c.w, x: coupleLeftX, y: rowY });
         }
 
-        let kids = (c.kids || []).filter(kId => !mainDescendants.has(kId) && kId !== 'minal');
+        let kids = (c.kids || []).filter(kId => !mainDescendants.has(kId) && !personMainCouple.has(kId));
         if (kids.length) {
           let childItems = [];
           let visited = new Set();
@@ -402,7 +424,7 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
           let curChildLeft = leftX + (sw - totalChildW) / 2;
           childItems.forEach(child => {
             let cw = nodeSubtreeWidth.get(child) || CARD_W;
-            positionInLawSubtree(child, curChildLeft, depth + 1);
+            positionInLawSubtree(child, curChildLeft, depth + 1, nextVisited);
             curChildLeft += cw + SIBLING_GAP;
           });
         }
@@ -416,11 +438,12 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       positionInLawSubtree(rc, spouseStartX, rcDepth);
 
       let branchTitle = lang === 'hi' ? '✦ ससुराल पक्ष (मायका)' : "✦ In-Law Family Branch";
-      let linkedMinal = people.find(p => p.id === 'minal');
-      if (linkedMinal) {
+      let linkedSpouseId = (rc.kids || []).find(k => mainDescendants.has(k) || personMainCouple.has(k));
+      let linkedPerson = (linkedSpouseId && byId[linkedSpouseId]) || people.find(p => p.id === 'minal');
+      if (linkedPerson) {
         branchTitle = lang === 'hi'
-          ? (linkedMinal.hi || linkedMinal.name) + ' का मायका (ससुराल पक्ष)'
-          : linkedMinal.name + "'s Family (In-laws)";
+          ? (linkedPerson.hi || linkedPerson.name) + ' का मायका (ससुराल पक्ष)'
+          : linkedPerson.name + "'s Family (In-laws)";
       }
 
       branchLabels.push({
