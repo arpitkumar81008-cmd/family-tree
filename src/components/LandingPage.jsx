@@ -123,6 +123,27 @@ export function LandingPage({
           {t('landCtaCreate')} →
         </span>
       </section>
+
+      <footer className="site-footer">
+        <span>{t('foot')}</span>
+        <span className="footer-links">
+          <a
+            href="https://github.com/arpitkumar81008-cmd"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub (@arpitkumar81008-cmd) ↗
+          </a>
+          <span aria-hidden="true">·</span>
+          <a
+            href="https://github.com/arpitkumar81008-cmd/family-tree"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Source Repository ↗
+          </a>
+        </span>
+      </footer>
     </div>
   );
 }

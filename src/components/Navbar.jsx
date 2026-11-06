@@ -96,6 +96,17 @@ export function Navbar({
           </button>
         )}
 
+        <a
+          href="https://github.com/arpitkumar81008-cmd"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="zbtn nav-action-btn"
+          title="GitHub · arpitkumar81008-cmd"
+          aria-label="GitHub profile (arpitkumar81008-cmd)"
+        >
+          GitHub ↗
+        </a>
+
         {user ? (
           <div className="nav-user">
             <span className="user-pill" title={user.email}>
