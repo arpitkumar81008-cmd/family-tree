@@ -155,19 +155,6 @@ export function LandingPage({
         </div>
       </section>
 
-      {/* Frequently Asked Questions (FAQ) Section */}
-      <section className="faq-section">
-        <h2 className="section-title">{t('faqTitle')}</h2>
-        <div className="faq-grid">
-          {faqs.map(([qKey, aKey]) => (
-            <article className="faq-card reveal-parent reveal-on-scroll" key={qKey} tabIndex={0}>
-              <h3>{t(qKey)}</h3>
-              <p className="hover-explanation">{t(aKey)}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
       <section
         className="builder-banner clickable-banner reveal-parent"
         role="button"
@@ -188,6 +175,24 @@ export function LandingPage({
         <span className="btn builder-cta-pill" aria-hidden="true">
           {t('landCtaCreate')} →
         </span>
+      </section>
+
+      {/* Frequently Asked Questions (FAQ) Section — at the end, only appears when clicked */}
+      <section className="faq-section" aria-label={t('faqTitle')}>
+        <details className="faq-disclosure">
+          <summary className="faq-disclosure-trigger">
+            <span>{t('faqTitle')}</span>
+            <span className="faq-toggle-pill" aria-hidden="true">FAQ</span>
+          </summary>
+          <div className="faq-grid">
+            {faqs.map(([qKey, aKey]) => (
+              <details className="faq-card" key={qKey}>
+                <summary className="faq-question">{t(qKey)}</summary>
+                <p className="faq-answer">{t(aKey)}</p>
+              </details>
+            ))}
+          </div>
+        </details>
       </section>
 
       <footer className="site-footer">
