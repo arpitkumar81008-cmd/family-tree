@@ -87,7 +87,7 @@ export function LandingPage({
         <h1 className="hero-title">{t('landTitle')}</h1>
         <p className="hero-lede hover-explanation">{t('landLede')}</p>
         <div className="hero-cta">
-          <button type="button" className="btn btn-lg" onClick={onExplore}>
+          <button type="button" className="btn btn-lg land-cta-primary" onClick={onExplore}>
             {t('landCtaExplore')}
           </button>
           <button type="button" className="btn ghost btn-lg" onClick={onCreate}>

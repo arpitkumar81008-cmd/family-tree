@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "push": "node scripts/push.mjs"
+    "push": "node scripts/push.mjs",
+    "test": "node --test tests/e2e-navigation.test.mjs"
   },
   "repository": {
     "type": "git",

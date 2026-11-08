@@ -13,10 +13,12 @@ An interactive, bilingual (**English & हिन्दी**) multi-generational 
 
 ## ✨ Key Features
 
-### 1. Public Demo Lineage vs. Private Personal Trees
-- **Interactive Public Demo Tree (`Sharma Family Lineage`)**: Unauthenticated visitors can immediately explore, search, pan/zoom, and test the 24-member, 4-generation Sharma Family Demo Tree without signing in.
+### 1. Public Demo Lineage vs. Private Personal Trees & 3-Way Navigation
+- **3-Way Primary Navigation (`Home` · `Demo Tree` · `My Private Tree`)**: Seamlessly switch between the editorial Home page, the public Demo Tree, and your private tree in a single click—with full URL synchronization (`/?view=home`, `/?view=tree`, `/?view=tree&tree=<id>`), browser `Back / Forward` (`popstate`) history, and active tree memory (`lastPrivateTreeId`).
+- **Contextual Workspace Breadcrumbs (`src/components/Breadcrumbs.jsx`)**: Displays an interactive breadcrumb trail (`Home › Public Demo Tree › Perspective: <Person>`) with 1-click navigation back to Home or resetting an active person perspective to the full lineage overview.
+- **Interactive Public Demo Tree (`Sharma Family Lineage`)**: Both guests and signed-in users can explore, search, pan/zoom, and test the public Demo Tree at any time without affecting their private tree.
 - **Private-by-Default Cloud Trees**: Authenticated users (via Google Sign-In or Email/Password) can create or import their own private family trees stored securely in **Cloud Firestore** (`isPublic: false` enforced by `firestore.rules` so only the owner/collaborators can read or edit).
-- **Non-Destructive Local + Cloud Persistence**: Every member, relationship, note, or photo added manually is persisted with `0ms` local latency in `localStorage` and merged (`deepMergeTree`) with Cloud Firestore so manually added family members are never lost across code updates or page refreshes.
+- **Non-Destructive Local + Cloud Persistence**: Every member, relationship, note, or photo added manually is persisted with `0ms` local latency in `localStorage` and merged (`deepMergeTree`) with Cloud Firestore so manually added family members, canvas zoom, pan scroll position, and perspective are never lost across view switches or page refreshes.
 
 ### 2. Dual-Mode Spatial Flowchart Engine (`src/layout/engine.js`)
 - **Mode 1 — Full Lineage Top-Down Overview**: Recursive subtree-packing algorithm (`calcSubtree` + `positionSubtree`) that centers ancestral patriarchs/matriarchs, separates in-law branches into dedicated hierarchical side sectors connected via dashed bridge lines, and guarantees zero overlapping cards or slicing lines.
@@ -138,8 +140,10 @@ family-tree/
     │   ├── useSmartAutoAnimate.js  # @formkit/auto-animate hook with reduced-motion observer
     │   └── image.js                # Client-side canvas JPEG compression (160px @ 0.72 quality)
     ├── components/
-    │   ├── Navbar.jsx              # Sticky navigation bar with view tabs, GitHub link, auth & settings
-    │   ├── LandingPage.jsx         # Full-screen editorial Home page with features, tutorials & FAQs
+    │   ├── Navbar.jsx              # Sticky navigation bar with 3-way view switcher, status badge, auth & settings
+    │   ├── Breadcrumbs.jsx         # Contextual workspace breadcrumb trail with 1-click perspective reset
+    │   ├── MobileBottomNav.jsx     # Ergonomic 4-tab bottom navigation bar for mobile viewports
+    │   ├── LandingPage.jsx         # Full-screen editorial Home page with features, tutorials & collapsible FAQs
     │   ├── Toolbar.jsx             # Perspective selector, search input & + Add Member trigger
     │   ├── Canvas.jsx              # Interactive 2D drag-to-pan/zoom stage with motion animations
     │   ├── CanvasDock.jsx          # Collapsible bottom-right ✦ star control dock
@@ -152,16 +156,19 @@ family-tree/
     │   ├── Tabs.jsx                # Relationship Finder, Birthdays & 2-column Backup/Restore panel
     │   ├── HelpModal.jsx           # Keyboard shortcuts reference dialog
     │   └── OnboardingToast.jsx     # Contextual new-user onboarding toast
-    └── styles/
-        ├── tokens.css              # Light, Dark, High-Contrast, Text-Size & Reduced-Motion CSS tokens
-        ├── components.css          # Full-width page layout, toolbar, modals, forms & tabs
-        ├── tree.css                # Canvas stage, orthogonal SVG connectors & member cards
-        └── landing.css             # Navbar, Hero, Tutorials, FAQs, Collapsible ✦ Dock & Mobile/Laptop modes
+    ├── styles/
+    │   ├── tokens.css              # Light, Dark, High-Contrast, Text-Size & Reduced-Motion CSS tokens
+    │   ├── components.css          # Full-width page layout, breadcrumbs, mobile bottom nav, modals & tabs
+    │   ├── tree.css                # Canvas stage, orthogonal SVG connectors & member cards
+    │   └── landing.css             # Navbar, Hero, Tutorials, FAQs, Collapsible ✦ Dock & Mobile/Laptop modes
+    └── ../tests/
+        ├── e2e-navigation.test.mjs # 109-test E2E navigation, URL sync, bilingual & boundary test suite
+        └── helpers/                # Vite SSR runner & DOM/Browser mock harness
 ```
 
 ---
 
-## 🚀 Local Development & Deployment
+## 🚀 Local Development, Testing & Deployment
 
 ```bash
 # 1. Install dependencies
@@ -170,9 +177,12 @@ npm install
 # 2. Start local development server (opens http://localhost:3000)
 npm run dev
 
-# 3. Build production bundle into dist/
+# 3. Run the 109-test E2E navigation & state verification suite
+npm test
+
+# 4. Build production bundle into dist/
 npm run build
 
-# 4. Deploy to Firebase Hosting (https://gupta-family-tree-akg.web.app)
+# 5. Deploy to Firebase Hosting (https://gupta-family-tree-akg.web.app)
 npx firebase-tools deploy --only hosting,firestore:rules
 ```

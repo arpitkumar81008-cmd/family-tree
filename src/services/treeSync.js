@@ -60,6 +60,121 @@ export function canUserEditTree(treeMeta, user) {
   return false;
 }
 
+export const LAST_PRIVATE_TREE_KEY = 'gupta_last_private_tree_id';
+
+/**
+ * Retrieves the last active private tree ID from localStorage.
+ * Returns null if running in SSR or if no private tree has been viewed.
+ */
+export function getLastPrivateTreeId() {
+  if (typeof window === 'undefined' || !window.localStorage) return null;
+  try {
+    const val = localStorage.getItem(LAST_PRIVATE_TREE_KEY);
+    return val && val.trim() ? val.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persists the active private tree ID in localStorage.
+ * Skips empty strings (demo tree) to avoid erasing the last private tree ID.
+ */
+export function setLastPrivateTreeId(id) {
+  if (typeof window === 'undefined' || !window.localStorage || !id) return false;
+  try {
+    const cleanId = String(id).trim();
+    if (cleanId) {
+      localStorage.setItem(LAST_PRIVATE_TREE_KEY, cleanId);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Explicitly clears the last private tree ID (e.g., when a user deletes their tree).
+ */
+export function clearLastPrivateTreeId() {
+  if (typeof window === 'undefined' || !window.localStorage) return false;
+  try {
+    localStorage.removeItem(LAST_PRIVATE_TREE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Parses view state ('home' | 'tree') and active treeId from the current URL.
+ * Falls back safely to 'home' and empty treeId for invalid/unrecognized views or malformed URLs.
+ * 
+ * @returns {{ view: 'home' | 'tree', treeId: string }}
+ */
+export function parseViewStateFromUrl() {
+  if (typeof window === 'undefined') {
+    return { view: 'home', treeId: '' };
+  }
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const rawView = params.get('view');
+    const treeId = params.get('tree') || '';
+
+    if (rawView === 'home') {
+      return { view: 'home', treeId: '' };
+    }
+    if (rawView === 'tree') {
+      return { view: 'tree', treeId };
+    }
+    if (rawView === 'demo') {
+      return { view: 'tree', treeId: '' };
+    }
+    if (!rawView && treeId) {
+      return { view: 'tree', treeId };
+    }
+    return { view: 'home', treeId: '' };
+  } catch {
+    return { view: 'home', treeId: '' };
+  }
+}
+
+/**
+ * Synchronizes browser URL query parameters with active view and tree state.
+ * Uses window.history.pushState (or replaceState) without duplicating history entries.
+ * 
+ * @param {'home' | 'tree'} view
+ * @param {string} treeId
+ * @param {{ replace?: boolean }} [options]
+ */
+export function syncUrlWithViewState(view, treeId, options = {}) {
+  if (typeof window === 'undefined') return;
+  try {
+    const url = new URL(window.location.href);
+    if (view === 'home') {
+      url.searchParams.set('view', 'home');
+      url.searchParams.delete('tree');
+    } else {
+      url.searchParams.set('view', 'tree');
+      if (treeId) {
+        url.searchParams.set('tree', treeId);
+      } else {
+        url.searchParams.delete('tree');
+      }
+    }
+    const nextUrl = url.pathname + url.search + url.hash;
+    const currentUrl = window.location.pathname + window.location.search + window.location.hash;
+    if (nextUrl !== currentUrl) {
+      if (options.replace) {
+        window.history.replaceState({}, '', nextUrl);
+      } else {
+        window.history.pushState({}, '', nextUrl);
+      }
+    }
+  } catch {}
+}
+
 export function getTreeIdFromUrl() {
   if (typeof window === 'undefined') return '';
   try {

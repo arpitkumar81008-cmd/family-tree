@@ -3,6 +3,7 @@ import { animate, stagger } from 'motion';
 import { Card } from './Card.jsx';
 import CanvasDock from './CanvasDock.jsx';
 import { calculateKinship } from '../utils/kinship.js';
+import { saveCanvasPan } from '../utils/storage.js';
 
 export function Canvas({
   treeState,
@@ -77,6 +78,12 @@ export function Canvas({
       if (panRef.current.active) {
         panRef.current.active = false;
         containerRef.current?.classList.remove("is-panning");
+        if (panRef.current.hasDragged && containerRef.current) {
+          saveCanvasPan({
+            scrollLeft: containerRef.current.scrollLeft,
+            scrollTop: containerRef.current.scrollTop
+          });
+        }
         setTimeout(() => {
           panRef.current.hasDragged = false;
         }, 60);
@@ -88,6 +95,29 @@ export function Canvas({
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  // Debounced container scroll listener to persist pan coordinates
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    let timeoutId = null;
+    const onScroll = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        saveCanvasPan({
+          scrollLeft: el.scrollLeft,
+          scrollTop: el.scrollTop
+        });
+      }, 150);
+    };
+
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      el.removeEventListener('scroll', onScroll);
     };
   }, []);
 
@@ -108,6 +138,12 @@ export function Canvas({
     const el = containerRef.current;
     if (!el) return;
     el.scrollBy({ left: dx, top: dy, behavior: "smooth" });
+    setTimeout(() => {
+      saveCanvasPan({
+        scrollLeft: el.scrollLeft,
+        scrollTop: el.scrollTop
+      });
+    }, 200);
   };
 
   // Spatial keyboard navigation

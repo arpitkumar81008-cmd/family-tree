@@ -4,7 +4,16 @@ import {
   saveTreeState,
   mergeCloudTreeWithLocalHistory,
   recordDeletedId,
-  clearDeletedIds
+  clearDeletedIds,
+  getStoredLanguage,
+  setStoredLanguage,
+  loadSavedCanvasZoom,
+  saveCanvasZoom,
+  loadSavedCanvasPan,
+  saveCanvasPan,
+  clampCanvasZoom,
+  getLastPrivateTreeId,
+  setLastPrivateTreeId
 } from './utils/storage.js';
 import { buildFamilyIndex, INITIAL_DATA } from './data/familyData.js';
 import { createTranslator } from './i18n/index.js';
@@ -14,6 +23,8 @@ import { transliterateToHindi } from './i18n/translit.js';
 
 import Navbar from './components/Navbar.jsx';
 import LandingPage from './components/LandingPage.jsx';
+import Breadcrumbs from './components/Breadcrumbs.jsx';
+import MobileBottomNav from './components/MobileBottomNav.jsx';
 import CreateTreeModal from './components/CreateTreeModal.jsx';
 import AuthModal, {
   LOCAL_AUTH_KEY,
@@ -24,6 +35,8 @@ import { subscribeToAuth, signOutUser, isFirebaseConfigured } from './services/f
 import {
   getTreeIdFromUrl,
   setTreeIdInUrl,
+  parseViewStateFromUrl,
+  syncUrlWithViewState,
   subscribeToTree,
   listAvailableTrees,
   createUserTree,
@@ -40,7 +53,14 @@ import Tabs from './components/Tabs.jsx';
 import OnboardingToast from './components/OnboardingToast.jsx';
 
 export function App() {
-  const [treeState, setTreeState] = useState(loadInitialTreeState);
+  const [treeState, setTreeState] = useState(() => {
+    const initial = loadInitialTreeState();
+    const storedLang = getStoredLanguage("en");
+    return {
+      ...initial,
+      lang: storedLang || initial.lang || "en"
+    };
+  });
 
   // Settings & Accessibility
   const [theme, setTheme] = useState(() => {
@@ -84,11 +104,11 @@ export function App() {
   });
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [currentView, setCurrentView] = useState(() => (getTreeIdFromUrl() ? "tree" : "home"));
+  const [currentView, setCurrentView] = useState(() => parseViewStateFromUrl().view);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [user, setUser] = useState(() => (isFirebaseConfigured() ? null : loadLocalAuthUser()));
-  const [activeTreeId, setActiveTreeId] = useState(() => getTreeIdFromUrl());
+  const [activeTreeId, setActiveTreeId] = useState(() => parseViewStateFromUrl().treeId);
   const [activeTreeMeta, setActiveTreeMeta] = useState(null);
 
   // Search & Navigation
@@ -105,16 +125,45 @@ export function App() {
     }
   });
 
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(() => loadSavedCanvasZoom(1));
   const [cardHeight, setCardHeight] = useState(138);
 
   const previousActiveElement = useRef(null);
   const isLocalMutationRef = useRef(false);
   const activeTreeMetaRef = useRef(null);
+  const autoLoadedUidRef = useRef(null);
 
   useEffect(() => {
     activeTreeMetaRef.current = activeTreeMeta;
   }, [activeTreeMeta]);
+
+  // Synchronize state with browser Back/Forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const { view, treeId } = parseViewStateFromUrl();
+      setCurrentView(view);
+      setActiveTreeId(treeId);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  // Synchronize URL with active view and tree state
+  useEffect(() => {
+    syncUrlWithViewState(currentView, activeTreeId);
+  }, [currentView, activeTreeId]);
+
+  // Preserve last active private tree ID across view switches
+  useEffect(() => {
+    if (activeTreeId && activeTreeId.trim() !== "") {
+      setLastPrivateTreeId(activeTreeId.trim());
+    }
+  }, [activeTreeId]);
+
+  // Persist canvas zoom level
+  useEffect(() => {
+    saveCanvasZoom(zoom);
+  }, [zoom]);
 
   // Subscribe to Firebase Auth state (single source of truth when Firebase is configured)
   useEffect(() => {
@@ -133,9 +182,16 @@ export function App() {
     });
   }, []);
 
-  // Automatically load the signed-in user's private family tree if no URL tree is active
+  // Automatically load the signed-in user's private family tree ONCE on sign-in if no URL tree is active
   useEffect(() => {
-    if (!user?.uid || activeTreeId) return;
+    if (!user?.uid) {
+      autoLoadedUidRef.current = null;
+      return;
+    }
+    if (autoLoadedUidRef.current === user.uid) return;
+    autoLoadedUidRef.current = user.uid;
+    if (currentView === "home" || activeTreeId) return;
+
     let cancelled = false;
     listAvailableTrees(user)
       .then(trees => {
@@ -159,7 +215,7 @@ export function App() {
               ...prev,
               data: merged.data,
               photos: merged.photos,
-              lang: merged.lang || prev.lang,
+              lang: getStoredLanguage(merged.lang || prev.lang),
               viewer: ""
             }));
           }
@@ -169,7 +225,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [user, activeTreeId]);
+  }, [user, activeTreeId, currentView]);
 
   // Subscribe to shared/custom tree when ?tree=<id> is active
   useEffect(() => {
@@ -195,7 +251,7 @@ export function App() {
             ...prev,
             data: merged.data,
             photos: merged.photos,
-            lang: merged.lang || prev.lang,
+            lang: getStoredLanguage(merged.lang || prev.lang),
             viewer: ""
           }));
         }
@@ -294,9 +350,10 @@ export function App() {
     } catch {}
   }, [viewportMode]);
 
-  // Sync document language
+  // Sync document language and persist globally
   useEffect(() => {
     document.documentElement.lang = treeState.lang;
+    setStoredLanguage(treeState.lang);
   }, [treeState.lang]);
 
   // Dismiss guide banner persistence
@@ -350,27 +407,64 @@ export function App() {
     );
   }, [treeState.data, cardHeight, treeState.lang, treeState.viewer]);
 
+  const prevViewRef = useRef(currentView);
+
   // Auto-fit initial view
   const fitView = () => {
     const el = document.querySelector(".treewrap");
     if (!el || !layout.W) return;
     const nextZoom = Math.max(0.6, Math.min(1, (el.clientWidth - 2) / layout.W));
     setZoom(nextZoom);
+    saveCanvasZoom(nextZoom);
     requestAnimationFrame(() => {
       const midX = (layout.mainMidX != null ? layout.mainMidX : layout.W / 2) * nextZoom;
-      el.scrollLeft = Math.max(0, midX - el.clientWidth / 2);
+      const left = Math.max(0, midX - el.clientWidth / 2);
+      el.scrollLeft = left;
+      el.scrollTop = 0;
+      saveCanvasPan({ scrollLeft: left, scrollTop: 0 });
     });
   };
 
   useEffect(() => {
-    if (currentView !== "tree") return;
-    const id = requestAnimationFrame(fitView);
+    if (currentView !== "tree") {
+      prevViewRef.current = currentView;
+      return;
+    }
+
+    const isReturningFromHome = prevViewRef.current === "home";
+    prevViewRef.current = currentView;
+
+    const savedZoom = loadSavedCanvasZoom(null);
+    const savedPan = loadSavedCanvasPan();
+    const hasPersistedState = savedZoom !== null || savedPan !== null;
+
+    const id = requestAnimationFrame(() => {
+      const el = document.querySelector(".treewrap");
+      if (!el || !layout.W) return;
+
+      if (isReturningFromHome && hasPersistedState) {
+        if (savedZoom !== null) {
+          setZoom(savedZoom);
+        }
+        if (savedPan !== null) {
+          el.scrollLeft = savedPan.scrollLeft;
+          el.scrollTop = savedPan.scrollTop;
+        }
+      } else if (!hasPersistedState) {
+        fitView();
+      }
+    });
+
     return () => cancelAnimationFrame(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [treeState.viewer, currentView]);
 
   const changeZoom = delta =>
-    setZoom(z => Math.max(0.4, Math.min(1.4, +(z + delta).toFixed(2))));
+    setZoom(z => {
+      const next = clampCanvasZoom(z, delta);
+      saveCanvasZoom(next);
+      return next;
+    });
 
   // Landing page statistics
   const generationCount = useMemo(() => {
@@ -408,7 +502,7 @@ export function App() {
   };
 
   const isOwner = Boolean(
-    user && (!activeTreeId || canUserEditTree(activeTreeMeta, user))
+    user && Boolean(activeTreeId) && canUserEditTree(activeTreeMeta, user)
   );
   // Guests can freely explore/edit their local browser copy of the canonical Gupta tree (!activeTreeId),
   // whereas shared trees (?tree=<id>) are strictly editable only by their owner or collaborators.
@@ -596,27 +690,70 @@ export function App() {
     window.scrollTo({ top: 0 });
   };
 
-  const handleSelectTree = (treeId, treeDoc) => {
+  const openDemoTree = () => {
     isLocalMutationRef.current = false;
+    setActiveTreeId("");
+    setActiveTreeMeta(null);
+    setTreeIdInUrl("");
+    setTreeState(loadInitialTreeState());
+    enterTree();
+  };
+
+  const handleSelectTree = (treeId, treeDoc) => {
     if (!treeId) {
-      setActiveTreeId("");
-      setActiveTreeMeta(null);
-      setTreeIdInUrl("");
-      setTreeState(loadInitialTreeState());
-    } else {
-      setActiveTreeId(treeId);
-      setTreeIdInUrl(treeId);
-      if (treeDoc?.data) {
-        setActiveTreeMeta(treeDoc);
-        setTreeState(prev => ({
-          ...prev,
-          data: treeDoc.data,
-          photos: treeDoc.photos || {},
-          viewer: ""
-        }));
-      }
+      openDemoTree();
+      return;
+    }
+    isLocalMutationRef.current = false;
+    setActiveTreeId(treeId);
+    setTreeIdInUrl(treeId);
+    if (treeDoc?.data) {
+      setActiveTreeMeta(treeDoc);
+      const merged = mergeCloudTreeWithLocalHistory(
+        treeId,
+        treeDoc.data,
+        treeDoc.photos || {},
+        treeDoc.lang
+      );
+      setTreeState(prev => ({
+        ...prev,
+        data: merged.data,
+        photos: merged.photos,
+        lang: merged.lang || prev.lang,
+        viewer: ""
+      }));
     }
     enterTree();
+  };
+
+  const handleNavigateHome = () => {
+    setCurrentView("home");
+  };
+
+  const handleNavigateDemo = () => {
+    openDemoTree();
+  };
+
+  const handleNavigateMyTree = () => {
+    if (activeTreeId && currentView === "tree") return;
+    const lastId = getLastPrivateTreeId();
+    if (lastId) {
+      handleSelectTree(lastId);
+      return;
+    }
+    try {
+      const multi = JSON.parse(localStorage.getItem("gupta_multi_trees_v1") || "{}") || {};
+      const keys = Object.keys(multi);
+      if (keys.length > 0) {
+        handleSelectTree(keys[0], multi[keys[0]]);
+        return;
+      }
+    } catch {}
+    if (user) {
+      setIsCreateOpen(true);
+    } else {
+      setIsAuthOpen(true);
+    }
   };
 
   const handleCreateBlank = async ({ title, rootName, isPublic }) => {
@@ -716,16 +853,21 @@ export function App() {
         generationCount={generationCount}
         activeTreeId={activeTreeId}
         activeTreeTitle={activeTreeMeta?.title || ""}
+        activeTreeMeta={activeTreeMeta}
         isPrivateTree={Boolean(activeTreeMeta && activeTreeMeta.isPublic === false)}
         isOwner={isOwner}
         user={user}
         onOpenAuth={() => setIsAuthOpen(true)}
         onSignOut={handleSignOut}
         onOpenTreesModal={() => setIsCreateOpen(true)}
+        onNavigateHome={handleNavigateHome}
+        onNavigateDemo={handleNavigateDemo}
+        onNavigateMyTree={handleNavigateMyTree}
         t={t}
         lang={treeState.lang}
         setLang={l => {
           isLocalMutationRef.current = true;
+          setStoredLanguage(l);
           setTreeState(prev => ({ ...prev, lang: l }));
         }}
         theme={theme}
@@ -746,17 +888,33 @@ export function App() {
         <main id="main-content">
           <LandingPage
             t={t}
-            memberCount={treeState.data.people.length}
-            generationCount={generationCount}
-            branchCount={treeState.data.couples.length}
-            onExplore={enterTree}
+            memberCount={INITIAL_DATA.people.length}
+            generationCount={5}
+            branchCount={INITIAL_DATA.couples.length}
+            onExplore={openDemoTree}
             onCreate={() => setIsCreateOpen(true)}
           />
         </main>
       ) : (
-    <main id="main-content" className="page">
-      {/* Header */}
-      <header className="reveal-parent" tabIndex={0}>
+        <main id="main-content" className="page">
+          {/* Contextual Workspace Breadcrumbs */}
+          <Breadcrumbs
+            currentView={currentView}
+            activeTreeId={activeTreeId}
+            treeTitle={activeTreeMeta?.title || ""}
+            activeTreeTitle={activeTreeMeta?.title || ""}
+            viewer={treeState.viewer}
+            viewerName={treeState.viewer ? displayName(treeState.viewer) : ""}
+            onNavigateHome={handleNavigateHome}
+            onNavigateDemo={handleNavigateDemo}
+            onNavigatePrivateTree={handleNavigateMyTree}
+            onResetPerspective={() => setTreeState(prev => ({ ...prev, viewer: "" }))}
+            viewportMode={viewportMode}
+            t={t}
+          />
+
+          {/* Header */}
+          <header className="reveal-parent" tabIndex={0}>
         <p className="eyebrow">{t("eyebrow")}</p>
         <h1>{activeTreeMeta?.title || t("h1")}</h1>
         <p className="lede hover-explanation">
@@ -911,6 +1069,17 @@ export function App() {
         activeTab={activeTab}
         lang={treeState.lang}
         onOpenHelpModal={() => setIsHelpModalOpen(true)}
+      />
+
+      <MobileBottomNav
+        currentView={currentView}
+        activeTreeId={activeTreeId}
+        onNavigateHome={handleNavigateHome}
+        onNavigateDemo={handleNavigateDemo}
+        onNavigateMyTree={handleNavigateMyTree}
+        onToggleMenu={() => setIsSettingsOpen(prev => !prev)}
+        isMenuOpen={isSettingsOpen}
+        t={t}
       />
     </>
   );

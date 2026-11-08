@@ -799,3 +799,288 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   color: var(--accent);
   border-color: var(--accent);
 }
+
+/* =========================================================================
+   Feature 1: 3-Way Navigation View Switcher (.nav-view-switcher, .nav-tab)
+   ========================================================================= */
+.nav-view-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg);
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.nav-tab {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.nav-tab:hover {
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.nav-tab[aria-selected="true"],
+.nav-tab.active {
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme="dark"] .nav-tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+:root[data-theme="dark"] .nav-tab[aria-selected="true"],
+:root[data-theme="dark"] .nav-tab.active {
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* =========================================================================
+   Feature 2: Persistent Active View & Tree Status Indicator (.nav-status-badge)
+   ========================================================================= */
+.nav-status-badge,
+.active-tree-badge,
+.stats-badge {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  max-width: 440px;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.nav-status-badge .badge-stats {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.nav-status-badge .badge-context {
+  color: var(--ink);
+  font-weight: 600;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-status-badge .badge-access {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* =========================================================================
+   Feature 5: Contextual Workspace Breadcrumbs (.workspace-breadcrumbs)
+   ========================================================================= */
+.workspace-breadcrumbs {
+  display: flex;
+  align-items: center;
+  margin: 0 0 16px 0;
+  padding: 4px 0;
+  font-family: var(--body);
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.breadcrumb-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 6px;
+}
+
+.breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.breadcrumb-link {
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+  transition: color var(--transition-fast), background var(--transition-fast);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.breadcrumb-link:hover,
+.breadcrumb-link:focus-visible {
+  color: var(--ink);
+  background: var(--surface);
+  text-decoration: underline;
+  outline: none;
+}
+
+.breadcrumb-separator {
+  color: var(--line);
+  user-select: none;
+  font-size: 11px;
+}
+
+.breadcrumb-current {
+  font-weight: 600;
+  color: var(--ink);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Mobile responsive ergonomics */
+@media (max-width: 768px) {
+  .workspace-breadcrumbs {
+    font-size: 12.5px;
+    margin-bottom: 12px;
+  }
+  .breadcrumb-current {
+    max-width: 160px;
+  }
+}
+
+:root[data-viewport="mobile"] .workspace-breadcrumbs {
+  font-size: 12.5px;
+  margin-bottom: 12px;
+}
+
+:root[data-viewport="mobile"] .breadcrumb-current {
+  max-width: 160px;
+}
+
+/* =========================================================================
+   Feature 6: Responsive Mobile Navigation & Viewport Ergonomics (.mobile-bottom-nav)
+   ========================================================================= */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 95;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.mobile-nav-btn {
+  font-family: inherit;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 4px 6px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  transition: all var(--transition-fast);
+}
+
+.mobile-nav-btn:hover,
+.mobile-nav-btn:focus-visible {
+  color: var(--ink);
+  background: var(--bg);
+  outline: none;
+}
+
+.mobile-nav-btn.active,
+.mobile-nav-btn[aria-current="page"] {
+  color: var(--accent);
+  background: var(--bg);
+  border-color: var(--line);
+  font-weight: 700;
+}
+
+.mobile-nav-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.mobile-nav-label {
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  :root:not([data-viewport="laptop"]) .mobile-bottom-nav {
+    display: grid;
+  }
+  :root:not([data-viewport="laptop"]) body {
+    padding-bottom: 64px;
+  }
+}
+
+:root[data-viewport="mobile"] .mobile-bottom-nav {
+  display: grid;
+}
+
+:root[data-viewport="mobile"] body {
+  padding-bottom: 64px;
+}
+
+@media (max-height: 500px) and (max-width: 900px) {
+  .mobile-bottom-nav {
+    padding: 2px 8px;
+  }
+  .mobile-nav-btn {
+    flex-direction: row;
+    gap: 6px;
+    min-height: 36px;
+  }
+}
+
