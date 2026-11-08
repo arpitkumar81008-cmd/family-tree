@@ -14,6 +14,7 @@
         "supportEmail": "arpitkumar81008@gmail.com",
         "authorizedRedirectUris": [
           "https://gupta-family-tree-akg.firebaseapp.com/__/auth/handler",
+          "https://vanshvriksha.web.app",
           "https://arpitkumar81008-cmd.github.io/family-tree/",
           "http://localhost:3000"
         ]
@@ -21,6 +22,7 @@
     }
   },
   "hosting": {
+    "site": "vanshvriksha",
     "public": "dist",
     "ignore": [
       "firebase.json",

@@ -1,12 +1,12 @@
 # VanshVriksha (वंश वृक्ष) — Bilingual Interactive Family Tree Platform
 
-[![Live on Firebase Hosting](https://img.shields.io/badge/Live%20App-Firebase%20Hosting-e4002b?style=flat-square)](https://gupta-family-tree-akg.web.app)
+[![Live on Firebase Hosting](https://img.shields.io/badge/Live%20App-vanshvriksha.web.app-e4002b?style=flat-square)](https://vanshvriksha.web.app)
 [![Built with React 18 & Vite 6](https://img.shields.io/badge/Stack-React%2018%20%C2%B7%20Vite%206%20%C2%B7%20Firebase%20v11-0a0f0d?style=flat-square)](https://github.com/arpitkumar81008-cmd/family-tree)
 [![Author](https://img.shields.io/badge/GitHub-@arpitkumar81008--cmd-121816?style=flat-square)](https://github.com/arpitkumar81008-cmd)
 
 An interactive, bilingual (**English & हिन्दी**) multi-generational family tree web platform engineered with authentic Indian kinship resolution (`Tauji`, `Chacha`, `Bua`, `Mausi`, `Mama`, `Jethani`, `Devrani`, and more), a dual-mode zero-collision spatial layout engine, automated English-to-Devanagari name transliteration, private-by-default Cloud Firestore multi-tree synchronization, and portable JSON backups.
 
-- **Live Production Website:** [https://gupta-family-tree-akg.web.app](https://gupta-family-tree-akg.web.app)
+- **Live Production Website:** [https://vanshvriksha.web.app](https://vanshvriksha.web.app)
 - **Author:** [Arpit Kumar Gupta (@arpitkumar81008-cmd)](https://github.com/arpitkumar81008-cmd)
 
 ---
@@ -183,6 +183,6 @@ npm test
 # 4. Build production bundle into dist/
 npm run build
 
-# 5. Deploy to Firebase Hosting (https://gupta-family-tree-akg.web.app)
+# 5. Deploy to Firebase Hosting (https://vanshvriksha.web.app)
 npx firebase-tools deploy --only hosting,firestore:rules
 ```
