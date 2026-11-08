@@ -1,6 +1,28 @@
 # VanshVriksha (वंशवृक्ष) — Architecture & Release Changelog
 
-## Latest Release — Full-Screen Desktop Experience, Non-Destructive Cloud+Local Sync, Interactive Tutorials & FAQs
+## Latest Release — 3-Way Workspace Navigation, Signed-In Demo Tree Fix, Contextual Breadcrumbs, URL Sync & Mobile Bottom Bar
+
+### 1. 3-Way Primary Navigation & Signed-In Demo Tree Bugfix ([`src/components/Navbar.jsx`](src/components/Navbar.jsx), [`src/App.jsx`](src/App.jsx))
+- **3-Way View Switcher (`Home` · `Demo Tree` · `My Private Tree`)**: Replaced the single toggle with a WAI-ARIA `role="tablist"` 3-way switcher in the top navigation bar supporting full keyboard navigation (`ArrowLeft`, `ArrowRight`, `Home`, `End`, `Enter`, `Space`).
+- **Signed-In Demo Tree Isolation**: Clicking **Explore Demo Tree** (from either the Home landing page or the Navbar) while signed in now strictly loads the public Demo Tree (`activeTreeId = ""`) without redirecting into the user's private tree.
+- **Persistent Active View & Ownership Status Badge (`.nav-status-badge`)**: Displays accurate context (`Viewing: Public Demo Tree`, `Viewing: <Tree Title> · Your tree`, or `Read-only`) and never falsely labels the Demo Tree as `Your tree` when signed in.
+
+### 2. Zero-Loss State Preservation & 1-Click Private Tree Memory ([`src/utils/storage.js`](src/utils/storage.js), [`src/components/Canvas.jsx`](src/components/Canvas.jsx))
+- **Active Tree Memory (`gupta_last_private_tree_id`)**: Remembers the user's most recently accessed private tree ID so switching between **Home**, **Demo Tree**, and **My Private Tree** restores their private tree in a single click.
+- **Canvas & Perspective Persistence**: Preserves zoom level (`gupta_canvas_zoom`), pan scroll coordinates (`gupta_canvas_pan`), and selected person perspective across view switches without data loss.
+
+### 3. URL Synchronization & Refresh Redirect Elimination ([`src/services/treeSync.js`](src/services/treeSync.js), [`src/App.jsx`](src/App.jsx))
+- **Deep-Linkable Query Parameters**: Synchronizes workspace views with `/?view=home`, `/?view=tree`, and `/?view=tree&tree=<id>`, including full browser **Back / Forward** (`popstate`) history support.
+- **No Unwanted Home Refresh Redirect**: Refreshing the browser while on `/?view=home` keeps the user on the Home landing page instead of redirecting into a previously viewed tree.
+
+### 4. Contextual Workspace Breadcrumbs & Mobile Bottom Navigation ([`src/components/Breadcrumbs.jsx`](src/components/Breadcrumbs.jsx), [`src/components/MobileBottomNav.jsx`](src/components/MobileBottomNav.jsx))
+- **Contextual Workspace Breadcrumbs (`.workspace-breadcrumbs`)**: Renders an interactive `Home › <Tree Name> › Perspective: <Person Name>` trail above the tree header with 1-click perspective reset and Home navigation.
+- **Responsive Mobile Bottom Bar (`.mobile-bottom-nav`)**: Provides 4 accessible (`>= 44×44px`) thumb-zone navigation buttons (**Home**, **Demo**, **My Tree**, **Menu**) on mobile viewports (`<= 768px` and `data-viewport="mobile"`) with full English (`src/i18n/en.js`) and Hindi (`src/i18n/hi.js`) parity.
+- **109-Test E2E Navigation Suite ([`tests/e2e-navigation.test.mjs`](tests/e2e-navigation.test.mjs))**: Added 109 automated E2E tests across Tiers 1–4 (`npm test`).
+
+---
+
+## Previous Release — Full-Screen Desktop Experience, Non-Destructive Cloud+Local Sync, Interactive Tutorials & FAQs
 
 ### 1. Home Screen Navbar De-Cluttering
 - **Removed `.stats-badge` on Home View**: In [`src/components/Navbar.jsx`](src/components/Navbar.jsx), the member/generation status pill (`24 members · 5 generations · Public view`) is now rendered exclusively on the **Explore Tree** canvas (`currentView !== 'home'`) so the Home landing screen header stays clean and uncluttered.
