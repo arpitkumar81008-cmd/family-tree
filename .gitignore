@@ -3,9 +3,10 @@ node_modules/
 .pnp
 .pnp.js
 
-# Build Output
+# Build Output & Firebase Local Cache
 dist/
 build/
+.firebase/
 
 # Local Environment & Secrets
 .env
