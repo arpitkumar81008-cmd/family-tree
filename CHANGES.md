@@ -1,6 +1,12 @@
 # VanshVriksha (वंशवृक्ष) — Architecture & Release Changelog
 
-## Latest Release — 3-Way Workspace Navigation, Signed-In Demo Tree Fix, Contextual Breadcrumbs, URL Sync & Mobile Bottom Bar
+## Latest Release — Family Sharing & Relatives Access (`ShareTreeModal`), `vanshvriksha.web.app` Domain, 3-Way Navigation & Mobile Bar
+
+### 0. Multi-Method Family Sharing & Relatives Access ([`src/components/ShareTreeModal.jsx`](src/components/ShareTreeModal.jsx), [`src/services/treeSync.js`](src/services/treeSync.js), [`firestore.rules`](firestore.rules))
+- **Invite Relatives by Email (`viewerEmails` / `editorEmails`)**: Tree owners can invite family members by email with either **👁 View Only** or **✎ Can Edit & Add Members** permissions. When an invited relative signs in with Google or Email on [`vanshvriksha.web.app`](https://vanshvriksha.web.app), the shared family lineage opens automatically for them.
+- **Family Access Code & 1-Click WhatsApp Invite Link (`shareCode` / `shareCodeRole`)**: Owners can set or generate a memorable Family Access Code (e.g., `GUPTA-2026`) and copy a 1-click invite link (`?view=tree&tree=<id>&code=<code>`). Any relative can either open that link or enter the code into the **Join a Family Tree with an Access Code** box inside [`ShareTreeModal.jsx`](src/components/ShareTreeModal.jsx) or [`CreateTreeModal.jsx`](src/components/CreateTreeModal.jsx).
+- **1-Click Visibility Toggle (`isPublic`)**: Switch between **🔒 Private (Invited Family & Code Only)** and **🌐 Public View-Only (Anyone with link)** at any time.
+- **Primary Live Domain Switched to [`https://vanshvriksha.web.app`](https://vanshvriksha.web.app)**: Configured `vanshvriksha.web.app` in [`firebase.json`](firebase.json) and added `vanshvriksha.web.app` + `vanshvriksha.firebaseapp.com` to Firebase Authentication's Authorized Domains so **Continue with Google** works seamlessly.
 
 ### 1. 3-Way Primary Navigation & Signed-In Demo Tree Bugfix ([`src/components/Navbar.jsx`](src/components/Navbar.jsx), [`src/App.jsx`](src/App.jsx))
 - **3-Way View Switcher (`Home` · `Demo Tree` · `My Private Tree`)**: Replaced the single toggle with a WAI-ARIA `role="tablist"` 3-way switcher in the top navigation bar supporting full keyboard navigation (`ArrowLeft`, `ArrowRight`, `Home`, `End`, `Enter`, `Space`).

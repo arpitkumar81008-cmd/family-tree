@@ -17,7 +17,10 @@ An interactive, bilingual (**English & हिन्दी**) multi-generational 
 - **3-Way Primary Navigation (`Home` · `Demo Tree` · `My Private Tree`)**: Seamlessly switch between the editorial Home page, the public Demo Tree, and your private tree in a single click—with full URL synchronization (`/?view=home`, `/?view=tree`, `/?view=tree&tree=<id>`), browser `Back / Forward` (`popstate`) history, and active tree memory (`lastPrivateTreeId`).
 - **Contextual Workspace Breadcrumbs (`src/components/Breadcrumbs.jsx`)**: Displays an interactive breadcrumb trail (`Home › Public Demo Tree › Perspective: <Person>`) with 1-click navigation back to Home or resetting an active person perspective to the full lineage overview.
 - **Interactive Public Demo Tree (`Sharma Family Lineage`)**: Both guests and signed-in users can explore, search, pan/zoom, and test the public Demo Tree at any time without affecting their private tree.
-- **Private-by-Default Cloud Trees**: Authenticated users (via Google Sign-In or Email/Password) can create or import their own private family trees stored securely in **Cloud Firestore** (`isPublic: false` enforced by `firestore.rules` so only the owner/collaborators can read or edit).
+- **Private-by-Default Cloud Trees & Multi-Method Family Sharing (`src/components/ShareTreeModal.jsx`)**:
+  - **Invite Relatives by Email (`viewerEmails` / `editorEmails`)**: Add any family member's email address with **View-Only** or **Can Edit** permissions—when they sign in with Google or Email, your family tree opens automatically for them.
+  - **Family Access Code & WhatsApp Invite Link (`shareCode`)**: Set a memorable code (e.g., `GUPTA-2026`) or copy a 1-click invite link (`?view=tree&tree=<id>&code=<code>`) so relatives can immediately view or co-edit the same lineage.
+  - **1-Click Visibility Toggle**: Switch between **Private (Invited Family & Code Only)** and **Public View-Only (Anyone with link)** anytime.
 - **Non-Destructive Local + Cloud Persistence**: Every member, relationship, note, or photo added manually is persisted with `0ms` local latency in `localStorage` and merged (`deepMergeTree`) with Cloud Firestore so manually added family members, canvas zoom, pan scroll position, and perspective are never lost across view switches or page refreshes.
 
 ### 2. Dual-Mode Spatial Flowchart Engine (`src/layout/engine.js`)

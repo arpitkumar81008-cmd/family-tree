@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { validateTreeData } from '../data/schema.js';
-import { listAvailableTrees, isPhotosPayloadWithinLimit } from '../services/treeSync.js';
+import {
+  listAvailableTrees,
+  findTreeByShareCode,
+  canUserEditTree,
+  isPhotosPayloadWithinLimit
+} from '../services/treeSync.js';
 import { useSmartAutoAnimate } from '../utils/useSmartAutoAnimate.js';
 
 export function CreateTreeModal({
@@ -19,6 +24,7 @@ export function CreateTreeModal({
   // Default to Private (false) to protect living family members' PII by default
   const [isPublic, setIsPublic] = useState(false);
   const [importText, setImportText] = useState('');
+  const [joinCode, setJoinCode] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmRestore, setConfirmRestore] = useState(false);
@@ -31,10 +37,10 @@ export function CreateTreeModal({
     firstRef.current?.focus();
     listAvailableTrees(user)
       .then(list => {
-        // Sort private/owned trees first so the signed-in owner immediately sees their private tree
+        // Sort private/owned/shared trees first so the signed-in user immediately sees their family tree
         const sorted = [...list].sort((a, b) => {
-          const aOwned = Boolean(user && a.ownerUid === user.uid);
-          const bOwned = Boolean(user && b.ownerUid === user.uid);
+          const aOwned = Boolean(user && (a.ownerUid === user.uid || canUserEditTree(a, user)));
+          const bOwned = Boolean(user && (b.ownerUid === user.uid || canUserEditTree(b, user)));
           if (aOwned !== bOwned) return aOwned ? -1 : 1;
           return 0;
         });
@@ -62,6 +68,27 @@ export function CreateTreeModal({
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [close, user]);
+
+  const handleJoinByCode = async e => {
+    e.preventDefault();
+    const clean = joinCode.trim().toUpperCase();
+    if (!clean) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      const found = await findTreeByShareCode(clean);
+      if (found) {
+        onSelectTree?.(found.id, found);
+        close();
+      } else {
+        setMsg(t('joinByCodeNotFound'));
+      }
+    } catch {
+      setMsg(t('joinByCodeNotFound'));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const startBlank = async e => {
     e.preventDefault();
@@ -104,7 +131,7 @@ export function CreateTreeModal({
       return;
     }
 
-    const photos = parsed.photos && typeof parsed.photos === 'object' ? parsed.photos : {};
+    const photos = parsed.photos && typeof photos === 'object' ? parsed.photos : {};
     if (!isPhotosPayloadWithinLimit(photos)) {
       setMsg(t('noSpace'));
       return;
@@ -139,6 +166,27 @@ export function CreateTreeModal({
         </button>
         <h2 id="create-title">{t('createTitle')}</h2>
 
+        {/* 0. Quick Join by Family Access Code */}
+        <form className="create-option reveal-parent" onSubmit={handleJoinByCode}>
+          <h3>{t('joinByCodeTitle')}</h3>
+          <p className="muted hover-explanation">{t('joinByCodeBody')}</p>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
+            <input
+              type="text"
+              placeholder={t('joinByCodePh')}
+              value={joinCode}
+              onChange={e => {
+                setJoinCode(e.target.value.toUpperCase());
+                setMsg('');
+              }}
+              style={{ flex: '1 1 200px', textTransform: 'uppercase', fontWeight: 600 }}
+            />
+            <button type="submit" className="btn" disabled={busy || !joinCode.trim()}>
+              {t('joinByCodeBtn')}
+            </button>
+          </div>
+        </form>
+
         {/* 1. Always-Open Public & Personal Tree Directory */}
         <div className="create-option reveal-parent" tabIndex={0}>
           <h3>{t('browsePublicTitle')}</h3>
@@ -166,10 +214,13 @@ export function CreateTreeModal({
               .filter(tr => tr.id !== 'tree_demo_sharma')
               .map(tr => {
                 const isUserOwner = Boolean(user && tr.ownerUid === user.uid);
-                const badgeText = !tr.isPublic
-                  ? t('privateBadge')
-                  : isUserOwner
-                  ? t('ownerBadge')
+                const isUserEditor = !isUserOwner && canUserEditTree(tr, user);
+                const badgeText = isUserOwner
+                  ? (!tr.isPublic ? t('privateBadge') : t('ownerBadge'))
+                  : isUserEditor
+                  ? t('coEditorBadge')
+                  : !tr.isPublic
+                  ? t('sharedWithYouBadge')
                   : t('readOnlyBadge');
                 return (
                   <li key={tr.id}>

@@ -14,6 +14,10 @@ rules_version = '2';
 //   - ownerName: string (optional, 0..120 chars) - display name of the tree owner
 //   - isPublic: bool (required, owner-only mutable) - whether anyone can view this tree without signing in
 //   - collaboratorUids: list of strings (optional, max 50 items, owner-only mutable) - UIDs of authorized editors
+//   - viewerEmails: list of strings (optional, max 50 items, owner-only mutable) - email addresses of invited read-only family viewers
+//   - editorEmails: list of strings (optional, max 50 items, owner-only mutable) - email addresses of invited family editors/collaborators
+//   - shareCode: string (optional, 0..32 chars, owner-only mutable) - optional Family Access Code for joining via code or invite link
+//   - shareCodeRole: string (optional, enum: ['viewer', 'editor', ''], owner-only mutable) - whether the shareCode grants viewer or editor access
 //   - data: map (required, keys: ['people', 'couples']) - lineage graph containing people and couples lists (max 5000 entries each)
 //   - photos: map (optional, max 500 entries) - map of personId -> photo URL or data URL
 //   - lang: string (optional, enum: ['en', 'hi']) - default language preference for the tree
@@ -34,17 +38,57 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Check if the authenticated user has a valid email in their auth token
+    function hasAuthEmail() {
+      return isAuthenticated() &&
+        ('email' in request.auth.token) &&
+        (request.auth.token.email is string);
+    }
+
+    // Check if the authenticated user's email is in editorEmails on the existing tree document
+    function isEmailEditor() {
+      return hasAuthEmail() &&
+        ('editorEmails' in resource.data) &&
+        (resource.data.editorEmails is list) &&
+        (request.auth.token.email in resource.data.editorEmails ||
+         request.auth.token.email.lower() in resource.data.editorEmails);
+    }
+
+    // Check if the authenticated user's email is in viewerEmails on the existing tree document
+    function isEmailViewer() {
+      return hasAuthEmail() &&
+        ('viewerEmails' in resource.data) &&
+        (resource.data.viewerEmails is list) &&
+        (request.auth.token.email in resource.data.viewerEmails ||
+         request.auth.token.email.lower() in resource.data.viewerEmails);
+    }
+
+    // Check if the existing tree document has an active share code (at least 3 chars)
+    function hasActiveShareCode() {
+      return ('shareCode' in resource.data) &&
+        (resource.data.shareCode is string) &&
+        (resource.data.shareCode.size() >= 3);
+    }
+
+    // Check if the existing tree document has an active share code configured with editor role
+    function isShareCodeEditor() {
+      return hasActiveShareCode() &&
+        ('shareCodeRole' in resource.data) &&
+        (resource.data.shareCodeRole == 'editor');
+    }
+
     // Check if the authenticated user is the owner of the existing tree document
     function isTreeOwner() {
       return isAuthenticated() && resource.data.ownerUid == request.auth.uid;
     }
 
-    // Check if the authenticated user is listed in collaboratorUids on the existing tree document
+    // Check if the authenticated user is listed in collaboratorUids or editorEmails on the existing tree document
     function isTreeCollaborator() {
-      return isAuthenticated() &&
+      return (isAuthenticated() &&
         ('collaboratorUids' in resource.data) &&
         (resource.data.collaboratorUids is list) &&
-        (request.auth.uid in resource.data.collaboratorUids);
+        (request.auth.uid in resource.data.collaboratorUids)) ||
+        isEmailEditor();
     }
 
     // Validate that all required fields exist on the incoming document
@@ -104,7 +148,7 @@ service cloud.firestore {
     // Domain Validators (Used in BOTH create and update)
     // ===============================================================
 
-    function isValidTree(doc) {
+    function isValidTreePayload(doc) {
       return hasRequiredFields(['title', 'ownerUid', 'isPublic', 'data']) &&
         hasOnlyAllowedFields([
           'title',
@@ -112,6 +156,10 @@ service cloud.firestore {
           'ownerName',
           'isPublic',
           'collaboratorUids',
+          'viewerEmails',
+          'editorEmails',
+          'shareCode',
+          'shareCodeRole',
           'data',
           'photos',
           'lang',
@@ -124,6 +172,14 @@ service cloud.firestore {
         (doc.isPublic is bool) &&
         (!('collaboratorUids' in doc) ||
           (doc.collaboratorUids is list && doc.collaboratorUids.size() <= 50)) &&
+        (!('viewerEmails' in doc) ||
+          (doc.viewerEmails is list && doc.viewerEmails.size() <= 50)) &&
+        (!('editorEmails' in doc) ||
+          (doc.editorEmails is list && doc.editorEmails.size() <= 50)) &&
+        isValidOptionalString('shareCode', 0, 32) &&
+        (!('shareCodeRole' in doc) ||
+          doc.shareCodeRole == null ||
+          (doc.shareCodeRole is string && doc.shareCodeRole in ['viewer', 'editor', ''])) &&
         isValidTreeDataMap(doc.data) &&
         (!('photos' in doc) ||
           (doc.photos is map && doc.photos.size() <= 500)) &&
@@ -133,39 +189,53 @@ service cloud.firestore {
         isValidOptionalTime('updatedAt');
     }
 
+    function isValidTree(doc) {
+      return isValidTreePayload(doc);
+    }
+
     // ===============================================================
     // Collection Rules: /trees/{treeId}
     // ===============================================================
 
     match /trees/{treeId} {
       // Read (get & list):
-      // Allowed for anyone (including unauthenticated visitors) if isPublic == true,
-      // or for authenticated owners and collaborators.
-      allow read: if resource.data.isPublic == true ||
+      // Allowed if public, owner, collaborator (UID or editorEmail), viewerEmail, or has an active shareCode.
+      allow get, list: if resource.data.isPublic == true ||
         isTreeOwner() ||
-        isTreeCollaborator();
+        isTreeCollaborator() ||
+        isEmailViewer() ||
+        hasActiveShareCode();
 
       // Create:
       // Allowed only for authenticated users setting themselves as ownerUid with valid schema.
       allow create: if isAuthenticated() &&
         request.resource.data.ownerUid == request.auth.uid &&
-        isValidTree(request.resource.data);
+        isValidTreePayload(request.resource.data);
 
       // Update:
-      // Allowed for the owner or an authorized collaborator.
+      // Allowed for the owner, an authorized collaborator, or via an editor shareCode.
       // - Schema must remain valid (prevents Update Bypass).
       // - ownerUid and existing createdAt are always immutable.
-      // - Collaborators cannot modify ownership, visibility (isPublic), or collaboratorUids.
-      allow update: if isAuthenticated() &&
-        isValidTree(request.resource.data) &&
+      // - Collaborators / ShareCode Editors cannot modify ownership, visibility, or sharing settings.
+      allow update: if isValidTreePayload(request.resource.data) &&
         request.resource.data.ownerUid == resource.data.ownerUid &&
         (!('createdAt' in resource.data) ||
           ('createdAt' in request.resource.data &&
            request.resource.data.createdAt == resource.data.createdAt)) &&
         (
           isTreeOwner() ||
-          (isTreeCollaborator() &&
-           areImmutableFieldsUnchanged(['ownerUid', 'ownerName', 'isPublic', 'collaboratorUids', 'createdAt']))
+          ((isTreeCollaborator() || isShareCodeEditor()) &&
+           areImmutableFieldsUnchanged([
+             'ownerUid',
+             'ownerName',
+             'isPublic',
+             'collaboratorUids',
+             'viewerEmails',
+             'editorEmails',
+             'shareCode',
+             'shareCodeRole',
+             'createdAt'
+           ]))
         );
 
       // Delete:

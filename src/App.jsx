@@ -26,6 +26,7 @@ import LandingPage from './components/LandingPage.jsx';
 import Breadcrumbs from './components/Breadcrumbs.jsx';
 import MobileBottomNav from './components/MobileBottomNav.jsx';
 import CreateTreeModal from './components/CreateTreeModal.jsx';
+import ShareTreeModal from './components/ShareTreeModal.jsx';
 import AuthModal, {
   LOCAL_AUTH_KEY,
   loadLocalAuthUser,
@@ -106,6 +107,7 @@ export function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [currentView, setCurrentView] = useState(() => parseViewStateFromUrl().view);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [user, setUser] = useState(() => (isFirebaseConfigured() ? null : loadLocalAuthUser()));
   const [activeTreeId, setActiveTreeId] = useState(() => parseViewStateFromUrl().treeId);
@@ -182,7 +184,7 @@ export function App() {
     });
   }, []);
 
-  // Automatically load the signed-in user's private family tree ONCE on sign-in if no URL tree is active
+  // Automatically load the signed-in user's private or shared family tree ONCE on sign-in
   useEffect(() => {
     if (!user?.uid) {
       autoLoadedUidRef.current = null;
@@ -190,34 +192,45 @@ export function App() {
     }
     if (autoLoadedUidRef.current === user.uid) return;
     autoLoadedUidRef.current = user.uid;
-    if (currentView === "home" || activeTreeId) return;
 
     let cancelled = false;
     listAvailableTrees(user)
       .then(trees => {
         if (cancelled) return;
-        const privateOwned = trees.find(
-          tr => tr.ownerUid === user.uid && tr.isPublic === false
-        );
-        if (privateOwned) {
-          isLocalMutationRef.current = false;
-          setActiveTreeId(privateOwned.id);
-          setActiveTreeMeta(privateOwned);
-          setTreeIdInUrl(privateOwned.id);
-          if (privateOwned.data?.people) {
-            const merged = mergeCloudTreeWithLocalHistory(
-              privateOwned.id,
-              privateOwned.data,
-              privateOwned.photos || {},
-              privateOwned.lang
-            );
-            setTreeState(prev => ({
-              ...prev,
-              data: merged.data,
-              photos: merged.photos,
-              lang: getStoredLanguage(merged.lang || prev.lang),
-              viewer: ""
-            }));
+        const emailLower = user.email ? String(user.email).trim().toLowerCase() : "";
+        const privateOwnedOrShared =
+          trees.find(tr => tr.ownerUid === user.uid && tr.isPublic === false) ||
+          trees.find(tr => tr.ownerUid === user.uid && tr.id !== "tree_demo_sharma") ||
+          trees.find(
+            tr =>
+              tr.id !== "tree_demo_sharma" &&
+              (canUserEditTree(tr, user) ||
+                (emailLower &&
+                  Array.isArray(tr.viewerEmails) &&
+                  tr.viewerEmails.some(e => String(e).trim().toLowerCase() === emailLower)))
+          );
+        if (privateOwnedOrShared) {
+          setLastPrivateTreeId(privateOwnedOrShared.id);
+          if (currentView !== "home" && !activeTreeId) {
+            isLocalMutationRef.current = false;
+            setActiveTreeId(privateOwnedOrShared.id);
+            setActiveTreeMeta(privateOwnedOrShared);
+            setTreeIdInUrl(privateOwnedOrShared.id);
+            if (privateOwnedOrShared.data?.people) {
+              const merged = mergeCloudTreeWithLocalHistory(
+                privateOwnedOrShared.id,
+                privateOwnedOrShared.data,
+                privateOwnedOrShared.photos || {},
+                privateOwnedOrShared.lang
+              );
+              setTreeState(prev => ({
+                ...prev,
+                data: merged.data,
+                photos: merged.photos,
+                lang: getStoredLanguage(merged.lang || prev.lang),
+                viewer: ""
+              }));
+            }
           }
         }
       })
@@ -734,7 +747,7 @@ export function App() {
     openDemoTree();
   };
 
-  const handleNavigateMyTree = () => {
+  const handleNavigateMyTree = async () => {
     if (activeTreeId && currentView === "tree") return;
     const lastId = getLastPrivateTreeId();
     if (lastId) {
@@ -750,6 +763,24 @@ export function App() {
       }
     } catch {}
     if (user) {
+      try {
+        const trees = await listAvailableTrees(user);
+        const emailLower = user.email ? String(user.email).trim().toLowerCase() : "";
+        const match =
+          trees.find(tr => tr.ownerUid === user.uid && tr.id !== "tree_demo_sharma") ||
+          trees.find(
+            tr =>
+              tr.id !== "tree_demo_sharma" &&
+              (canUserEditTree(tr, user) ||
+                (emailLower &&
+                  Array.isArray(tr.viewerEmails) &&
+                  tr.viewerEmails.some(e => String(e).trim().toLowerCase() === emailLower)))
+          );
+        if (match) {
+          handleSelectTree(match.id, match);
+          return;
+        }
+      } catch {}
       setIsCreateOpen(true);
     } else {
       setIsAuthOpen(true);
@@ -860,6 +891,7 @@ export function App() {
         onOpenAuth={() => setIsAuthOpen(true)}
         onSignOut={handleSignOut}
         onOpenTreesModal={() => setIsCreateOpen(true)}
+        onOpenShareModal={() => setIsShareOpen(true)}
         onNavigateHome={handleNavigateHome}
         onNavigateDemo={handleNavigateDemo}
         onNavigateMyTree={handleNavigateMyTree}
@@ -1053,6 +1085,21 @@ export function App() {
           onCreateBlank={handleCreateBlank}
           onImport={handleCreateImport}
           onRestore={handleCreateRestore}
+        />
+      )}
+
+      {isShareOpen && !isAuthOpen && (
+        <ShareTreeModal
+          t={t}
+          user={user}
+          activeTreeId={activeTreeId}
+          activeTreeMeta={activeTreeMeta}
+          onUpdateTreeMeta={patch =>
+            setActiveTreeMeta(prev => (prev ? { ...prev, ...patch } : prev))
+          }
+          onSelectTree={handleSelectTree}
+          onOpenAuth={() => setIsAuthOpen(true)}
+          close={() => setIsShareOpen(false)}
         />
       )}
 

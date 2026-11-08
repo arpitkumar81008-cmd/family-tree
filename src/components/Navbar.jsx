@@ -16,6 +16,7 @@ export function Navbar({
   onOpenAuth,
   onSignOut,
   onOpenTreesModal,
+  onOpenShareModal,
   onNavigateHome,
   onNavigateDemo,
   onNavigateMyTree,
@@ -88,6 +89,10 @@ export function Navbar({
   );
 
   const copyShareLink = async () => {
+    if (onOpenShareModal) {
+      onOpenShareModal();
+      return;
+    }
     try {
       await navigator.clipboard.writeText(window.location.href);
       setCopied(true);
@@ -199,9 +204,9 @@ export function Navbar({
             type="button"
             className="zbtn nav-action-btn"
             onClick={copyShareLink}
-            title={translate('shareTreeBtn')}
+            title={translate('shareModalTitle')}
           >
-            {copied ? translate('linkCopied') : translate('shareTreeBtn')}
+            {copied ? translate('linkCopied') : `🔗 ${translate('shareTreeBtn')}`}
           </button>
         )}
 
