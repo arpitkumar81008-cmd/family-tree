@@ -369,8 +369,9 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       let rowY = TOP_PAD + depth * (cardHeight + ROW_GAP);
       if (typeof item === 'string') {
         let pId = item;
-        let c = personSpouseCouple.get(pId);
-        if (c && !pos[c.h || c.w]) return positionInLawSubtree(c, leftX, depth, nextVisited);
+        let matchingCouples = spouseCouples.filter(sc => sc.h === pId || sc.w === pId);
+        let unplacedCouple = matchingCouples.find(sc => !pos[sc.h] || (sc.w && !pos[sc.w]));
+        if (unplacedCouple) return positionInLawSubtree(unplacedCouple, leftX, depth, nextVisited);
         if (!pos[pId]) {
           let sw = nodeSubtreeWidth.get(pId) || CARD_W;
           let cardX = leftX + (sw - CARD_W) / 2;
@@ -474,12 +475,93 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       spouseStartX += Math.max(rcSubtreeW, 220) + SECTOR_GAP;
     });
 
-    // Fallback for any other individual
+    // 8b. Place any remaining spouse couples that weren't reached via inLawRootCouples
+    spouseCouples.forEach(sc => {
+      let isHPlaced = sc.h && pos[sc.h];
+      let isWPlaced = sc.w && pos[sc.w];
+      if (isHPlaced && isWPlaced) {
+        // Partners placed, ensure their kids are positioned on the row below!
+        let parentY = Math.max(isHPlaced ? pos[sc.h].y : 0, isWPlaced ? pos[sc.w].y : 0);
+        let parentDepth = Math.round((parentY - TOP_PAD) / (cardHeight + ROW_GAP));
+        let kids = (sc.kids || []).filter(kId => !pos[kId]);
+        if (kids.length) {
+          let kidDepth = parentDepth + 1;
+          let kidRowY = TOP_PAD + kidDepth * (cardHeight + ROW_GAP);
+          let cardsOnRow = placedCards.filter(c => Math.abs(pos[c.id].y - kidRowY) < 10);
+          let maxRowX = cardsOnRow.length ? Math.max(...cardsOnRow.map(c => c.x)) : LEFT_PAD;
+          let curX = maxRowX + CARD_W + SIBLING_GAP;
+          kids.forEach(kId => {
+            pos[kId] = { x: curX, y: kidRowY };
+            placedCards.push({ id: kId, x: curX, y: kidRowY });
+            curX += CARD_W + SIBLING_GAP;
+          });
+        }
+        return;
+      }
+
+      if (isHPlaced && sc.w && !pos[sc.w]) {
+        let hy = pos[sc.h].y;
+        let hx = pos[sc.h].x;
+        pos[sc.w] = { x: hx + CARD_W + COUPLE_GAP, y: hy };
+        placedCards.push({ id: sc.w, x: pos[sc.w].x, y: hy });
+      } else if (isWPlaced && sc.h && !pos[sc.h]) {
+        let wy = pos[sc.w].y;
+        let wx = pos[sc.w].x;
+        pos[sc.h] = { x: wx - CARD_W - COUPLE_GAP, y: wy };
+        placedCards.push({ id: sc.h, x: pos[sc.h].x, y: wy });
+      } else if (!isHPlaced && !isWPlaced) {
+        let scDepth = depthMap.get(sc) !== undefined ? depthMap.get(sc) : 2;
+        let scSubtreeW = nodeSubtreeWidth.get(sc) || (CARD_W * 2 + COUPLE_GAP);
+        positionInLawSubtree(sc, spouseStartX, scDepth);
+        spouseStartX += Math.max(scSubtreeW, 220) + SECTOR_GAP;
+      }
+
+      // Position any unplaced kids of this couple below their parents
+      let pY = (sc.h && pos[sc.h]) ? pos[sc.h].y : ((sc.w && pos[sc.w]) ? pos[sc.w].y : 0);
+      let pDepth = Math.round((pY - TOP_PAD) / (cardHeight + ROW_GAP));
+      let unplacedKids = (sc.kids || []).filter(kId => !pos[kId]);
+      if (unplacedKids.length) {
+        let kidDepth = pDepth + 1;
+        let kidRowY = TOP_PAD + kidDepth * (cardHeight + ROW_GAP);
+        let cardsOnRow = placedCards.filter(c => Math.abs(pos[c.id].y - kidRowY) < 10);
+        let maxRowX = cardsOnRow.length ? Math.max(...cardsOnRow.map(c => c.x)) : LEFT_PAD;
+        let curX = maxRowX + CARD_W + SIBLING_GAP;
+        unplacedKids.forEach(kId => {
+          pos[kId] = { x: curX, y: kidRowY };
+          placedCards.push({ id: kId, x: curX, y: kidRowY });
+          curX += CARD_W + SIBLING_GAP;
+        });
+      }
+    });
+
+    // Universal generation-aware fallback for any individual still unplaced
     people.forEach(p => {
       if (!pos[p.id]) {
-        let maxPlacedX = placedCards.length ? Math.max(...placedCards.map(c => c.x)) : LEFT_PAD;
-        pos[p.id] = { x: maxPlacedX + CARD_W + SIBLING_GAP, y: TOP_PAD };
-        placedCards.push({ id: p.id, x: pos[p.id].x, y: TOP_PAD });
+        let targetDepth = 0;
+        let pars = parOf(p.id);
+        let placedPar = pars.find(parId => pos[parId]);
+        if (placedPar) {
+          targetDepth = Math.round((pos[placedPar].y - TOP_PAD) / (cardHeight + ROW_GAP)) + 1;
+        } else if (spouse[p.id] && pos[spouse[p.id]]) {
+          targetDepth = Math.round((pos[spouse[p.id]].y - TOP_PAD) / (cardHeight + ROW_GAP));
+        } else if (kidsOf(p.id).some(kId => pos[kId])) {
+          let placedKid = kidsOf(p.id).find(kId => pos[kId]);
+          targetDepth = Math.max(0, Math.round((pos[placedKid].y - TOP_PAD) / (cardHeight + ROW_GAP)) - 1);
+        } else if (sibsOf(p.id).some(sId => pos[sId])) {
+          let placedSib = sibsOf(p.id).find(sId => pos[sId]);
+          targetDepth = Math.round((pos[placedSib].y - TOP_PAD) / (cardHeight + ROW_GAP));
+        } else if (depthMap.has(p.id)) {
+          targetDepth = depthMap.get(p.id);
+        } else {
+          targetDepth = 1;
+        }
+
+        let rowY = TOP_PAD + targetDepth * (cardHeight + ROW_GAP);
+        let cardsOnSameRow = placedCards.filter(c => Math.abs(pos[c.id].y - rowY) < 10);
+        let maxRowX = cardsOnSameRow.length ? Math.max(...cardsOnSameRow.map(c => c.x)) : LEFT_PAD;
+        let x = maxRowX + CARD_W + SIBLING_GAP;
+        pos[p.id] = { x, y: rowY };
+        placedCards.push({ id: p.id, x, y: rowY });
       }
     });
 
@@ -597,19 +679,14 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       if (!parentCxs.length) return;
 
       let parentMidX = (Math.min(...parentCxs) + Math.max(...parentCxs)) / 2;
-      let kidCxs = [];
-      let kidTopY = null;
-      kids.forEach(kId => {
-        if (pos[kId]) {
-          kidCxs.push(pos[kId].x + CARD_W / 2);
-          if (kidTopY === null) kidTopY = pos[kId].y;
-        }
-      });
-      if (!kidCxs.length) return;
+      let placedKidIds = kids.filter(kId => pos[kId]);
+      if (!placedKidIds.length) return;
+      let kidCxs = placedKidIds.map(kId => pos[kId].x + CARD_W / 2);
+      let minKidY = Math.min(...placedKidIds.map(kId => pos[kId].y));
 
       let dropStartY = (c.h && c.w) ? parentY + 34 : parentY + cardHeight;
       let corridorTop = parentY + cardHeight + 18;
-      let corridorBot = kidTopY - 18;
+      let corridorBot = minKidY - 18;
       // Place sibling bus in the lower part of the corridor so upper lanes remain free for in-law bridges
       let preferredBusY = parentY + cardHeight + Math.round(ROW_GAP * 0.72);
       let busMinX = Math.min(...kidCxs, parentMidX);
@@ -619,9 +696,11 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       let trunkX = allocateVerticalX(parentMidX, dropStartY, busY);
       mainPath += `M${trunkX} ${dropStartY}V${busY} `;
       mainPath += `M${ Math.min(...kidCxs, trunkX) } ${busY}H${ Math.max(...kidCxs, trunkX) } `;
-      kidCxs.forEach(cx => {
-        let dropX = allocateVerticalX(cx, busY, kidTopY);
-        mainPath += `M${dropX} ${busY}V${kidTopY} `;
+      placedKidIds.forEach(kId => {
+        let cx = pos[kId].x + CARD_W / 2;
+        let childTopY = pos[kId].y;
+        let dropX = allocateVerticalX(cx, busY, childTopY);
+        mainPath += `M${dropX} ${busY}V${childTopY} `;
       });
     });
 
@@ -654,17 +733,19 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       let trunkX = parentMidX;
 
       if (inBranchKidCxs.length) {
-        let kidTopY = pos[unplacedKids[0]].y;
+        let minKidY = Math.min(...unplacedKids.map(k => pos[k].y));
         let busMinX = Math.min(...inBranchKidCxs, parentMidX);
         let busMaxX = Math.max(...inBranchKidCxs, parentMidX);
-        busY = allocateHorizontalY(preferredSiblingBusY, busMinX, busMaxX, corridorTop, kidTopY - 18, 20, 1);
+        busY = allocateHorizontalY(preferredSiblingBusY, busMinX, busMaxX, corridorTop, minKidY - 18, 20, 1);
         trunkX = allocateVerticalX(parentMidX, dropStartY, busY);
 
         otherPath += `M${trunkX} ${dropStartY}V${busY} `;
         otherPath += `M${Math.min(...inBranchKidCxs, trunkX)} ${busY}H${Math.max(...inBranchKidCxs, trunkX)} `;
-        inBranchKidCxs.forEach(cx => {
-          let dropX = allocateVerticalX(cx, busY, kidTopY);
-          otherPath += `M${dropX} ${busY}V${kidTopY} `;
+        unplacedKids.forEach(kId => {
+          let cx = pos[kId].x + CARD_W / 2;
+          let childTopY = pos[kId].y;
+          let dropX = allocateVerticalX(cx, busY, childTopY);
+          otherPath += `M${dropX} ${busY}V${childTopY} `;
         });
       }
 

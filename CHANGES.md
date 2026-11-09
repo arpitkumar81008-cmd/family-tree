@@ -1,8 +1,14 @@
 # VanshVriksha (वंशवृक्ष) — Architecture & Release Changelog
 
-## Latest Release — Family Sharing & Relatives Access (`ShareTreeModal`), `vanshvriksha.web.app` Domain, 3-Way Navigation & Mobile Bar
+## Latest Release — Visual Bugfix for Generation Row Misplacement, Multi-Site Deployment & Family Sharing
 
-### 0. Multi-Method Family Sharing, Multi-Lane Non-Overlapping Line Router & `vanshvriksha.web.app` Domain
+### 0. Visual Bugfix: Generation Row Misplacement & Child-Parent Connector Lines ([`src/layout/engine.js`](src/layout/engine.js))
+- **Identified & Resolved Generation Row Misplacement**: Fixed an issue where members in complex or newly added in-law branches (e.g., `Om Prakash Gupta`, `Adhira Gupta`, and `Nehansh Gupta`) were bypassed during in-law subtree traversal due to key collisions in `personSpouseCouple` maps and placed at `y: TOP_PAD` (`50`), creating long vertical connector lines that shot 1000+ pixels up to row 0.
+- **Generation-Aware Universal Placement Pass**:
+  - Replaced the hardcoded `y: TOP_PAD` fallback with kinship-depth calculation: unplaced members automatically inherit their true generation depth (`depth(parent) + 1`, `depth(spouse)`, `depth(child) - 1`, or `depth(sibling)`).
+  - Added traversal for any remaining spouse couples and children not reached by root traversal, ensuring partners and children are positioned on their designated generational rows.
+  - Updated vertical connector drop lines so each child connects directly to their own card's top coordinate (`pos[kId].y`).
+- **Dual-Target Firebase Hosting Deployment ([`firebase.json`](firebase.json))**: Configured both `vanshvriksha` and `gupta-family-tree-akg` in the `hosting` array so both URLs (`https://vanshvriksha.web.app` and `https://gupta-family-tree-akg.web.app`) are always deployed and in sync. All 109 E2E tests continue to pass.
 - **Multi-Lane Orthogonal Channel Router ([`src/layout/engine.js`](src/layout/engine.js))**:
   - Replaced fixed-offset bridge routing (`connectBusY = busY - 14`) with a general interval-packing **Multi-Lane Horizontal & Vertical Channel Allocator** (`allocateHorizontalY` + `allocateVerticalX`) and increased inter-sector spacing (`SECTOR_GAP = 140`) and dynamic inter-row corridor height (`ROW_GAP >= 128`).
   - Multiple in-law side families on the same generation row (such as **Minal Gupta's Family** and **Parul Gupta's Family**, plus any future side families) are now assigned dedicated horizontal tracks separated by at least **`26px`** vertically and **`26px`** horizontally, guaranteeing zero overlapping or crowded lines.
