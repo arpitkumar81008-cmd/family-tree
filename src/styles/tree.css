@@ -10,6 +10,7 @@
   border-right: none;
   border-radius: 0;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
   height: calc(100vh - 210px);
@@ -253,4 +254,140 @@
   height: 72px;
   font-size: 24px;
   border-radius: var(--radius-sm);
+}
+
+/* =========================================================================
+   Milestone M2: Full-Screen Viewport Mode & Floating Toggle Controls (F5-F8, F14)
+   ========================================================================= */
+
+/* Host container for tree canvas and floating dock / toggle */
+.treewrap-host {
+  position: relative;
+  width: 100%;
+}
+
+/* Full-Screen Viewport Overlay (Fixed Viewport Architecture) */
+.treewrap-host.is-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 800 !important;
+  width: 100vw !important;
+  width: 100dvw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  background: var(--surface) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border-radius: 0 !important;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ensure inner scroll container occupies 100% of the full-screen viewport */
+.treewrap-host.is-fullscreen .treewrap {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  flex: 1;
+}
+
+/* Floating Full-Screen Toggle Button */
+.canvas-fullscreen-toggle {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 25;
+  min-width: 38px;
+  height: 38px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.18s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.canvas-fullscreen-toggle:hover {
+  background: var(--ink);
+  color: var(--bg);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.canvas-fullscreen-toggle:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.canvas-fullscreen-toggle:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+
+/* Active Fullscreen State for Floating Toggle */
+.treewrap-host.is-fullscreen .canvas-fullscreen-toggle,
+.canvas-fullscreen-toggle.is-active {
+  top: calc(14px + env(safe-area-inset-top, 0px));
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  background: var(--surface);
+  color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+.treewrap-host.is-fullscreen .canvas-fullscreen-toggle:hover,
+.canvas-fullscreen-toggle.is-active:hover {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+/* Position adjustment for canvas dock in fullscreen mode to honor safe-area */
+.treewrap-host.is-fullscreen .canvas-dock {
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
+}
+
+/* Mobile touch target sizing */
+@media (max-width: 768px) {
+  .canvas-fullscreen-toggle {
+    min-width: 40px;
+    height: 40px;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+}
+
+/* Reduced Motion Compliance (F14) */
+:root[data-motion="reduce"] .canvas-fullscreen-toggle,
+:root[data-motion="reduce"] .treewrap-host.is-fullscreen {
+  transition: none !important;
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-fullscreen-toggle,
+  .treewrap-host.is-fullscreen {
+    transition: none !important;
+    animation: none !important;
+  }
 }

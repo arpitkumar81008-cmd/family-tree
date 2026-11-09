@@ -255,6 +255,10 @@ export const hi = {
   joinByCodeBtn: "वंश वृक्ष खोलें →",
   joinByCodeNotFound: "इस एक्सेस कोड से कोई वंश वृक्ष नहीं मिला। कृपया कोड जाँचकर पुनः प्रयास करें।",
   sharedWithYouBadge: "👨‍👩‍👧‍👦 आपके साथ साझा",
-  coEditorBadge: "✎ पारिवारिक संपादक"
+  coEditorBadge: "✎ पारिवारिक संपादक",
+  fullscreenEnter: "फुल स्क्रीन में देखें",
+  fullscreenExit: "फुल स्क्रीन से बाहर निकलें",
+  fullscreenEnterShort: "फुल स्क्रीन",
+  fullscreenExitShort: "बाहर निकलें"
 };
 export default hi;

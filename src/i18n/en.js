@@ -255,6 +255,10 @@ export const en = {
   joinByCodeBtn: "Open Family Tree →",
   joinByCodeNotFound: "No family tree found with that Access Code. Please check the code and try again.",
   sharedWithYouBadge: "👨‍👩‍👧‍👦 Shared with you",
-  coEditorBadge: "✎ Family Editor"
+  coEditorBadge: "✎ Family Editor",
+  fullscreenEnter: "Enter full screen",
+  fullscreenExit: "Exit full screen",
+  fullscreenEnterShort: "Full screen",
+  fullscreenExitShort: "Exit"
 };
 export default en;

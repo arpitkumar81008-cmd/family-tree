@@ -8,6 +8,8 @@ export function CanvasDock({
   onPan,
   viewerName,
   onReset,
+  isFullscreen = false,
+  onToggleFullscreen,
   t,
   lang
 }) {
@@ -118,6 +120,24 @@ export function CanvasDock({
         </button>
 
         <span className="dock-sep" aria-hidden="true" />
+
+        <button
+          type="button"
+          className={`dock-btn text dock-fullscreen-btn${isFullscreen ? ' active' : ''}`}
+          tabIndex={isExpanded ? 0 : -1}
+          aria-label={isFullscreen ? t('fullscreenExit') : t('fullscreenEnter')}
+          aria-pressed={isFullscreen}
+          title={
+            isFullscreen
+              ? (isHi ? 'पूर्ण-स्क्रीन से बाहर निकलें' : 'Exit Full-Screen')
+              : (isHi ? 'पूर्ण-स्क्रीन दृश्य' : 'Full-Screen View')
+          }
+          onClick={onToggleFullscreen}
+        >
+          {isFullscreen
+            ? `✕ ${t('fullscreenExitShort') || 'Exit'}`
+            : `⛶ ${t('fullscreenEnterShort') || 'Full'}`}
+        </button>
       </div>
 
       {/* Compact Star Trigger Button in Bottom-Right Corner */}
