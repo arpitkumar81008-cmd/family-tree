@@ -39,16 +39,17 @@
     },
     {
       "site": "gupta-family-tree-akg",
-      "public": "dist",
+      "public": "legacy-site-redirect",
       "ignore": [
         "firebase.json",
         "**/.*",
         "**/node_modules/**"
       ],
-      "rewrites": [
+      "redirects": [
         {
           "source": "**",
-          "destination": "/index.html"
+          "destination": "https://vanshvriksha.web.app",
+          "type": 301
         }
       ]
     }

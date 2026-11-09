@@ -9,68 +9,63 @@ export function dedup(treeState) {
   if (!treeState?.data?.people) return treeState;
 
   const people = treeState.data.people.map(p => ({ ...p }));
-  const remap = new Map();
-  const seenByName = new Map();
+  const seenById = new Map();
   const uniquePeople = [];
 
   for (const p of people) {
-    const key = (p.name || "").trim().toLowerCase();
-    if (!key) continue;
+    if (!p || !p.id) continue;
+    const id = String(p.id).trim();
+    if (!id) continue;
 
-    if (!seenByName.has(key)) {
-      seenByName.set(key, p.id);
+    if (!seenById.has(id)) {
+      seenById.set(id, p);
       uniquePeople.push(p);
     } else {
-      const canonicalId = seenByName.get(key);
-      remap.set(p.id, canonicalId);
-      const canon = uniquePeople.find(x => x.id === canonicalId);
-      if (canon) {
-        if (!canon.hi && p.hi) canon.hi = p.hi;
-        if (!canon.dob && p.dob) canon.dob = p.dob;
-        if (!canon.note && p.note) canon.note = p.note;
-        if (p.late) canon.late = true;
-      }
+      // Merge properties if exact same ID exists twice
+      const existing = seenById.get(id);
+      if (!existing.hi && p.hi) existing.hi = p.hi;
+      if (!existing.dob && p.dob) existing.dob = p.dob;
+      if (!existing.note && p.note) existing.note = p.note;
+      if (p.late) existing.late = true;
     }
   }
 
   const validIds = new Set(uniquePeople.map(p => p.id));
 
-  const couples = (treeState.data.couples || []).map(c => {
-    const h = remap.get(c.h) || c.h || "";
-    const w = remap.get(c.w) || c.w || "";
-    const kids = (c.kids || [])
-      .map(k => remap.get(k) || k)
-      .filter(id => validIds.has(id))
-      .filter((id, idx, arr) => arr.indexOf(id) === idx);
-    return { ...c, h, w, kids };
-  });
-
   const uniqueCouples = [];
   const seenCouples = new Set();
-  for (const c of couples) {
-    const k = `${c.h}_${c.w}`;
+  for (const c of treeState.data.couples || []) {
+    if (!c) continue;
+    const h = c.h || "";
+    const w = c.w || "";
+    const kids = (c.kids || [])
+      .filter(id => validIds.has(id))
+      .filter((id, idx, arr) => arr.indexOf(id) === idx);
+
+    const k = `${h}_${w}`;
     if (!seenCouples.has(k)) {
       seenCouples.add(k);
-      uniqueCouples.push(c);
+      uniqueCouples.push({ ...c, h, w, kids });
     } else {
-      const existing = uniqueCouples.find(x => x.h === c.h && x.w === c.w);
+      const existing = uniqueCouples.find(x => x.h === h && x.w === w);
       if (existing) {
-        existing.kids = [...new Set([...existing.kids, ...c.kids])];
+        existing.kids = [...new Set([...existing.kids, ...kids])];
       }
     }
   }
 
   const photos = { ...treeState.photos };
-  for (const [dupId, canId] of remap.entries()) {
-    if (photos[dupId] && !photos[canId]) photos[canId] = photos[dupId];
-    delete photos[dupId];
+  for (const photoId of Object.keys(photos)) {
+    if (!validIds.has(photoId)) {
+      delete photos[photoId];
+    }
   }
 
   return {
     ...treeState,
     data: { people: uniquePeople, couples: uniqueCouples },
     photos,
-    viewer: remap.get(treeState.viewer) || treeState.viewer
+    viewer: treeState.viewer || ""
   };
 }
 
