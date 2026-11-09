@@ -2,7 +2,11 @@
 
 ## Latest Release — Family Sharing & Relatives Access (`ShareTreeModal`), `vanshvriksha.web.app` Domain, 3-Way Navigation & Mobile Bar
 
-### 0. Multi-Method Family Sharing & Relatives Access ([`src/components/ShareTreeModal.jsx`](src/components/ShareTreeModal.jsx), [`src/services/treeSync.js`](src/services/treeSync.js), [`firestore.rules`](firestore.rules))
+### 0. Multi-Method Family Sharing, Multi-Lane Non-Overlapping Line Router & `vanshvriksha.web.app` Domain
+- **Multi-Lane Orthogonal Channel Router ([`src/layout/engine.js`](src/layout/engine.js))**:
+  - Replaced fixed-offset bridge routing (`connectBusY = busY - 14`) with a general interval-packing **Multi-Lane Horizontal & Vertical Channel Allocator** (`allocateHorizontalY` + `allocateVerticalX`) and increased inter-sector spacing (`SECTOR_GAP = 140`) and dynamic inter-row corridor height (`ROW_GAP >= 128`).
+  - Multiple in-law side families on the same generation row (such as **Minal Gupta's Family** and **Parul Gupta's Family**, plus any future side families) are now assigned dedicated horizontal tracks separated by at least **`26px`** vertically and **`26px`** horizontally, guaranteeing zero overlapping or crowded lines.
+  - Added recursive subtree traversal (`findLinkedMainSpouseInSubtree`) so multi-generation in-law branches (e.g., Minal Gupta's side family starting from her grandparents) are accurately titled `"Minal Gupta's Family (In-laws)"`.
 - **Invite Relatives by Email (`viewerEmails` / `editorEmails`)**: Tree owners can invite family members by email with either **👁 View Only** or **✎ Can Edit & Add Members** permissions. When an invited relative signs in with Google or Email on [`vanshvriksha.web.app`](https://vanshvriksha.web.app), the shared family lineage opens automatically for them.
 - **Family Access Code & 1-Click WhatsApp Invite Link (`shareCode` / `shareCodeRole`)**: Owners can set or generate a memorable Family Access Code (e.g., `GUPTA-2026`) and copy a 1-click invite link (`?view=tree&tree=<id>&code=<code>`). Any relative can either open that link or enter the code into the **Join a Family Tree with an Access Code** box inside [`ShareTreeModal.jsx`](src/components/ShareTreeModal.jsx) or [`CreateTreeModal.jsx`](src/components/CreateTreeModal.jsx).
 - **1-Click Visibility Toggle (`isPublic`)**: Switch between **🔒 Private (Invited Family & Code Only)** and **🌐 Public View-Only (Anyone with link)** at any time.

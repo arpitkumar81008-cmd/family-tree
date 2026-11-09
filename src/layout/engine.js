@@ -5,9 +5,10 @@
  */
 
 export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId = "") {
-  const CARD_W = 96, COUPLE_GAP = 16, SIBLING_GAP = 20, SECTOR_GAP = 60, TREE_GAP = 60, ROW_GAP = 84, TOP_PAD = 50, LEFT_PAD = 80;
+  const CARD_W = 96, COUPLE_GAP = 16, SIBLING_GAP = 24, SECTOR_GAP = 140, TREE_GAP = 80, TOP_PAD = 50, LEFT_PAD = 80;
   let { people, couples } = data;
   if (!people || !people.length) return { pos: {}, W: 320, H: 200, path: "", guideLines: "", genLabels: [], branchLabels: [] };
+  const ROW_GAP = Math.max(128, Math.min(240, 88 + Math.max(0, (couples?.length || 0) - 8) * 6));
 
   let byId = {};
   people.forEach(p => byId[p.id] = p);
@@ -431,6 +432,24 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       }
     }
 
+    function findLinkedMainSpouseInSubtree(rootCouple) {
+      let queue = [rootCouple];
+      let visited = new Set();
+      while (queue.length) {
+        let cur = queue.shift();
+        if (!cur || visited.has(cur)) continue;
+        visited.add(cur);
+        let kids = cur.kids || [];
+        let directMatch = kids.find(k => mainDescendants.has(k) || personMainCouple.has(k));
+        if (directMatch) return directMatch;
+        kids.forEach(k => {
+          let kc = personSpouseCouple.get(k);
+          if (kc && !visited.has(kc)) queue.push(kc);
+        });
+      }
+      return null;
+    }
+
     inLawRootCouples.forEach(rc => {
       let rcDepth = depthMap.get(rc) !== undefined ? depthMap.get(rc) : 1;
       let rcSubtreeW = nodeSubtreeWidth.get(rc) || (CARD_W * 2 + COUPLE_GAP);
@@ -438,7 +457,7 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       positionInLawSubtree(rc, spouseStartX, rcDepth);
 
       let branchTitle = lang === 'hi' ? '✦ ससुराल पक्ष (मायका)' : "✦ In-Law Family Branch";
-      let linkedSpouseId = (rc.kids || []).find(k => mainDescendants.has(k) || personMainCouple.has(k));
+      let linkedSpouseId = findLinkedMainSpouseInSubtree(rc);
       let linkedPerson = linkedSpouseId ? byId[linkedSpouseId] : null;
       if (linkedPerson) {
         branchTitle = lang === 'hi'
@@ -452,7 +471,7 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
         y: TOP_PAD + rcDepth * (cardHeight + ROW_GAP) - 30
       });
 
-      spouseStartX += rcSubtreeW + SECTOR_GAP;
+      spouseStartX += Math.max(rcSubtreeW, 220) + SECTOR_GAP;
     });
 
     // Fallback for any other individual
@@ -486,10 +505,65 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       }
     });
 
-    // 9. SVG Connector Lines (Main Branch vs Other In-Law Branch Lines)
+    // 9. Multi-Lane Non-Overlapping Orthogonal Connector Router
     let mainPath = '';
     let otherPath = '';
     let bridgePath = '';
+
+    // Track all horizontal & vertical segments to guarantee zero overlap and generous spacing
+    let horizSegments = [];
+    let vertSegments = [];
+
+    function allocateHorizontalY(preferredY, minX, maxX, minAllowedY, maxAllowedY, minGap = 22, stepDir = -1) {
+      let x1 = Math.min(minX, maxX);
+      let x2 = Math.max(minX, maxX);
+      let candidateY = preferredY;
+
+      const conflictsAt = y =>
+        horizSegments.some(seg => {
+          let xOverlap = Math.min(x2, seg.x2) - Math.max(x1, seg.x1);
+          if (xOverlap < -16) return false; // Disjoint X intervals
+          return Math.abs(y - seg.y) < minGap;
+        });
+
+      let attempt = 0;
+      while (conflictsAt(candidateY) && attempt < 20) {
+        attempt++;
+        let delta = attempt * minGap * stepDir;
+        let nextY = preferredY + delta;
+        if (nextY < minAllowedY || nextY > maxAllowedY) {
+          // Flip direction if corridor bound reached
+          nextY = preferredY - delta;
+        }
+        candidateY = Math.max(minAllowedY, Math.min(maxAllowedY, nextY));
+      }
+
+      horizSegments.push({ y: candidateY, x1, x2 });
+      return candidateY;
+    }
+
+    function allocateVerticalX(preferredX, y1, y2, minGap = 14) {
+      let topY = Math.min(y1, y2);
+      let botY = Math.max(y1, y2);
+      let candidateX = preferredX;
+
+      const conflictsAt = x =>
+        vertSegments.some(seg => {
+          let yOverlap = Math.min(botY, seg.y2) - Math.max(topY, seg.y1);
+          if (yOverlap <= 2) return false;
+          return Math.abs(x - seg.x) < minGap;
+        });
+
+      let attempt = 0;
+      while (conflictsAt(candidateX) && attempt < 12) {
+        attempt++;
+        let offset = Math.ceil(attempt / 2) * minGap * (attempt % 2 === 1 ? 1 : -1);
+        candidateX = preferredX + offset;
+      }
+
+      vertSegments.push({ x: candidateX, y1: topY, y2: botY });
+      return candidateX;
+    }
 
     // Couple lines (strictly adjacent only!)
     couples.forEach(c => {
@@ -534,17 +608,32 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       if (!kidCxs.length) return;
 
       let dropStartY = (c.h && c.w) ? parentY + 34 : parentY + cardHeight;
-      let busY = parentY + cardHeight + ROW_GAP / 2;
+      let corridorTop = parentY + cardHeight + 18;
+      let corridorBot = kidTopY - 18;
+      // Place sibling bus in the lower part of the corridor so upper lanes remain free for in-law bridges
+      let preferredBusY = parentY + cardHeight + Math.round(ROW_GAP * 0.72);
+      let busMinX = Math.min(...kidCxs, parentMidX);
+      let busMaxX = Math.max(...kidCxs, parentMidX);
+      let busY = allocateHorizontalY(preferredBusY, busMinX, busMaxX, corridorTop, corridorBot, 20, 1);
 
-      mainPath += `M${parentMidX} ${dropStartY}V${busY} `;
-      mainPath += `M${Math.min(...kidCxs, parentMidX)} ${busY}H${Math.max(...kidCxs, parentMidX)} `;
+      let trunkX = allocateVerticalX(parentMidX, dropStartY, busY);
+      mainPath += `M${trunkX} ${dropStartY}V${busY} `;
+      mainPath += `M${ Math.min(...kidCxs, trunkX) } ${busY}H${ Math.max(...kidCxs, trunkX) } `;
       kidCxs.forEach(cx => {
-        mainPath += `M${cx} ${busY}V${kidTopY} `;
+        let dropX = allocateVerticalX(cx, busY, kidTopY);
+        mainPath += `M${dropX} ${busY}V${kidTopY} `;
       });
     });
 
+    // Sort spouseCouples by their X position so multiple in-law bridges on the same row get ordered, well-spaced lanes
+    let sortedSpouseCouples = [...spouseCouples].sort((a, b) => {
+      let ax = (a.h && pos[a.h]) ? pos[a.h].x : ((a.w && pos[a.w]) ? pos[a.w].x : 0);
+      let bx = (b.h && pos[b.h]) ? pos[b.h].x : ((b.w && pos[b.w]) ? pos[b.w].x : 0);
+      return ax - bx;
+    });
+
     // Spouse branch parent-to-child & connecting line to the spouse in main branch!
-    spouseCouples.forEach(sc => {
+    sortedSpouseCouples.forEach(sc => {
       let parentCxs = [];
       let parentY = 0;
       if (sc.h && pos[sc.h]) { parentCxs.push(pos[sc.h].x + CARD_W / 2); parentY = pos[sc.h].y; }
@@ -553,33 +642,61 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
 
       let parentMidX = (Math.min(...parentCxs) + Math.max(...parentCxs)) / 2;
       let dropStartY = (sc.h && sc.w) ? parentY + 34 : parentY + cardHeight;
-      let busY = parentY + cardHeight + ROW_GAP / 2;
+      let corridorTop = parentY + cardHeight + 18;
+      let corridorBot = parentY + cardHeight + ROW_GAP - 18;
+      let preferredSiblingBusY = parentY + cardHeight + Math.round(ROW_GAP * 0.72);
 
       let unplacedKids = (sc.kids || []).filter(k => pos[k] && !mainDescendants.has(k) && !personMainCouple.has(k));
       let inBranchKidCxs = unplacedKids.map(kId => pos[kId].x + CARD_W / 2);
+      let linkedChildId = (sc.kids || []).find(k => pos[k] && (mainDescendants.has(k) || personMainCouple.has(k)));
+
+      let busY = preferredSiblingBusY;
+      let trunkX = parentMidX;
 
       if (inBranchKidCxs.length) {
-        otherPath += `M${parentMidX} ${dropStartY}V${busY} `;
-        otherPath += `M${Math.min(...inBranchKidCxs, parentMidX)} ${busY}H${Math.max(...inBranchKidCxs, parentMidX)} `;
         let kidTopY = pos[unplacedKids[0]].y;
+        let busMinX = Math.min(...inBranchKidCxs, parentMidX);
+        let busMaxX = Math.max(...inBranchKidCxs, parentMidX);
+        busY = allocateHorizontalY(preferredSiblingBusY, busMinX, busMaxX, corridorTop, kidTopY - 18, 20, 1);
+        trunkX = allocateVerticalX(parentMidX, dropStartY, busY);
+
+        otherPath += `M${trunkX} ${dropStartY}V${busY} `;
+        otherPath += `M${Math.min(...inBranchKidCxs, trunkX)} ${busY}H${Math.max(...inBranchKidCxs, trunkX)} `;
         inBranchKidCxs.forEach(cx => {
-          otherPath += `M${cx} ${busY}V${kidTopY} `;
+          let dropX = allocateVerticalX(cx, busY, kidTopY);
+          otherPath += `M${dropX} ${busY}V${kidTopY} `;
         });
-      } else {
-        otherPath += `M${parentMidX} ${dropStartY}V${busY} `;
       }
 
-      // Connecting line from spouse branch bus across to the married spouse in the main branch!
-      let linkedChildId = (sc.kids || []).find(k => pos[k] && (mainDescendants.has(k) || personMainCouple.has(k)));
+      // Connecting bridge line from spouse branch across to the married spouse in the main branch!
       if (linkedChildId && pos[linkedChildId]) {
         let spousePos = pos[linkedChildId];
         let spouseCx = spousePos.x + CARD_W / 2;
         let spouseTopY = spousePos.y;
 
-        let connectBusY = busY - 14;
-        bridgePath += `M${parentMidX} ${busY}V${connectBusY} `;
-        bridgePath += `M${parentMidX} ${connectBusY}H${spouseCx} `;
-        bridgePath += `M${spouseCx} ${connectBusY}V${spouseTopY} `;
+        // Allocate a dedicated, conflict-free horizontal lane in the upper half of the corridor (at least 26px spacing!)
+        let preferredBridgeY = parentY + cardHeight + Math.round(ROW_GAP * 0.44);
+        let connectBusY = allocateHorizontalY(
+          preferredBridgeY,
+          Math.min(trunkX, spouseCx),
+          Math.max(trunkX, spouseCx),
+          corridorTop,
+          corridorBot,
+          26,
+          -1
+        );
+
+        if (!inBranchKidCxs.length) {
+          // No in-branch siblings: drop directly from parents to connectBusY without overshooting!
+          trunkX = allocateVerticalX(parentMidX, dropStartY, connectBusY);
+          otherPath += `M${trunkX} ${dropStartY}V${connectBusY} `;
+        } else if (connectBusY > busY) {
+          bridgePath += `M${trunkX} ${busY}V${connectBusY} `;
+        }
+
+        let targetSpouseX = allocateVerticalX(spouseCx, connectBusY, spouseTopY);
+        bridgePath += `M${trunkX} ${connectBusY}H${targetSpouseX} `;
+        bridgePath += `M${targetSpouseX} ${connectBusY}V${spouseTopY} `;
       }
     });
 
@@ -1030,19 +1147,21 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
 
       let childTopX = childPos.x + CARD_W - 24; // Upper-right corner of child
       let childTopY = childPos.y;
-      let midY = (childTopY + parentBottomY) / 2;
+      let otherKids = kidsOf(step.id).filter(k => k !== step.childId && pos[k]);
+      let midY = otherKids.length
+        ? parentBottomY + Math.round((childTopY - parentBottomY) * 0.36)
+        : (childTopY + parentBottomY) / 2;
 
       // Clean orthogonal right-angle Manhattan line!
       otherPath += `M${childTopX} ${childTopY}V${midY}H${parentCoupleCx}V${parentBottomY} `;
 
-      // Also connect other children of this ancestor (e.g. Anant & Radha -> Sonal, Amit, Neha)
-      let otherKids = kidsOf(step.id).filter(k => k !== step.childId && pos[k]);
+      // Also connect other children of this ancestor on a separate horizontal lane (e.g. Anant & Radha -> Sonal, Amit, Neha)
       if (otherKids.length) {
-        let busY = midY;
+        let busY = parentBottomY + Math.round((childTopY - parentBottomY) * 0.68);
         let kidCxs = otherKids.map(kId => pos[kId].x + CARD_W / 2);
         let kidTopY = pos[otherKids[0]].y;
 
-        otherPath += `M${parentCoupleCx} ${parentBottomY}V${busY} `;
+        otherPath += `M${parentCoupleCx} ${midY}V${busY} `;
         otherPath += `M${Math.min(...kidCxs, parentCoupleCx)} ${busY}H${Math.max(...kidCxs, parentCoupleCx)} `;
         kidCxs.forEach(cx => {
           otherPath += `M${cx} ${busY}V${kidTopY} `;
