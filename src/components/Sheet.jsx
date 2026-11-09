@@ -19,6 +19,8 @@ export function Sheet({
   add,
   remove,
   setPhoto,
+  onUnlinkSpouse,
+  onUnlinkParents,
   canEdit = true
 }) {
   const person = familyIndex.byId[id];
@@ -32,6 +34,13 @@ export function Sheet({
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [errMsg, setErrMsg] = useState("");
 
+  const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [editName, setEditName] = useState(person?.name || "");
+  const [editHi, setEditHi] = useState(person?.hi || "");
+  const [editGender, setEditGender] = useState(person?.g || "M");
+  const [editDob, setEditDob] = useState(person?.dob || "");
+  const [editLate, setEditLate] = useState(Boolean(person?.late));
+
   const sheetRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -42,7 +51,13 @@ export function Sheet({
     setPhotoMsg("");
     setConfirmRemove(false);
     setErrMsg("");
-  }, [id, person?.note]);
+    setIsEditingDetails(false);
+    setEditName(person?.name || "");
+    setEditHi(person?.hi || "");
+    setEditGender(person?.g || "M");
+    setEditDob(person?.dob || "");
+    setEditLate(Boolean(person?.late));
+  }, [id, person?.name, person?.hi, person?.g, person?.dob, person?.late, person?.note]);
 
   useEffect(() => {
     const handleKeyDown = e => {
@@ -142,16 +157,151 @@ export function Sheet({
           ×
         </button>
 
-        <div className="sh-head">
+        <div className="sh-head" style={{ alignItems: isEditingDetails ? "flex-start" : "center" }}>
           <Avatar photo={photo} label={t("photoOf", name)} text={initials} big />
-          <div>
-            <h2 id="sh-name">{name}</h2>
-            {person.late && <span className="tag">{t("lateWord")}</span>}
-            {relationWithViewer && (
-              <div className="rel">
-                {relationWithViewer[0]}
-                {relationWithViewer[1] && (
-                  <span className="muted"> · {relationWithViewer[1]}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {isEditingDetails ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>
+                <div>
+                  <label htmlFor="edit-name" style={{ fontSize: "11px", fontWeight: "bold", color: "var(--muted)" }}>
+                    {lang === "hi" ? "पूरा नाम (अंग्रेज़ी)" : "Full Name (English)"}
+                  </label>
+                  <input
+                    id="edit-name"
+                    type="text"
+                    value={editName}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setEditName(val);
+                      if (!editHi || editHi === transliterateToHindi(editName)) {
+                        setEditHi(transliterateToHindi(val));
+                      }
+                    }}
+                    style={{ width: "100%", padding: "6px 8px", fontSize: "14px", marginTop: "4px" }}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="edit-hi" style={{ fontSize: "11px", fontWeight: "bold", color: "var(--muted)" }}>
+                    {lang === "hi" ? "हिंदी नाम" : "Hindi Name"}
+                  </label>
+                  <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
+                    <input
+                      id="edit-hi"
+                      type="text"
+                      value={editHi}
+                      onChange={e => setEditHi(e.target.value)}
+                      style={{ flex: 1, padding: "6px 8px", fontSize: "14px" }}
+                    />
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      style={{ fontSize: "11px", padding: "0 8px" }}
+                      onClick={() => setEditHi(transliterateToHindi(editName))}
+                      title={lang === "hi" ? "अंग्रेज़ी से हिंदी में बदलें" : "Auto-transliterate to Hindi"}
+                    >
+                      अ→A
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                  <div>
+                    <label htmlFor="edit-gender" style={{ fontSize: "11px", fontWeight: "bold", color: "var(--muted)" }}>
+                      {t("gender")}
+                    </label>
+                    <select
+                      id="edit-gender"
+                      value={editGender}
+                      onChange={e => setEditGender(e.target.value)}
+                      style={{ display: "block", marginTop: "4px", padding: "4px 8px" }}
+                    >
+                      <option value="M">{t("male")}</option>
+                      <option value="F">{t("female")}</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit-dob" style={{ fontSize: "11px", fontWeight: "bold", color: "var(--muted)" }}>
+                      {t("dob")}
+                    </label>
+                    <input
+                      id="edit-dob"
+                      type="date"
+                      value={editDob}
+                      onChange={e => setEditDob(e.target.value)}
+                      style={{ display: "block", marginTop: "4px", padding: "4px 8px" }}
+                    />
+                  </div>
+                </div>
+
+                <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", cursor: "pointer", marginTop: "4px" }}>
+                  <input
+                    type="checkbox"
+                    checked={editLate}
+                    onChange={e => setEditLate(e.target.checked)}
+                  />
+                  <span>{lang === "hi" ? "स्वर्गवासी (Late)" : "Late (Deceased)"}</span>
+                </label>
+
+                <div style={{ display: "flex", gap: "8px", marginTop: "6px" }}>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      const trimmed = editName.trim();
+                      if (!trimmed) return;
+                      patch(person.id, {
+                        name: trimmed,
+                        hi: editHi.trim() || undefined,
+                        g: editGender,
+                        dob: editDob || undefined,
+                        late: editLate || undefined
+                      });
+                      setIsEditingDetails(false);
+                    }}
+                  >
+                    {t("save")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => {
+                      setEditName(person.name || "");
+                      setEditHi(person.hi || "");
+                      setEditGender(person.g || "M");
+                      setEditDob(person.dob || "");
+                      setEditLate(Boolean(person.late));
+                      setIsEditingDetails(false);
+                    }}
+                  >
+                    {t("cancel")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <h2 id="sh-name" style={{ margin: 0 }}>{name}</h2>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      style={{ fontSize: "11px", height: "24px", padding: "0 8px", borderRadius: "12px" }}
+                      onClick={() => setIsEditingDetails(true)}
+                    >
+                      ✎ {lang === "hi" ? "विवरण बदलें" : "Edit Profile"}
+                    </button>
+                  )}
+                </div>
+                {person.late && <span className="tag" style={{ marginTop: "4px" }}>{t("lateWord")}</span>}
+                {relationWithViewer && (
+                  <div className="rel">
+                    {relationWithViewer[0]}
+                    {relationWithViewer[1] && (
+                      <span className="muted"> · {relationWithViewer[1]}</span>
+                    )}
+                  </div>
                 )}
               </div>
             )}
@@ -260,24 +410,35 @@ export function Sheet({
         {/* Family Links */}
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13.5px" }}>
           {parents.length > 0 && (
-            <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
               <span className="muted">{t("parents")}: </span>
               {parents.map((pId, idx) => (
                 <button
                   key={pId}
                   type="button"
                   className="chip"
-                  style={{ marginRight: "6px" }}
+                  style={{ marginRight: "4px" }}
                   onClick={() => open(pId)}
                 >
                   {displayName(pId)}
                 </button>
               ))}
+              {canEdit && onUnlinkParents && (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  style={{ fontSize: "11px", height: "24px", padding: "0 6px", color: "var(--red, #ef4444)" }}
+                  title={lang === "hi" ? "माता-पिता से हटाएं" : "Unlink from parents"}
+                  onClick={() => onUnlinkParents(person.id)}
+                >
+                  ✕ {lang === "hi" ? "माता-पिता से हटाएं" : "Unlink Parents"}
+                </button>
+              )}
             </div>
           )}
 
           {spouseId && (
-            <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
               <span className="muted">{t("spouse")}: </span>
               <button
                 type="button"
@@ -286,6 +447,17 @@ export function Sheet({
               >
                 {displayName(spouseId)}
               </button>
+              {canEdit && onUnlinkSpouse && (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  style={{ fontSize: "11px", height: "24px", padding: "0 6px", color: "var(--red, #ef4444)" }}
+                  title={lang === "hi" ? "जीवनसाथी हटाएं (अनलिंक करें)" : "Unlink spouse"}
+                  onClick={() => onUnlinkSpouse(person.id, spouseId)}
+                >
+                  ✕ {lang === "hi" ? "अनलिंक करें" : "Unlink"}
+                </button>
+              )}
             </div>
           )}
 

@@ -659,6 +659,58 @@ export function App() {
     closePersonDetails();
   };
 
+  const handleUnlinkSpouse = (personId, spouseId) => {
+    if (!canEdit) return;
+    isLocalMutationRef.current = true;
+    setTreeState(prev => {
+      const updatedCouples = prev.data.couples
+        .map(c => {
+          const match1 = c.h === personId && c.w === spouseId;
+          const match2 = c.h === spouseId && c.w === personId;
+          if (match1 || match2) {
+            if (c.kids?.length) {
+              return { ...c, w: "" };
+            }
+            return null;
+          }
+          return c;
+        })
+        .filter(Boolean);
+
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          couples: updatedCouples
+        }
+      };
+    });
+  };
+
+  const handleUnlinkParents = personId => {
+    if (!canEdit) return;
+    isLocalMutationRef.current = true;
+    setTreeState(prev => {
+      const updatedCouples = prev.data.couples.map(c => {
+        if (c.kids?.includes(personId)) {
+          return {
+            ...c,
+            kids: c.kids.filter(k => k !== personId)
+          };
+        }
+        return c;
+      });
+
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          couples: updatedCouples
+        }
+      };
+    });
+  };
+
   const handleSetPhoto = (id, dataUrl) => {
     if (!canEdit) return false;
     const updatedPhotos = { ...treeState.photos };
@@ -1046,6 +1098,8 @@ export function App() {
           }
           remove={handleRemovePerson}
           setPhoto={handleSetPhoto}
+          onUnlinkSpouse={handleUnlinkSpouse}
+          onUnlinkParents={handleUnlinkParents}
           canEdit={canEdit}
         />
       )}
