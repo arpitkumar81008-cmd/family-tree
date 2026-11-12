@@ -1084,3 +1084,224 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   }
 }
 
+/* =========================================================================
+   Relation Solver Modal (.rel-solver-*)
+   ========================================================================= */
+.rel-solver-modal {
+  max-width: 580px;
+}
+
+.rel-solver-pair {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
+  align-items: end;
+  margin-top: 14px;
+}
+
+.rel-solver-swap-btn {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.rel-solver-swap-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.03);
+}
+
+.rel-solver-result-card {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.rel-solver-headline {
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+
+.rel-solver-desc {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.rel-solver-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.rel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.rel-badge-blood {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
+.rel-badge-marriage {
+  border-color: color-mix(in srgb, var(--rel, #8a5a44) 55%, var(--line));
+  color: var(--rel, #8a5a44);
+  background: color-mix(in srgb, var(--rel, #8a5a44) 10%, var(--surface));
+}
+
+.rel-badge-side {
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.rel-badge-ancestor {
+  border-style: dashed;
+}
+
+.rel-path-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.rel-path-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+
+.rel-path-chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.rel-path-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.rel-path-edge {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+@media (max-width: 560px) {
+  .rel-solver-pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================================
+   Private Tree Locked Screen (ACCESS_DENIED)
+   ========================================================================= */
+.private-locked-screen {
+  min-height: 62vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+.private-locked-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 32px 28px;
+  text-align: center;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.08);
+}
+
+.private-locked-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+}
+
+.private-locked-title {
+  margin: 0 0 8px;
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.private-locked-body {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.private-locked-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.private-locked-code-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.private-locked-code-form input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
