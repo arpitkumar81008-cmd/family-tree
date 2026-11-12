@@ -43,13 +43,19 @@ import {
   createUserTree,
   saveUserTreeDebounced,
   canUserEditTree,
-  isPhotosPayloadWithinLimit
+  isPhotosPayloadWithinLimit,
+  findTreeByShareCode,
+  recordUnlockedShareCode,
+  generatePrivateShareToken,
+  updateTreeSharingSettings,
+  buildPrivateShareUrl
 } from './services/treeSync.js';
 import Toolbar from './components/Toolbar.jsx';
 import Canvas from './components/Canvas.jsx';
 import Sheet from './components/Sheet.jsx';
 import AddModal from './components/AddModal.jsx';
 import HelpModal from './components/HelpModal.jsx';
+import RelationSolverModal from './components/RelationSolverModal.jsx';
 import Tabs from './components/Tabs.jsx';
 import OnboardingToast from './components/OnboardingToast.jsx';
 
@@ -112,6 +118,10 @@ export function App() {
   const [user, setUser] = useState(() => (isFirebaseConfigured() ? null : loadLocalAuthUser()));
   const [activeTreeId, setActiveTreeId] = useState(() => parseViewStateFromUrl().treeId);
   const [activeTreeMeta, setActiveTreeMeta] = useState(null);
+  const [userPrivateTreeId, setUserPrivateTreeId] = useState(() => getLastPrivateTreeId() || "");
+  const [treeAccessDenied, setTreeAccessDenied] = useState(false);
+  const [lockedCodeInput, setLockedCodeInput] = useState("");
+  const [lockedCodeError, setLockedCodeError] = useState("");
 
   // Search & Navigation
   const [searchQuery, setSearchQuery] = useState("");
@@ -119,6 +129,8 @@ export function App() {
   const [selectedPersonId, setSelectedPersonId] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [isRelationSolverOpen, setIsRelationSolverOpen] = useState(false);
+  const [collapsedSubTrees, setCollapsedSubTrees] = useState({});
   const [showGuideBanner, setShowGuideBanner] = useState(() => {
     try {
       return !localStorage.getItem("gupta_hide_guide");
@@ -184,6 +196,22 @@ export function App() {
     });
   }, []);
 
+  const hasPrivateTree = Boolean(
+    (activeTreeId && activeTreeId !== "tree_demo_sharma") || userPrivateTreeId
+  );
+
+  // Reset collapsed sub-trees when switching trees
+  useEffect(() => {
+    setCollapsedSubTrees({});
+  }, [activeTreeId]);
+
+  // Guard ?view=demo when user already has a private tree
+  useEffect(() => {
+    if (hasPrivateTree && currentView === "demo") {
+      handleNavigateMyTree();
+    }
+  }, [hasPrivateTree, currentView]);
+
   // Automatically load the signed-in user's private or shared family tree ONCE on sign-in
   useEffect(() => {
     if (!user?.uid) {
@@ -210,9 +238,11 @@ export function App() {
                   tr.viewerEmails.some(e => String(e).trim().toLowerCase() === emailLower)))
           );
         if (privateOwnedOrShared) {
+          setUserPrivateTreeId(privateOwnedOrShared.id);
           setLastPrivateTreeId(privateOwnedOrShared.id);
           if (currentView !== "home" && !activeTreeId) {
             isLocalMutationRef.current = false;
+            setTreeAccessDenied(false);
             setActiveTreeId(privateOwnedOrShared.id);
             setActiveTreeMeta(privateOwnedOrShared);
             setTreeIdInUrl(privateOwnedOrShared.id);
@@ -244,11 +274,13 @@ export function App() {
   useEffect(() => {
     if (!activeTreeId) {
       setActiveTreeMeta(null);
+      setTreeAccessDenied(false);
       return;
     }
     return subscribeToTree(
       activeTreeId,
       docData => {
+        setTreeAccessDenied(false);
         setActiveTreeMeta(docData);
         if (docData?.data?.people) {
           const merged = mergeCloudTreeWithLocalHistory(
@@ -269,12 +301,19 @@ export function App() {
           }));
         }
       },
-      () => {
+      err => {
+        if (err?.code === "ACCESS_DENIED") {
+          setActiveTreeMeta(null);
+          setTreeAccessDenied(true);
+          return;
+        }
+        setTreeAccessDenied(false);
         setActiveTreeId("");
         setTreeIdInUrl("");
-      }
+      },
+      { user }
     );
-  }, [activeTreeId]);
+  }, [activeTreeId, user]);
 
   // Save tree state ONLY on local user mutations (prevents infinite Firestore snapshot/write loop)
   useEffect(() => {
@@ -756,7 +795,12 @@ export function App() {
   };
 
   const openDemoTree = () => {
+    if (hasPrivateTree) {
+      handleNavigateMyTree();
+      return;
+    }
     isLocalMutationRef.current = false;
+    setTreeAccessDenied(false);
     setActiveTreeId("");
     setActiveTreeMeta(null);
     setTreeIdInUrl("");
@@ -770,6 +814,7 @@ export function App() {
       return;
     }
     isLocalMutationRef.current = false;
+    setTreeAccessDenied(false);
     setActiveTreeId(treeId);
     setTreeIdInUrl(treeId);
     if (treeDoc?.data) {
@@ -792,10 +837,15 @@ export function App() {
   };
 
   const handleNavigateHome = () => {
+    setTreeAccessDenied(false);
     setCurrentView("home");
   };
 
   const handleNavigateDemo = () => {
+    if (hasPrivateTree) {
+      handleNavigateMyTree();
+      return;
+    }
     openDemoTree();
   };
 
@@ -854,6 +904,9 @@ export function App() {
       user
     );
     isLocalMutationRef.current = false;
+    setTreeAccessDenied(false);
+    setUserPrivateTreeId(created.id);
+    setLastPrivateTreeId(created.id);
     setActiveTreeId(created.id);
     setActiveTreeMeta(created);
     setTreeIdInUrl(created.id);
@@ -889,6 +942,9 @@ export function App() {
       user
     );
     isLocalMutationRef.current = false;
+    setTreeAccessDenied(false);
+    setUserPrivateTreeId(created.id);
+    setLastPrivateTreeId(created.id);
     setActiveTreeId(created.id);
     setActiveTreeMeta(created);
     setTreeIdInUrl(created.id);
@@ -903,6 +959,7 @@ export function App() {
   };
 
   const handleCreateRestore = () => {
+    setTreeAccessDenied(false);
     setActiveTreeId("");
     setActiveTreeMeta(null);
     setTreeIdInUrl("");
@@ -915,13 +972,53 @@ export function App() {
     await signOutUser();
     saveLocalAuthUser(null);
     setUser(null);
+    setUserPrivateTreeId("");
     if (activeTreeId && (!activeTreeMeta || !activeTreeMeta.isPublic)) {
       isLocalMutationRef.current = false;
+      setTreeAccessDenied(false);
       setActiveTreeId("");
       setActiveTreeMeta(null);
       setTreeIdInUrl("");
       setTreeState(loadInitialTreeState());
     }
+  };
+
+  const handleUnlockLockedTreeByCode = async e => {
+    e.preventDefault();
+    setLockedCodeError("");
+    const code = lockedCodeInput.trim();
+    if (!code) return;
+    try {
+      const found = await findTreeByShareCode(code);
+      if (!found) {
+        setLockedCodeError(t("joinByCodeNotFound"));
+        return;
+      }
+      recordUnlockedShareCode(found.id, code);
+      setLockedCodeInput("");
+      setTreeAccessDenied(false);
+      handleSelectTree(found.id, found);
+    } catch {
+      setLockedCodeError(t("joinByCodeNotFound"));
+    }
+  };
+
+  const handleToggleSubTree = subTreeId => {
+    setCollapsedSubTrees(prev => ({
+      ...prev,
+      [subTreeId]: !prev[subTreeId]
+    }));
+  };
+
+  const handleEnsurePrivateShareLink = async () => {
+    if (!activeTreeId) return "";
+    let code = activeTreeMeta?.shareCode;
+    if (!code && user && isOwner) {
+      code = generatePrivateShareToken();
+      await updateTreeSharingSettings(activeTreeId, { shareCode: code }, user);
+      setActiveTreeMeta(prev => (prev ? { ...prev, shareCode: code } : prev));
+    }
+    return code ? buildPrivateShareUrl(activeTreeId, code) : "";
   };
 
   return (
@@ -938,12 +1035,15 @@ export function App() {
         activeTreeTitle={activeTreeMeta?.title || ""}
         activeTreeMeta={activeTreeMeta}
         isPrivateTree={Boolean(activeTreeMeta && activeTreeMeta.isPublic === false)}
+        hasPrivateTree={hasPrivateTree}
         isOwner={isOwner}
         user={user}
         onOpenAuth={() => setIsAuthOpen(true)}
         onSignOut={handleSignOut}
         onOpenTreesModal={() => setIsCreateOpen(true)}
         onOpenShareModal={() => setIsShareOpen(true)}
+        onCreatePrivateTree={() => setIsCreateOpen(true)}
+        onEnsurePrivateShareLink={handleEnsurePrivateShareLink}
         onNavigateHome={handleNavigateHome}
         onNavigateDemo={handleNavigateDemo}
         onNavigateMyTree={handleNavigateMyTree}
@@ -972,12 +1072,71 @@ export function App() {
         <main id="main-content">
           <LandingPage
             t={t}
+            lang={treeState.lang}
+            hasPrivateTree={hasPrivateTree}
             memberCount={INITIAL_DATA.people.length}
             generationCount={5}
             branchCount={INITIAL_DATA.couples.length}
             onExplore={openDemoTree}
             onCreate={() => setIsCreateOpen(true)}
+            onNavigateMyTree={handleNavigateMyTree}
           />
+        </main>
+      ) : treeAccessDenied ? (
+        <main id="main-content" className="page">
+          <section className="private-locked-screen" aria-labelledby="private-locked-heading">
+            <div className="private-locked-card">
+              <div className="private-locked-icon" aria-hidden="true">🔒</div>
+              <h1 id="private-locked-heading" className="private-locked-title">
+                {t("privateLockedTitle")}
+              </h1>
+              <p className="private-locked-body">{t("privateLockedBody")}</p>
+              <div className="private-locked-actions">
+                {!user && (
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={() => setIsAuthOpen(true)}
+                  >
+                    {t("privateLockedSignInBtn")}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={handleNavigateHome}
+                >
+                  {t("privateLockedGoHomeBtn")}
+                </button>
+                {!hasPrivateTree && (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={openDemoTree}
+                  >
+                    {t("privateLockedExploreDemoBtn")}
+                  </button>
+                )}
+              </div>
+              <form className="private-locked-code-form" onSubmit={handleUnlockLockedTreeByCode}>
+                <input
+                  type="text"
+                  value={lockedCodeInput}
+                  onChange={e => setLockedCodeInput(e.target.value)}
+                  placeholder={t("joinByCodePh")}
+                  aria-label={t("privateLockedCodeLabel")}
+                />
+                <button type="submit" className="btn primary">
+                  {t("joinByCodeBtn")}
+                </button>
+              </form>
+              {lockedCodeError && (
+                <p className="msg" role="alert" style={{ marginTop: 10 }}>
+                  {lockedCodeError}
+                </p>
+              )}
+            </div>
+          </section>
         </main>
       ) : (
         <main id="main-content" className="page">
@@ -1018,6 +1177,7 @@ export function App() {
         t={t}
         lang={treeState.lang}
         onOpenAddModal={() => canEdit && setIsAddModalOpen(true)}
+        onOpenRelationSolver={() => setIsRelationSolverOpen(true)}
         canEdit={canEdit}
         familyIndex={familyIndex}
       />
@@ -1040,6 +1200,8 @@ export function App() {
         onCardClick={openPersonDetails}
         onZoom={changeZoom}
         onResetViewer={() => setTreeState(prev => ({ ...prev, viewer: "" }))}
+        collapsedSubTrees={collapsedSubTrees}
+        onToggleSubTree={handleToggleSubTree}
       />
 
       {/* Tools & Details Tabs */}
@@ -1125,6 +1287,21 @@ export function App() {
           close={() => setIsHelpModalOpen(false)}
         />
       )}
+
+      {/* Relationship Solver Modal */}
+      {isRelationSolverOpen && (
+        <RelationSolverModal
+          isOpen={isRelationSolverOpen}
+          onClose={() => setIsRelationSolverOpen(false)}
+          familyIndex={familyIndex}
+          people={treeState.data.people}
+          lang={treeState.lang}
+          t={t}
+          displayName={displayName}
+          initialOriginId={treeState.viewer || selectedPersonId || ""}
+          onSelectPerson={openPersonDetails}
+        />
+      )}
     </main>
       )}
 
@@ -1133,6 +1310,7 @@ export function App() {
           t={t}
           user={user}
           activeTreeId={activeTreeId}
+          hasPrivateTree={hasPrivateTree}
           close={() => setIsCreateOpen(false)}
           onOpenAuth={() => setIsAuthOpen(true)}
           onSelectTree={handleSelectTree}
@@ -1175,6 +1353,8 @@ export function App() {
       <MobileBottomNav
         currentView={currentView}
         activeTreeId={activeTreeId}
+        hasPrivateTree={hasPrivateTree}
+        onCreatePrivateTree={() => setIsCreateOpen(true)}
         onNavigateHome={handleNavigateHome}
         onNavigateDemo={handleNavigateDemo}
         onNavigateMyTree={handleNavigateMyTree}
