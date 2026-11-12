@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { calculateKinship } from '../utils/kinship.js';
+import { solveComplexRelation } from '../utils/kinship.js';
 import { validateTreeData } from '../data/schema.js';
 import { useSmartAutoAnimate } from '../utils/useSmartAutoAnimate.js';
 
@@ -7,6 +7,7 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
   const [firstId, setFirstId] = useState(startPerson || "");
   const [secondId, setSecondId] = useState("");
   const finderAnimRef = useSmartAutoAnimate();
+  const isHi = lang === "hi";
 
   const isValid =
     firstId &&
@@ -15,55 +16,36 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
     familyIndex.byId[firstId] &&
     familyIndex.byId[secondId];
 
-  const findCommonAncestors = (p1, p2) => {
-    const getLevels = start => {
-      const levels = { [start]: 0 };
-      let queue = [start];
-      let depth = 0;
-      while (queue.length) {
-        depth++;
-        const next = [];
-        queue.forEach(id => {
-          familyIndex.parOf(id).forEach(pid => {
-            if (!(pid in levels)) {
-              levels[pid] = depth;
-              next.push(pid);
-            }
-          });
-        });
-        queue = next;
-      }
-      return levels;
-    };
+  const relAB = isValid ? solveComplexRelation(familyIndex, firstId, secondId, lang) : null;
+  const relBA = isValid ? solveComplexRelation(familyIndex, secondId, firstId, lang) : null;
 
-    const l1 = getLevels(p1);
-    const l2 = getLevels(p2);
-    let best = null;
-    let minD = 1e9;
-
-    Object.keys(l1).forEach(id => {
-      if (id in l2 && id !== p1 && id !== p2) {
-        const total = l1[id] + l2[id];
-        if (total < minD) {
-          minD = total;
-          best = id;
-        }
-      }
-    });
-    return best;
+  const handleSwap = () => {
+    setFirstId(secondId);
+    setSecondId(firstId);
   };
 
-  const renderRelationLine = (fromName, toName, fromId, toId) => {
-    const rel = calculateKinship(familyIndex, toId, fromId, lang);
-    return (
-      <li>
-        {t("relIs", fromName, toName, rel[0])}
-        {rel[1] !== rel[0] && <span className="muted"> ({rel[1]})</span>}
-      </li>
-    );
+  const badgeStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "4px",
+    padding: "3px 9px",
+    borderRadius: "999px",
+    fontSize: "11px",
+    fontWeight: 700,
+    letterSpacing: "0.03em",
+    background: "var(--surface)",
+    border: "1px solid var(--line)",
+    color: "var(--muted)"
   };
 
-  const commonAncestor = isValid ? findCommonAncestors(firstId, secondId) : null;
+  const renderRelationLine = (fromName, toName, rel) => (
+    <li>
+      {t("relIs", fromName, toName, rel.shortLabel)}
+      {rel.description && rel.description !== rel.shortLabel && (
+        <span className="muted"> ({rel.description})</span>
+      )}
+    </li>
+  );
 
   return (
     <div className="finder reveal-parent" ref={finderAnimRef}>
@@ -82,14 +64,26 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
         </div>
         <div className="field">
           <label htmlFor="fb">{t("second")}</label>
-          <select id="fb" value={secondId} onChange={e => setSecondId(e.target.value)}>
-            <option value="">{t("none")}</option>
-            {people.map(p => (
-              <option key={p.id} value={p.id}>
-                {displayName(p.id)}
-              </option>
-            ))}
-          </select>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <select id="fb" value={secondId} onChange={e => setSecondId(e.target.value)}>
+              <option value="">{t("none")}</option>
+              {people.map(p => (
+                <option key={p.id} value={p.id}>
+                  {displayName(p.id)}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={handleSwap}
+              aria-label={isHi ? "दोनों सदस्य बदलें" : "Swap people"}
+              title={isHi ? "दोनों सदस्य बदलें" : "Swap people"}
+              style={{ height: "40px", padding: "0 12px", fontSize: "16px", flexShrink: 0 }}
+            >
+              ⇄
+            </button>
+          </div>
         </div>
       </div>
 
@@ -97,16 +91,71 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
         <p className="msg" role="status">{t("samePerson")}</p>
       )}
 
-      {isValid && (
-        <ul className="res">
-          {renderRelationLine(displayName(secondId), displayName(firstId), secondId, firstId)}
-          {renderRelationLine(displayName(firstId), displayName(secondId), firstId, secondId)}
-          {commonAncestor && (
-            <li className="muted" style={{ marginTop: "6px" }}>
-              {t("commonAnc")}: <strong>{displayName(commonAncestor)}</strong>
-            </li>
+      {isValid && relAB && relBA && (
+        <div className="res" style={{ gap: "10px" }}>
+          {/* Badges row */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
+            {relAB.lineageSide === null ? (
+              <span style={badgeStyle}>{isHi ? "कोई जुड़ाव नहीं" : "Not Connected"}</span>
+            ) : relAB.isBlood ? (
+              <span
+                style={{
+                  ...badgeStyle,
+                  background: "color-mix(in srgb, var(--accent) 12%, var(--surface))",
+                  borderColor: "color-mix(in srgb, var(--accent) 35%, transparent)",
+                  color: "var(--rel)"
+                }}
+              >
+                ● {isHi ? "रक्त संबंध" : "Blood Relation"}
+              </span>
+            ) : (
+              <span style={{ ...badgeStyle, borderColor: "var(--ink)", color: "var(--ink)" }}>
+                ◆ {isHi ? "विवाह द्वारा" : "By Marriage"}
+              </span>
+            )}
+
+            {relAB.lineageSide === "paternal" && (
+              <span style={badgeStyle}>{isHi ? "पैतृक पक्ष" : "Paternal Side"}</span>
+            )}
+            {relAB.lineageSide === "maternal" && (
+              <span style={badgeStyle}>{isHi ? "मातृ पक्ष" : "Maternal Side"}</span>
+            )}
+            {relAB.lineageSide === "direct" && (
+              <span style={badgeStyle}>{isHi ? "सीधी वंशावली" : "Direct Lineage"}</span>
+            )}
+            {relAB.commonAncestorId && (
+              <span style={{ ...badgeStyle, color: "var(--ink)" }}>
+                {t("commonAnc")}: <strong>{displayName(relAB.commonAncestorId)}</strong>
+              </span>
+            )}
+          </div>
+
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
+            {renderRelationLine(displayName(secondId), displayName(firstId), relAB)}
+            {renderRelationLine(displayName(firstId), displayName(secondId), relBA)}
+          </ul>
+
+          {relAB.pathSteps && relAB.pathSteps.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "5px", paddingTop: "6px", borderTop: "1px dashed var(--line)" }}>
+              <span className="chip" style={{ fontWeight: 700, borderColor: "var(--ink)" }}>
+                {displayName(firstId)}
+              </span>
+              {relAB.pathSteps.map((step, idx) => (
+                <React.Fragment key={`${step.fromId}-${step.toId}-${idx}`}>
+                  <span className="muted" style={{ fontSize: "11.5px" }}>
+                    → {step.relation} →
+                  </span>
+                  <span
+                    className="chip"
+                    style={idx === relAB.pathSteps.length - 1 ? { fontWeight: 700, borderColor: "var(--accent)", color: "var(--rel)" } : undefined}
+                  >
+                    {displayName(step.toId)}
+                  </span>
+                </React.Fragment>
+              ))}
+            </div>
           )}
-        </ul>
+        </div>
       )}
     </div>
   );
