@@ -69,11 +69,13 @@ h1 {
   flex: 0 0 auto !important;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .bar .field.grow {
-  flex: 1 1 200px !important;
+  flex: 1 1 220px !important;
+  min-width: 0;
 }
 
 .bar .field label {
@@ -93,6 +95,7 @@ h1 {
 
 .search-wrap input {
   width: 100%;
+  height: 40px;
   padding-right: 36px !important;
 }
 
@@ -112,9 +115,29 @@ h1 {
 }
 
 .viewer-wrap {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  min-width: 210px;
+}
+
+.viewer-wrap select {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  height: 40px;
+}
+
+.bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.bar-actions .btn {
+  height: 40px;
 }
 
 /* Buttons and Inputs */
@@ -171,7 +194,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 .reset-btn {
-  height: 38px !important;
+  height: 40px !important;
   padding: 0 16px !important;
   font-size: 13px !important;
   font-weight: 600 !important;
@@ -596,30 +619,39 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .tools {
   margin-top: 32px;
   background: var(--surface);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  border-left: none;
-  border-right: none;
-  border-radius: 0;
-  padding: 24px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .tabs {
   display: flex;
+  align-items: center;
   border-bottom: 1px solid var(--line);
-  gap: 8px;
-  margin-bottom: 18px;
+  gap: 6px;
+  padding: 12px 24px 0;
+  margin-bottom: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tab {
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  padding: 8px 14px;
+  padding: 10px 14px;
   font-size: 13.5px;
   font-weight: 600;
   color: var(--muted);
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tab:hover {
@@ -633,19 +665,30 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 .panel {
   outline: none;
+  padding: 20px 24px 24px;
+  box-sizing: border-box;
+  width: 100%;
 }
 
-.finder, .backup, .blist {
+.panel .hover-explanation {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.finder, .backup, .bday-panel, .blist {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 /* Relationship Finder Grid — Proper Spacing Between Labels & Dropdowns */
 .finder-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 18px 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 16px 24px;
   align-items: end;
 }
 
@@ -653,6 +696,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .finder-grid .field label {
@@ -667,6 +711,27 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   width: 100%;
   height: 40px;
   padding: 0 12px;
+  min-width: 0;
+}
+
+.finder-second-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.finder-second-wrap select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.finder-swap-btn {
+  height: 40px;
+  min-width: 42px;
+  padding: 0 12px;
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
 .finder .res {
@@ -685,7 +750,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 /* Backup Panel Grid — Clean 2-Column Editorial Layout */
 .backup-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: 20px;
   align-items: stretch;
 }
@@ -741,10 +806,16 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 .blist li {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: 6px 0;
+  gap: 8px 12px;
+  padding: 10px 0;
   border-bottom: 1px solid var(--line);
+}
+
+.blist li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .chip {
@@ -1303,5 +1374,146 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .private-locked-code-form input {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+/* =========================================================================
+   Tree Page Mobile Ergonomics (Toolbar & Tabs Panel)
+   ========================================================================= */
+:root[data-viewport="mobile"] .bar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 12px !important;
+}
+
+:root[data-viewport="mobile"] .bar .field,
+:root[data-viewport="mobile"] .bar .field.grow {
+  width: 100%;
+  min-width: 0;
+}
+
+:root[data-viewport="mobile"] .viewer-wrap {
+  width: 100%;
+  min-width: 0;
+}
+
+:root[data-viewport="mobile"] .viewer-wrap select,
+:root[data-viewport="mobile"] .bar .search-wrap input {
+  height: 42px;
+}
+
+:root[data-viewport="mobile"] .bar .reset-btn {
+  height: 42px !important;
+  flex-shrink: 0;
+}
+
+:root[data-viewport="mobile"] .bar-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+:root[data-viewport="mobile"] .bar-actions > .btn {
+  width: 100%;
+  height: 42px !important;
+  padding: 0 12px;
+  justify-content: center;
+}
+
+:root[data-viewport="mobile"] .bar-actions > .btn:only-child {
+  grid-column: 1 / -1;
+}
+
+:root[data-viewport="mobile"] .tools {
+  margin-top: 24px;
+}
+
+:root[data-viewport="mobile"] .tabs {
+  padding: 10px 16px 0;
+}
+
+:root[data-viewport="mobile"] .panel {
+  padding: 16px 16px 20px;
+}
+
+:root[data-viewport="mobile"] .finder-grid,
+:root[data-viewport="mobile"] .backup-grid {
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+:root[data-viewport="mobile"] .finder-grid .field select,
+:root[data-viewport="mobile"] .finder-swap-btn {
+  height: 42px;
+}
+
+@media (max-width: 768px) {
+  :root:not([data-viewport="laptop"]) .bar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  :root:not([data-viewport="laptop"]) .bar .field,
+  :root:not([data-viewport="laptop"]) .bar .field.grow {
+    width: 100%;
+    min-width: 0;
+  }
+
+  :root:not([data-viewport="laptop"]) .viewer-wrap {
+    width: 100%;
+    min-width: 0;
+  }
+
+  :root:not([data-viewport="laptop"]) .viewer-wrap select,
+  :root:not([data-viewport="laptop"]) .bar .search-wrap input {
+    height: 42px;
+  }
+
+  :root:not([data-viewport="laptop"]) .bar .reset-btn {
+    height: 42px !important;
+    flex-shrink: 0;
+  }
+
+  :root:not([data-viewport="laptop"]) .bar-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+  }
+
+  :root:not([data-viewport="laptop"]) .bar-actions > .btn {
+    width: 100%;
+    height: 42px !important;
+    padding: 0 12px;
+    justify-content: center;
+  }
+
+  :root:not([data-viewport="laptop"]) .bar-actions > .btn:only-child {
+    grid-column: 1 / -1;
+  }
+
+  :root:not([data-viewport="laptop"]) .tools {
+    margin-top: 24px;
+  }
+
+  :root:not([data-viewport="laptop"]) .tabs {
+    padding: 10px 16px 0;
+  }
+
+  :root:not([data-viewport="laptop"]) .panel {
+    padding: 16px 16px 20px;
+  }
+
+  :root:not([data-viewport="laptop"]) .finder-grid,
+  :root:not([data-viewport="laptop"]) .backup-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  :root:not([data-viewport="laptop"]) .finder-grid .field select,
+  :root:not([data-viewport="laptop"]) .finder-swap-btn {
+    height: 42px;
+  }
 }
 

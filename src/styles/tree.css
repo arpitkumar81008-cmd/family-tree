@@ -15,7 +15,7 @@
   scrollbar-color: var(--line) transparent;
   height: calc(100vh - 210px);
   min-height: 540px;
-  margin-block: 16px;
+  margin-block: 0;
   user-select: none;
   touch-action: pan-x pan-y;
 }
@@ -264,6 +264,7 @@
 .treewrap-host {
   position: relative;
   width: 100%;
+  margin-block: 16px;
 }
 
 /* Full-Screen Viewport Overlay (Fixed Viewport Architecture) */
@@ -299,8 +300,8 @@
 /* Floating Full-Screen Toggle Button */
 .canvas-fullscreen-toggle {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: 12px;
+  right: 12px;
   z-index: 25;
   min-width: 38px;
   height: 38px;
@@ -311,13 +312,15 @@
   gap: 6px;
   background: var(--surface);
   color: var(--ink);
-  border: 1px solid var(--ink);
+  border: 1px solid color-mix(in srgb, var(--ink) 28%, var(--line));
   border-radius: var(--radius-sm);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
   transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
     background 0.16s ease,
     color 0.16s ease,
@@ -367,14 +370,39 @@
   right: calc(12px + env(safe-area-inset-right, 0px));
 }
 
-/* Mobile touch target sizing */
+/* Mobile touch target sizing & balanced canvas proportions */
 @media (max-width: 768px) {
-  .canvas-fullscreen-toggle {
+  :root:not([data-viewport="laptop"]) .canvas-fullscreen-toggle,
+  :root:not([data-viewport="laptop"]) .subtrees-drawer-toggle {
     min-width: 40px;
     height: 40px;
-    padding: 0 10px;
-    font-size: 13px;
+    padding: 0 12px;
+    font-size: 12.5px;
+    max-width: calc(50% - 18px);
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
+
+  :root:not([data-viewport="laptop"]) .canvas-layout .treewrap {
+    height: clamp(360px, 56vh, 520px);
+    min-height: 360px;
+  }
+}
+
+:root[data-viewport="mobile"] .canvas-fullscreen-toggle,
+:root[data-viewport="mobile"] .subtrees-drawer-toggle {
+  min-width: 40px;
+  height: 40px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  max-width: calc(50% - 18px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-viewport="mobile"] .canvas-layout .treewrap {
+  height: clamp(360px, 56vh, 520px);
+  min-height: 360px;
 }
 
 /* Reduced Motion Compliance (F14) */
@@ -412,27 +440,45 @@
   position: absolute;
   top: 12px;
   left: 12px;
-  z-index: 40;
+  z-index: 25;
   display: none;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 7px 12px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0 12px;
   background: var(--surface);
   color: var(--ink);
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--ink) 28%, var(--line));
   border-radius: var(--radius-sm);
   font-family: inherit;
   font-size: 12.5px;
   font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
-  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.18s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .subtrees-drawer-toggle:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
   transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.treewrap-host.is-fullscreen .subtrees-drawer-toggle {
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: calc(12px + env(safe-area-inset-left, 0px));
 }
 
 .subtrees-drawer-backdrop {
@@ -446,7 +492,7 @@
   border-right: 1px solid var(--line);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  margin-block: 16px;
+  margin-block: 0;
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 210px);

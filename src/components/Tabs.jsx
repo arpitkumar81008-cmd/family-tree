@@ -64,7 +64,7 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
         </div>
         <div className="field">
           <label htmlFor="fb">{t("second")}</label>
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <div className="finder-second-wrap">
             <select id="fb" value={secondId} onChange={e => setSecondId(e.target.value)}>
               <option value="">{t("none")}</option>
               {people.map(p => (
@@ -75,11 +75,10 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
             </select>
             <button
               type="button"
-              className="btn ghost"
+              className="btn ghost finder-swap-btn"
               onClick={handleSwap}
               aria-label={isHi ? "दोनों सदस्य बदलें" : "Swap people"}
               title={isHi ? "दोनों सदस्य बदलें" : "Swap people"}
-              style={{ height: "40px", padding: "0 12px", fontSize: "16px", flexShrink: 0 }}
             >
               ⇄
             </button>
@@ -181,12 +180,16 @@ export function BirthdaysList({ data, lang, t, displayName, openPerson }) {
     .sort((a, b) => a.days - b.days);
 
   if (!upcoming.length) {
-    return <p className="muted">{t("noBday")}</p>;
+    return (
+      <div className="bday-panel reveal-parent">
+        <p className="muted hover-explanation">{t("noBday")}</p>
+      </div>
+    );
   }
 
   return (
-    <div className="reveal-parent">
-      <p className="muted hover-explanation" style={{ marginBottom: 10 }}>{t("bdayHelpSub")}</p>
+    <div className="bday-panel reveal-parent">
+      <p className="muted hover-explanation">{t("bdayHelpSub")}</p>
       <ul className="blist" ref={bdayAnimRef}>
         {upcoming.map(item => (
           <li key={item.p.id}>

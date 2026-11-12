@@ -1,0 +1,26 @@
+--- a/src/i18n/en.js
++++ b/src/i18n/en.js
+@@ -255,5 +255,9 @@ export const en = {
+   joinByCodeBtn: "Open Family Tree →",
+   joinByCodeNotFound: "No family tree found with that Access Code. Please check the code and try again.",
+   sharedWithYouBadge: "👨‍👩‍👧‍👦 Shared with you",
+-  coEditorBadge: "✎ Family Editor"
++  coEditorBadge: "✎ Family Editor",
++  fullscreenEnter: "Enter full screen",
++  fullscreenExit: "Exit full screen",
++  fullscreenEnterShort: "Full screen",
++  fullscreenExitShort: "Exit"
+ };
+--- a/src/i18n/hi.js
++++ b/src/i18n/hi.js
+@@ -255,5 +255,9 @@ export const hi = {
+   joinByCodeBtn: "वंश वृक्ष खोलें →",
+   joinByCodeNotFound: "इस एक्सेस कोड से कोई वंश वृक्ष नहीं मिला। कृपया कोड जाँचकर पुनः प्रयास करें।",
+   sharedWithYouBadge: "👨‍👩‍👧‍👦 आपके साथ साझा",
+-  coEditorBadge: "✎ पारिवारिक संपादक"
++  coEditorBadge: "✎ पारिवारिक संपादक",
++  fullscreenEnter: "फुल स्क्रीन में देखें",
++  fullscreenExit: "फुल स्क्रीन से बाहर निकलें",
++  fullscreenEnterShort: "फुल स्क्रीन",
++  fullscreenExitShort: "बाहर निकलें"
+ };

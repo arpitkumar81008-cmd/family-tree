@@ -1,0 +1,43 @@
+--- a/src/styles/landing.css
++++ b/src/styles/landing.css
+@@ -16,6 +16,35 @@
+   background: var(--surface);
+   border-bottom: 1px solid var(--line);
++  transform: translateY(0);
++  opacity: 1;
++  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease;
++  will-change: transform, opacity;
++}
++
++/* Collapsible Navigation State (Milestone M1 / Features F1-F4, F14) */
++.site-nav.is-collapsed,
++:root[data-viewport="mobile"] .site-nav.is-collapsed {
++  transform: translateY(-100%);
++  opacity: 0;
++  pointer-events: none;
++}
++
++/* Accessibility: Focus-Within Protection (F3) - keep visible when interacting via keyboard/focus */
++.site-nav:focus-within,
++:root[data-viewport="mobile"] .site-nav:focus-within {
++  transform: translateY(0) !important;
++  opacity: 1 !important;
++  pointer-events: auto !important;
++}
++
++/* Laptop mode safeguard: ensure site-nav stays visible if explicitly in Laptop display mode */
++:root[data-viewport="laptop"] .site-nav.is-collapsed {
++  transform: translateY(0) !important;
++  opacity: 1 !important;
++  pointer-events: auto !important;
++}
++
++/* Reduced Motion Compliance (F14) */
++:root[data-motion="reduce"] .site-nav,
++@media (prefers-reduced-motion: reduce) {
++  .site-nav {
++    transition: none !important;
++  }
+ }
+ 
+ .nav-brand {

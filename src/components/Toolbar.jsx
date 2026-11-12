@@ -66,28 +66,31 @@ export function Toolbar({
         </div>
       </div>
 
-      {/* Find Relation Solver Button */}
-      {onOpenRelationSolver && (
-        <button
-          type="button"
-          className="btn ghost toolbar-relation-btn"
-          style={{ height: "38px" }}
-          onClick={onOpenRelationSolver}
-        >
-          🔗 {tr('findRelationBtn', lang === 'hi' ? 'रिश्ता खोजें' : 'Find Relation')}
-        </button>
-      )}
+      {/* Action Buttons */}
+      {(onOpenRelationSolver || canEdit) && (
+        <div className="bar-actions">
+          {/* Find Relation Solver Button */}
+          {onOpenRelationSolver && (
+            <button
+              type="button"
+              className="btn ghost toolbar-relation-btn"
+              onClick={onOpenRelationSolver}
+            >
+              🔗 {tr('findRelationBtn', lang === 'hi' ? 'रिश्ता खोजें' : 'Find Relation')}
+            </button>
+          )}
 
-      {/* Add Member Button (only shown when user can edit this tree) */}
-      {canEdit && (
-        <button
-          type="button"
-          className="btn"
-          style={{ height: "38px" }}
-          onClick={onOpenAddModal}
-        >
-          + {t("addMember")}
-        </button>
+          {/* Add Member Button (only shown when user can edit this tree) */}
+          {canEdit && (
+            <button
+              type="button"
+              className="btn toolbar-add-btn"
+              onClick={onOpenAddModal}
+            >
+              + {t("addMember")}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

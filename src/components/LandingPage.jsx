@@ -219,11 +219,41 @@ export function LandingPage({
     ['100%', 'metricOffline']
   ];
   const features = [
-    ['01', 'feat1Title', 'feat1Body'],
-    ['02', 'feat2Title', 'feat2Body'],
-    ['03', 'feat3Title', 'feat3Body'],
-    ['04', 'feat4Title', 'feat4Body']
+    {
+      num: '01',
+      title: 'feat1Title',
+      body: 'feat1Body',
+      accent: 'lineage',
+      image: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/Banyan_tree_2024.jpg/960px-Banyan_tree_2024.jpg',
+      fallbackLabel: lang === 'hi' ? 'वंश वृक्ष' : 'Lineage Views'
+    },
+    {
+      num: '02',
+      title: 'feat2Title',
+      body: 'feat2Body',
+      accent: 'kinship',
+      image: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0e/Decoration_of_oil_lamp_%28Matti%27r_Saki%29_during_Diwali.jpg/960px-Decoration_of_oil_lamp_%28Matti%27r_Saki%29_during_Diwali.jpg',
+      fallbackLabel: lang === 'hi' ? 'रिश्ते' : 'Indian Kinship'
+    },
+    {
+      num: '03',
+      title: 'feat3Title',
+      body: 'feat3Body',
+      accent: 'script',
+      image: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/1674_CE_Prayag_Snana_Vidhi%2C_Puranas_manuscript%2C_Sanskrit%2C_Devanagari_sample_i.jpg/960px-1674_CE_Prayag_Snana_Vidhi%2C_Puranas_manuscript%2C_Sanskrit%2C_Devanagari_sample_i.jpg',
+      fallbackLabel: lang === 'hi' ? 'देवनागरी' : 'EN → हिं'
+    },
+    {
+      num: '04',
+      title: 'feat4Title',
+      body: 'feat4Body',
+      accent: 'archive',
+      image: 'https://upload.wikimedia.org/wikipedia/commons/2/2b/Group_vintage_photograph_of_a_Brahmin_family_in_India_%28c._1880%29.jpg',
+      fallbackLabel: lang === 'hi' ? 'निजी संग्रह' : 'Private Archive'
+    }
   ];
+  const spotlightFeatureImage =
+    'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/de/Family_Tree_of_the_Dahis_and_Ghabra_leaders.jpg/960px-Family_Tree_of_the_Dahis_and_Ghabra_leaders.jpg';
   const tutorials = [
     ['tut1Step', 'tut1Title', 'tut1Body'],
     ['tut2Step', 'tut2Title', 'tut2Body'],
@@ -289,22 +319,74 @@ export function LandingPage({
           onFocus={featuresCarousel.pause}
           onBlur={featuresCarousel.resumeDelayed}
         >
-          {features.map(([num, title, body]) => (
-            <article className="feature-card mobile-carousel-slide reveal-parent reveal-on-scroll" key={num} tabIndex={0}>
-              <span className="feature-num" aria-hidden="true">{num}</span>
-              <h3>{t(title)}</h3>
-              <p className="hover-explanation">{t(body)}</p>
+          {features.map(({ num, title, body, accent, image, fallbackLabel }) => (
+            <article className={`feature-card feature-card--visual feature-card--${accent} mobile-carousel-slide reveal-parent reveal-on-scroll`} key={num} tabIndex={0}>
+              <div className="feature-media">
+                <div className="feature-media-fallback" aria-hidden="true">
+                  <svg viewBox="0 0 120 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M60 10C44 10 34 22 34 38V62H86V38C86 22 76 10 60 10Z" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.45"/>
+                    <circle cx="60" cy="28" r="7" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.6"/>
+                    <path d="M40 54C46 44 74 44 80 54" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.45"/>
+                  </svg>
+                  <span>{fallbackLabel}</span>
+                </div>
+                <img
+                  className="feature-media-img"
+                  src={image}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                  onError={e => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+                <div className="feature-media-scrim" aria-hidden="true" />
+                <span className="feature-num" aria-hidden="true">{num}</span>
+                <span className="feature-media-tag" aria-hidden="true">{fallbackLabel}</span>
+              </div>
+              <div className="feature-body">
+                <h3>{t(title)}</h3>
+                <p className="hover-explanation">{t(body)}</p>
+              </div>
             </article>
           ))}
-          <article className="feature-card mobile-carousel-slide spotlight-mobile-slide reveal-parent reveal-on-scroll" tabIndex={0}>
-            {renderSpotlightDiagram()}
-            <div className="spotlight-text">
-              <p className="eyebrow">{t('spotlightEyebrow')}</p>
-              <h3>{t('spotlightTitle')}</h3>
-              <p className="hover-explanation">{t('spotlightBody')}</p>
-              <button type="button" className="btn ghost btn-sm" onClick={spotlightCtaAction}>
-                {spotlightCtaLabel}
-              </button>
+          <article className="feature-card feature-card--visual feature-card--spatial mobile-carousel-slide spotlight-mobile-slide reveal-parent reveal-on-scroll" tabIndex={0}>
+            <div className="feature-media">
+              <div className="feature-media-fallback" aria-hidden="true">
+                <svg viewBox="0 0 120 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="44" y="10" width="32" height="14" rx="4" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.6"/>
+                  <path d="M60 24V38M60 38H34V48M60 38H86V48" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.5"/>
+                  <rect x="20" y="48" width="28" height="14" rx="4" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.6"/>
+                  <rect x="72" y="48" width="28" height="14" rx="4" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.6"/>
+                </svg>
+                <span>{lang === 'hi' ? 'द्वि-मोड इंजन' : 'Spatial Engine'}</span>
+              </div>
+              <img
+                className="feature-media-img"
+                src={spotlightFeatureImage}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                onError={e => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+              <div className="feature-media-scrim" aria-hidden="true" />
+              <span className="feature-num" aria-hidden="true">05</span>
+              <span className="feature-media-tag" aria-hidden="true">{lang === 'hi' ? 'द्वि-मोड इंजन' : 'Spatial Engine'}</span>
+            </div>
+            <div className="feature-body">
+              {renderSpotlightDiagram()}
+              <div className="spotlight-text">
+                <p className="eyebrow">{t('spotlightEyebrow')}</p>
+                <h3>{t('spotlightTitle')}</h3>
+                <p className="hover-explanation">{t('spotlightBody')}</p>
+                <button type="button" className="btn ghost btn-sm" onClick={spotlightCtaAction}>
+                  {spotlightCtaLabel}
+                </button>
+              </div>
             </div>
           </article>
         </div>
