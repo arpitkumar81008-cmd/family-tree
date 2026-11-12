@@ -1,0 +1,17 @@
+{
+  "name": "VanshVriksha — Bilingual Family Tree Platform",
+  "short_name": "VanshVriksha",
+  "description": "Interactive bilingual (English & Hindi) family tree platform with authentic Indian kinship terms and dual-mode spatial flowcharts.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f8fa",
+  "theme_color": "#b91c3b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

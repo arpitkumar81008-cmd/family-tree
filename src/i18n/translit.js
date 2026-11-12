@@ -5,13 +5,15 @@
  */
 
 const OFFLINE_NAMES = {
-  gupta: "गुप्ता",
+  sharma: "शर्मा",
+  verma: "वर्मा",
   kumar: "कुमार",
   kumari: "कुमारी",
   devi: "देवी",
   singh: "सिंह",
-  sharma: "शर्मा",
-  verma: "वर्मा",
+  patel: "पटेल",
+  joshi: "जोशी",
+  mehta: "मेहता",
   ram: "राम",
   dayal: "दयाल",
   shri: "श्री",
@@ -20,21 +22,21 @@ const OFFLINE_NAMES = {
   hari: "हरि",
   om: "ओम",
   narayan: "नारायण",
-  mani: "मणि",
-  arpit: "अर्पित",
-  abhinav: "अभिनव",
-  anurag: "अनुराग",
-  akshay: "अक्षय",
-  akshara: "अक्षरा",
-  ashutosh: "आशुतोष",
-  sneha: "स्नेहा",
-  rishabh: "ऋषभ",
-  anika: "अनिका",
-  akhilesh: "अखिलेश",
+  aarav: "आरव",
+  vivaan: "विवान",
+  aditya: "आदित्य",
+  kabir: "कबीर",
+  rohan: "रोहन",
+  aryan: "आर्यन",
+  arjun: "अर्जुन",
+  vikram: "विक्रम",
+  diya: "दिया",
+  ananya: "अनन्या",
+  kavya: "काव्या",
+  meera: "मीरा",
+  isha: "ईशा",
+  siya: "सिया",
   priya: "प्रिया",
-  nayra: "नायरा",
-  parul: "पारुल",
-  minal: "मिनल",
   amit: "अमित",
   sumit: "सुमित",
   rohit: "रोहित",
@@ -206,11 +208,14 @@ export function translitOffline(input = "") {
 export async function transliterateToHindi(input = "") {
   if (!input || !input.trim()) return "";
   const trimmed = input.trim();
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timeoutId = controller ? setTimeout(() => controller.abort(), 2000) : null;
   try {
     const res = await fetch(
       "https://inputtools.google.com/request?text=" +
         encodeURIComponent(trimmed) +
-        "&itc=hi-t-i0-und&num=1"
+        "&itc=hi-t-i0-und&num=1",
+      controller ? { signal: controller.signal } : undefined
     );
     if (res.ok) {
       const data = await res.json();
@@ -219,7 +224,9 @@ export async function transliterateToHindi(input = "") {
       }
     }
   } catch {
-    // Network fallback
+    // Network or timeout fallback
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
   return translitOffline(trimmed);
 }

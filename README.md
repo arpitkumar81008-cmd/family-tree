@@ -1,7 +1,7 @@
 # VanshVriksha (वंश वृक्ष) — Bilingual Interactive Family Tree Platform
 
 [![Live on Firebase Hosting](https://img.shields.io/badge/Live%20App-vanshvriksha.web.app-e4002b?style=flat-square)](https://vanshvriksha.web.app)
-[![Built with React 18 & Vite 6](https://img.shields.io/badge/Stack-React%2018%20%C2%B7%20Vite%206%20%C2%B7%20Firebase%20v11-0a0f0d?style=flat-square)](https://github.com/arpitkumar81008-cmd/family-tree)
+[![Built with React 18 & Vite 6](https://img.shields.io/badge/Stack-React%2018%20%C2%B7%20Vite%206%20%C2%B7%20Firebase%20%5E13.2.0-0a0f0d?style=flat-square)](https://github.com/arpitkumar81008-cmd/family-tree)
 [![Author](https://img.shields.io/badge/GitHub-@arpitkumar81008--cmd-121816?style=flat-square)](https://github.com/arpitkumar81008-cmd)
 
 An interactive, bilingual (**English & हिन्दी**) multi-generational family tree web platform engineered with authentic Indian kinship resolution (`Tauji`, `Chacha`, `Bua`, `Mausi`, `Mama`, `Jethani`, `Devrani`, and more), a dual-mode zero-collision spatial layout engine, automated English-to-Devanagari name transliteration, private-by-default Cloud Firestore multi-tree synchronization, and portable JSON backups.
@@ -16,7 +16,7 @@ An interactive, bilingual (**English & हिन्दी**) multi-generational 
 ### 1. Public Demo Lineage vs. Private Personal Trees & 3-Way Navigation
 - **3-Way Primary Navigation (`Home` · `Demo Tree` · `My Private Tree`)**: Seamlessly switch between the editorial Home page, the public Demo Tree, and your private tree in a single click—with full URL synchronization (`/?view=home`, `/?view=tree`, `/?view=tree&tree=<id>`), browser `Back / Forward` (`popstate`) history, and active tree memory (`lastPrivateTreeId`).
 - **Contextual Workspace Breadcrumbs (`src/components/Breadcrumbs.jsx`)**: Displays an interactive breadcrumb trail (`Home › Public Demo Tree › Perspective: <Person>`) with 1-click navigation back to Home or resetting an active person perspective to the full lineage overview.
-- **Interactive Public Demo Tree (`Sharma Family Lineage`)**: Both guests and signed-in users can explore, search, pan/zoom, and test the public Demo Tree at any time without affecting their private tree.
+- **Interactive Public Demo Tree (`Verma Family Lineage`)**: Both guests and signed-in users can explore, search, pan/zoom, and test the public Demo Tree at any time without affecting their private tree.
 - **Private-by-Default Cloud Trees & Multi-Method Family Sharing (`src/components/ShareTreeModal.jsx`)**:
   - **Invite Relatives by Email (`viewerEmails` / `editorEmails`)**: Add any family member's email address with **View-Only** or **Can Edit** permissions—when they sign in with Google or Email, your family tree opens automatically for them.
   - **Family Access Code & WhatsApp Invite Link (`shareCode`)**: Set a memorable code (e.g., `GUPTA-2026`) or copy a 1-click invite link (`?view=tree&tree=<id>&code=<code>`) so relatives can immediately view or co-edit the same lineage.
@@ -82,7 +82,7 @@ An interactive, bilingual (**English & हिन्दी**) multi-generational 
 ## ❓ Frequently Asked Questions (FAQs)
 
 ### 1. Is my personal family tree private or public?
-Your personal family tree is **strictly private** (`isPublic: false` in Cloud Firestore). Unauthenticated visitors only see the fictional **Sharma Family Lineage** public demo tree (`24` members). Your private tree is protected by Firebase Authentication and Cloud Firestore Security Rules ([`firestore.rules`](file:///c:/B-Tech%201st%20year/Family%20Tree/firestore.rules)) so only your authenticated account (`ownerUid`) can read or modify it. When you click **Sign out**, any private tree is immediately cleared from the screen.
+Your personal family tree is **strictly private** (`isPublic: false` in Cloud Firestore). Unauthenticated visitors only see the fictional **Verma Family Lineage** public demo tree (`23` members). Your private tree is protected by Firebase Authentication and Cloud Firestore Security Rules ([`firestore.rules`](file:///c:/B-Tech%201st%20year/Family%20Tree/firestore.rules)) so only your authenticated account (`ownerUid`) can read or modify it. When you click **Sign out**, any private tree is immediately cleared from the screen.
 
 ### 2. Why did manually added members disappear earlier, and how is that prevented now?
 Previously, if a cloud snapshot or code update reloaded the base tree before a debounced save completed, local additions in `localStorage` could be overwritten. Now:
@@ -113,60 +113,66 @@ Click the **`⋮` (Accessibility & Settings)** button in the top-right corner of
 
 ```text
 family-tree/
-├── index.html                      # Vite entry HTML with Google Fonts (Fraunces, Bodoni Moda, Familjen Grotesk, Hind)
-├── vite.config.js                  # Vite bundler config with vendor chunk splitting
+├── index.html                      # Vite entry HTML with Google Fonts, SEO, Open Graph & manifest link
+├── public/
+│   ├── favicon.svg                 # App SVG icon
+│   └── manifest.webmanifest        # Web App Manifest
+├── vite.config.js                  # Vite 6 bundler config with vendor chunk splitting
 ├── firebase.json                   # Firebase Hosting & Cloud Firestore configuration
 ├── firestore.rules                 # Production Firestore Security Rules (private-by-default ACLs)
 ├── firestore.indexes.json          # Firestore composite indexes
-├── CLAUDE.md                       # Design system & architectural engineering rules
-├── CHANGES.md                      # Complete chronological project changelog
-└── src/
-    ├── main.jsx                    # React 18 root bootstrap
-    ├── App.jsx                     # Root state orchestrator, auth/cloud sync & keyboard shortcuts
-    ├── data/
-    │   ├── familyData.js           # Public Demo dataset (Sharma Family Lineage) & buildFamilyIndex()
-    │   └── schema.js               # Strict JSON & Firestore schema validator
-    ├── layout/
-    │   └── engine.js               # Dual-mode spatial layout engine (Mode 1 Subtree-Packing + Mode 2 Manhattan Flowchart)
-    ├── i18n/
-    │   ├── index.js                # Translator factory
-    │   ├── en.js                   # English dictionary (UI, tutorials, FAQs)
-    │   ├── hi.js                   # Hindi dictionary (UI, tutorials, FAQs)
-    │   └── translit.js             # Online + offline English-to-Devanagari transliterator
-    ├── services/
-    │   ├── firebase.js             # Firebase v11 Auth & Firestore client with persistent IndexedDB cache
-    │   └── treeSync.js             # Real-time multi-tree sync with 0ms local cache + debounced cloud writes
-    ├── utils/
-    │   ├── kinship.js              # Bilingual Indian & English kinship calculator
-    │   ├── deduplication.js        # Pure deduplication (dedup) & non-destructive union (deepMergeTree)
-    │   ├── storage.js              # LocalStorage persistence & historical merge recovery
-    │   ├── useSmartAutoAnimate.js  # @formkit/auto-animate hook with reduced-motion observer
-    │   └── image.js                # Client-side canvas JPEG compression (160px @ 0.72 quality)
-    ├── components/
-    │   ├── Navbar.jsx              # Sticky navigation bar with 3-way view switcher, status badge, auth & settings
-    │   ├── Breadcrumbs.jsx         # Contextual workspace breadcrumb trail with 1-click perspective reset
-    │   ├── MobileBottomNav.jsx     # Ergonomic 4-tab bottom navigation bar for mobile viewports
-    │   ├── LandingPage.jsx         # Full-screen editorial Home page with features, tutorials & collapsible FAQs
-    │   ├── Toolbar.jsx             # Perspective selector, search input & + Add Member trigger
-    │   ├── Canvas.jsx              # Interactive 2D drag-to-pan/zoom stage with motion animations
-    │   ├── CanvasDock.jsx          # Collapsible bottom-right ✦ star control dock
-    │   ├── Card.jsx                # Family member card with avatar, kinship badge & keyboard nav
-    │   ├── Sheet.jsx               # Person detail & inline edit modal/drawer
-    │   ├── AddModal.jsx            # Global Add Family Member modal with duplicate detection
-    │   ├── CreateTreeModal.jsx     # Multi-tree directory, blank tree builder & JSON importer
-    │   ├── AuthModal.jsx           # Google & Email/Password authentication modal
-    │   ├── SettingsPopover.jsx     # Accessibility & Display Mode (Auto / Laptop / Mobile) popover
-    │   ├── Tabs.jsx                # Relationship Finder, Birthdays & 2-column Backup/Restore panel
-    │   ├── HelpModal.jsx           # Keyboard shortcuts reference dialog
-    │   └── OnboardingToast.jsx     # Contextual new-user onboarding toast
-    ├── styles/
-    │   ├── tokens.css              # Light, Dark, High-Contrast, Text-Size & Reduced-Motion CSS tokens
-    │   ├── components.css          # Full-width page layout, breadcrumbs, mobile bottom nav, modals & tabs
-    │   ├── tree.css                # Canvas stage, orthogonal SVG connectors & member cards
-    │   └── landing.css             # Navbar, Hero, Tutorials, FAQs, Collapsible ✦ Dock & Mobile/Laptop modes
-    └── ../tests/
-        ├── e2e-navigation.test.mjs # 109-test E2E navigation, URL sync, bilingual & boundary test suite
-        └── helpers/                # Vite SSR runner & DOM/Browser mock harness
+├── .github/workflows/ci.yml        # GitHub Actions CI (npm ci, npm run build, npm test)
+├── src/
+│   ├── main.jsx                    # React 18 root bootstrap
+│   ├── App.jsx                     # Root state orchestrator, lazy modals/canvas, cloud sync & keyboard shortcuts
+│   ├── data/
+│   │   ├── familyData.js           # Public Demo dataset (Verma Family Lineage) & buildFamilyIndex()
+│   │   └── schema.js               # Strict JSON & Firestore schema validator
+│   ├── layout/
+│   │   └── engine.js               # Dual-mode spatial layout engine (Mode 1 Subtree-Packing + Mode 2 Manhattan Flowchart)
+│   ├── i18n/
+│   │   ├── index.js                # Translator factory
+│   │   ├── en.js                   # English dictionary (UI, tutorials, FAQs)
+│   │   ├── hi.js                   # Hindi dictionary (UI, tutorials, FAQs)
+│   │   └── translit.js             # Online + offline English-to-Devanagari transliterator
+│   ├── services/
+│   │   ├── firebase.js             # Firebase (^13.2.0) Auth & Firestore client with persistent IndexedDB cache
+│   │   └── treeSync.js             # Real-time multi-tree sync with optimistic versioning & debounced cloud writes
+│   ├── utils/
+│   │   ├── kinship.js              # Bilingual Indian & English kinship calculator
+│   │   ├── deduplication.js        # Pure deduplication (dedup) & non-destructive union (deepMergeTree)
+│   │   ├── storage.js              # LocalStorage persistence & historical merge recovery
+│   │   └── useSmartAutoAnimate.js  # @formkit/auto-animate hook with reduced-motion observer
+│   ├── components/
+│   │   ├── Navbar.jsx              # Sticky navigation bar with 3-way view switcher, status badge, auth & settings
+│   │   ├── Breadcrumbs.jsx         # Contextual workspace breadcrumb trail with 1-click perspective reset
+│   │   ├── MobileBottomNav.jsx     # Ergonomic 4-tab bottom navigation bar for mobile viewports
+│   │   ├── LandingPage.jsx         # Full-screen editorial Home page with features, tutorials & collapsible FAQs
+│   │   ├── Toolbar.jsx             # Perspective selector, search input & + Add Member trigger
+│   │   ├── Canvas.jsx              # Interactive 2D drag-to-pan/zoom stage with motion animations
+│   │   ├── CanvasDock.jsx          # Collapsible bottom-right ✦ star control dock
+│   │   ├── Card.jsx                # Family member card with avatar, kinship badge & keyboard nav
+│   │   ├── Sheet.jsx               # Person detail & inline edit modal/drawer
+│   │   ├── AddModal.jsx            # Global Add Family Member modal with duplicate detection
+│   │   ├── RelationSolverModal.jsx # Interactive Relationship Solver modal
+│   │   ├── ShareTreeModal.jsx      # Family sharing modal (email invites, access codes, visibility)
+│   │   ├── SubTreesSidebar.jsx     # Family branches sidebar & collapse controls
+│   │   ├── CreateTreeModal.jsx     # Multi-tree directory, blank tree builder & JSON importer
+│   │   ├── AuthModal.jsx           # Google & Email/Password authentication modal
+│   │   ├── SettingsPopover.jsx     # Accessibility & Display Mode (Auto / Laptop / Mobile) popover
+│   │   ├── Tabs.jsx                # Relationship Finder, Birthdays & Backup/Restore panel
+│   │   ├── HelpModal.jsx           # Keyboard shortcuts reference dialog
+│   │   └── OnboardingToast.jsx     # Contextual new-user onboarding toast
+│   └── styles/
+│       ├── tokens.css              # Light, Dark, High-Contrast, Text-Size & Reduced-Motion CSS tokens
+│       ├── components.css          # Full-width page layout, breadcrumbs, mobile bottom nav, modals & tabs
+│       ├── tree.css                # Canvas stage, orthogonal SVG connectors & member cards
+│       └── landing.css             # Navbar, Hero, Tutorials, FAQs, Collapsible ✦ Dock & Mobile/Laptop modes
+└── tests/
+    ├── e2e-navigation.test.mjs     # E2E navigation, URL sync, bilingual & boundary test suite
+    ├── kinship-solver.test.mjs     # Kinship & relationship solver tests
+    ├── enhancements.test.mjs       # Enhancement verification tests
+    └── helpers/                    # Vite SSR runner & DOM/Browser mock harness
 ```
 
 ---

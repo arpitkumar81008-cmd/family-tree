@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
 import {
   loadInitialTreeState,
   saveTreeState,
@@ -25,9 +25,7 @@ import Navbar from './components/Navbar.jsx';
 import LandingPage from './components/LandingPage.jsx';
 import Breadcrumbs from './components/Breadcrumbs.jsx';
 import MobileBottomNav from './components/MobileBottomNav.jsx';
-import CreateTreeModal from './components/CreateTreeModal.jsx';
-import ShareTreeModal from './components/ShareTreeModal.jsx';
-import AuthModal, {
+import {
   LOCAL_AUTH_KEY,
   loadLocalAuthUser,
   saveLocalAuthUser
@@ -41,7 +39,7 @@ import {
   subscribeToTree,
   listAvailableTrees,
   createUserTree,
-  saveUserTreeDebounced,
+  saveUserTree,
   canUserEditTree,
   isPhotosPayloadWithinLimit,
   findTreeByShareCode,
@@ -51,13 +49,17 @@ import {
   buildPrivateShareUrl
 } from './services/treeSync.js';
 import Toolbar from './components/Toolbar.jsx';
-import Canvas from './components/Canvas.jsx';
-import Sheet from './components/Sheet.jsx';
-import AddModal from './components/AddModal.jsx';
 import HelpModal from './components/HelpModal.jsx';
-import RelationSolverModal from './components/RelationSolverModal.jsx';
 import Tabs from './components/Tabs.jsx';
 import OnboardingToast from './components/OnboardingToast.jsx';
+
+const Canvas = lazy(() => import('./components/Canvas.jsx'));
+const Sheet = lazy(() => import('./components/Sheet.jsx'));
+const AddModal = lazy(() => import('./components/AddModal.jsx'));
+const RelationSolverModal = lazy(() => import('./components/RelationSolverModal.jsx'));
+const CreateTreeModal = lazy(() => import('./components/CreateTreeModal.jsx'));
+const ShareTreeModal = lazy(() => import('./components/ShareTreeModal.jsx'));
+const AuthModal = lazy(() => import('./components/AuthModal.jsx'));
 
 export function App() {
   const [treeState, setTreeState] = useState(() => {
@@ -120,6 +122,10 @@ export function App() {
   const [activeTreeMeta, setActiveTreeMeta] = useState(null);
   const [userPrivateTreeId, setUserPrivateTreeId] = useState(() => getLastPrivateTreeId() || "");
   const [treeAccessDenied, setTreeAccessDenied] = useState(false);
+  const [loadingTree, setLoadingTree] = useState(() => Boolean(parseViewStateFromUrl().treeId));
+  const [treeLoadError, setTreeLoadError] = useState(false);
+  const [treeRetryCount, setTreeRetryCount] = useState(0);
+  const [saveError, setSaveError] = useState(false);
   const [lockedCodeInput, setLockedCodeInput] = useState("");
   const [lockedCodeError, setLockedCodeError] = useState("");
 
@@ -146,6 +152,8 @@ export function App() {
   const isLocalMutationRef = useRef(false);
   const activeTreeMetaRef = useRef(null);
   const autoLoadedUidRef = useRef(null);
+  const saveTimerRef = useRef(null);
+  const pendingSaveRef = useRef(null);
 
   useEffect(() => {
     activeTreeMetaRef.current = activeTreeMeta;
@@ -275,11 +283,20 @@ export function App() {
     if (!activeTreeId) {
       setActiveTreeMeta(null);
       setTreeAccessDenied(false);
+      setLoadingTree(false);
+      setTreeLoadError(false);
       return;
     }
+    if (!activeTreeMetaRef.current || activeTreeMetaRef.current.id !== activeTreeId) {
+      setLoadingTree(true);
+    }
+    setTreeLoadError(false);
+    setTreeAccessDenied(false);
     return subscribeToTree(
       activeTreeId,
       docData => {
+        setLoadingTree(false);
+        setTreeLoadError(false);
         setTreeAccessDenied(false);
         setActiveTreeMeta(docData);
         if (docData?.data?.people) {
@@ -289,9 +306,8 @@ export function App() {
             docData.photos || {},
             docData.lang
           );
-          const recoveredNewMembers =
-            merged.data.people.length > (docData.data.people?.length || 0);
-          isLocalMutationRef.current = recoveredNewMembers;
+          // Cloud snapshot is the source of truth for signed-in / shared trees
+          isLocalMutationRef.current = false;
           setTreeState(prev => ({
             ...prev,
             data: merged.data,
@@ -302,28 +318,49 @@ export function App() {
         }
       },
       err => {
+        setLoadingTree(false);
         if (err?.code === "ACCESS_DENIED") {
           setActiveTreeMeta(null);
           setTreeAccessDenied(true);
+          setTreeLoadError(false);
           return;
         }
+        setActiveTreeMeta(null);
         setTreeAccessDenied(false);
-        setActiveTreeId("");
-        setTreeIdInUrl("");
+        setTreeLoadError(true);
       },
       { user }
     );
-  }, [activeTreeId, user]);
+  }, [activeTreeId, user, treeRetryCount]);
 
-  // Save tree state ONLY on local user mutations (prevents infinite Firestore snapshot/write loop)
-  useEffect(() => {
-    if (!isLocalMutationRef.current) return;
-    isLocalMutationRef.current = false;
+  const executeCloudSave = useCallback(async (targetTreeId, payload, targetUser) => {
+    try {
+      const ok = await saveUserTree(targetTreeId, payload, targetUser);
+      setSaveError(!ok);
+      return ok;
+    } catch {
+      setSaveError(true);
+      return false;
+    }
+  }, []);
 
+  const handleRetrySave = async () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    pendingSaveRef.current = null;
     if (!activeTreeId) {
-      saveTreeState(treeState);
-    } else if (user && canUserEditTree(activeTreeMetaRef.current, user)) {
-      saveUserTreeDebounced(
+      try {
+        const ok = saveTreeState(treeState);
+        setSaveError(!ok);
+      } catch {
+        setSaveError(true);
+      }
+      return;
+    }
+    if (user && canUserEditTree(activeTreeMetaRef.current, user)) {
+      await executeCloudSave(
         activeTreeId,
         {
           ...activeTreeMetaRef.current,
@@ -334,7 +371,39 @@ export function App() {
         user
       );
     }
-  }, [treeState, activeTreeId, user]);
+  };
+
+  // Save tree state ONLY on local user mutations (prevents infinite Firestore snapshot/write loop)
+  useEffect(() => {
+    if (!isLocalMutationRef.current) return;
+    isLocalMutationRef.current = false;
+
+    if (!activeTreeId) {
+      try {
+        const ok = saveTreeState(treeState);
+        setSaveError(!ok);
+      } catch {
+        setSaveError(true);
+      }
+    } else if (user && canUserEditTree(activeTreeMetaRef.current, user)) {
+      const payload = {
+        ...activeTreeMetaRef.current,
+        data: treeState.data,
+        photos: treeState.photos,
+        lang: treeState.lang
+      };
+      pendingSaveRef.current = { treeId: activeTreeId, payload, user };
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        const pending = pendingSaveRef.current;
+        pendingSaveRef.current = null;
+        saveTimerRef.current = null;
+        if (pending) {
+          executeCloudSave(pending.treeId, pending.payload, pending.user);
+        }
+      }, 600);
+    }
+  }, [treeState, activeTreeId, user, executeCloudSave]);
 
   // Sync theme attribute
   useEffect(() => {
@@ -449,7 +518,17 @@ export function App() {
     setCardHeight(textSize === "xlarge" ? 168 : textSize === "large" ? 152 : 138);
   }, [textSize]);
 
-  // Spatial Layout Calculation
+  const layoutStructureKey = useMemo(() => {
+    const people = treeState.data?.people || [];
+    const couples = treeState.data?.couples || [];
+    return (
+      people.map(p => p.id + ":" + (p.g ?? "")).join("|") +
+      "::" +
+      couples.map(c => c.id + ":" + c.h + ":" + c.w + ":" + (c.kids || []).join(",")).join("|")
+    );
+  }, [treeState.data]);
+
+  // Spatial Layout Calculation (memoized on structural key so note/DOB edits don't recompute layout)
   const layout = useMemo(() => {
     return computeTreeLayout(
       treeState.data,
@@ -457,7 +536,8 @@ export function App() {
       treeState.lang,
       treeState.viewer
     );
-  }, [treeState.data, cardHeight, treeState.lang, treeState.viewer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layoutStructureKey, cardHeight, treeState.lang, treeState.viewer]);
 
   const prevViewRef = useRef(currentView);
 
@@ -800,6 +880,9 @@ export function App() {
       return;
     }
     isLocalMutationRef.current = false;
+    setSaveError(false);
+    setTreeLoadError(false);
+    setLoadingTree(false);
     setTreeAccessDenied(false);
     setActiveTreeId("");
     setActiveTreeMeta(null);
@@ -814,10 +897,13 @@ export function App() {
       return;
     }
     isLocalMutationRef.current = false;
+    setSaveError(false);
+    setTreeLoadError(false);
     setTreeAccessDenied(false);
     setActiveTreeId(treeId);
     setTreeIdInUrl(treeId);
     if (treeDoc?.data) {
+      setLoadingTree(false);
       setActiveTreeMeta(treeDoc);
       const merged = mergeCloudTreeWithLocalHistory(
         treeId,
@@ -832,6 +918,8 @@ export function App() {
         lang: merged.lang || prev.lang,
         viewer: ""
       }));
+    } else {
+      setLoadingTree(true);
     }
     enterTree();
   };
@@ -973,8 +1061,11 @@ export function App() {
     saveLocalAuthUser(null);
     setUser(null);
     setUserPrivateTreeId("");
+    setSaveError(false);
     if (activeTreeId && (!activeTreeMeta || !activeTreeMeta.isPublic)) {
       isLocalMutationRef.current = false;
+      setLoadingTree(false);
+      setTreeLoadError(false);
       setTreeAccessDenied(false);
       setActiveTreeId("");
       setActiveTreeMeta(null);
@@ -1082,6 +1173,15 @@ export function App() {
             onNavigateMyTree={handleNavigateMyTree}
           />
         </main>
+      ) : loadingTree ? (
+        <main id="main-content" className="page">
+          <section className="private-locked-screen" aria-busy="true" aria-label={t("loadingTree")}>
+            <div className="private-locked-card">
+              <div className="private-locked-icon" aria-hidden="true">🌿</div>
+              <h1 className="private-locked-title">{t("loadingTree")}</h1>
+            </div>
+          </section>
+        </main>
       ) : treeAccessDenied ? (
         <main id="main-content" className="page">
           <section className="private-locked-screen" aria-labelledby="private-locked-heading">
@@ -1138,8 +1238,59 @@ export function App() {
             </div>
           </section>
         </main>
+      ) : treeLoadError ? (
+        <main id="main-content" className="page">
+          <section className="private-locked-screen" aria-labelledby="tree-load-error-heading">
+            <div className="private-locked-card">
+              <div className="private-locked-icon" aria-hidden="true">⚠️</div>
+              <h1 id="tree-load-error-heading" className="private-locked-title">
+                {t("treeLoadError")}
+              </h1>
+              <p className="private-locked-body">{t("treeLoadErrorBody")}</p>
+              <div className="private-locked-actions">
+                <button
+                  type="button"
+                  className="btn primary"
+                  onClick={() => setTreeRetryCount(c => c + 1)}
+                >
+                  {t("retry")}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={handleNavigateHome}
+                >
+                  {t("privateLockedGoHomeBtn")}
+                </button>
+              </div>
+            </div>
+          </section>
+        </main>
       ) : (
         <main id="main-content" className="page">
+          {saveError && (
+            <div
+              className="save-error-banner"
+              role="alert"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "12px",
+                padding: "10px 14px",
+                marginBottom: "12px",
+                borderRadius: "10px",
+                border: "1px solid var(--accent, #b91c3b)",
+                background: "var(--surface-2, #fff5f5)",
+                color: "var(--ink)"
+              }}
+            >
+              <span>{t("saveFailedBanner")}</span>
+              <button type="button" className="btn primary" onClick={handleRetrySave}>
+                {t("retry")}
+              </button>
+            </div>
+          )}
           {/* Contextual Workspace Breadcrumbs */}
           <Breadcrumbs
             currentView={currentView}
@@ -1183,26 +1334,38 @@ export function App() {
       />
 
       {/* Interactive Canvas */}
-      <Canvas
-        treeState={treeState}
-        familyIndex={familyIndex}
-        layout={layout}
-        cardHeight={cardHeight}
-        zoom={zoom}
-        setZoom={setZoom}
-        fitView={fitView}
-        searchQuery={searchQuery}
-        searchMatches={searchMatches}
-        viewer={treeState.viewer}
-        lang={treeState.lang}
-        t={t}
-        displayName={displayName}
-        onCardClick={openPersonDetails}
-        onZoom={changeZoom}
-        onResetViewer={() => setTreeState(prev => ({ ...prev, viewer: "" }))}
-        collapsedSubTrees={collapsedSubTrees}
-        onToggleSubTree={handleToggleSubTree}
-      />
+      <Suspense
+        fallback={
+          <div
+            className="treewrap treewrap-loading"
+            aria-busy="true"
+            style={{ display: "grid", placeItems: "center", minHeight: 360 }}
+          >
+            {t("loadingTree")}
+          </div>
+        }
+      >
+        <Canvas
+          treeState={treeState}
+          familyIndex={familyIndex}
+          layout={layout}
+          cardHeight={cardHeight}
+          zoom={zoom}
+          setZoom={setZoom}
+          fitView={fitView}
+          searchQuery={searchQuery}
+          searchMatches={searchMatches}
+          viewer={treeState.viewer}
+          lang={treeState.lang}
+          t={t}
+          displayName={displayName}
+          onCardClick={openPersonDetails}
+          onZoom={changeZoom}
+          onResetViewer={() => setTreeState(prev => ({ ...prev, viewer: "" }))}
+          collapsedSubTrees={collapsedSubTrees}
+          onToggleSubTree={handleToggleSubTree}
+        />
+      </Suspense>
 
       {/* Tools & Details Tabs */}
       <Tabs
@@ -1243,41 +1406,45 @@ export function App() {
 
       {/* Person Detail Slide-Out / Modal */}
       {selectedPersonId && familyIndex.byId[selectedPersonId] && (
-        <Sheet
-          id={selectedPersonId}
-          familyIndex={familyIndex}
-          t={t}
-          lang={treeState.lang}
-          displayName={displayName}
-          viewer={treeState.viewer}
-          photo={treeState.photos[selectedPersonId]}
-          setViewer={vId => setTreeState(prev => ({ ...prev, viewer: vId }))}
-          close={closePersonDetails}
-          open={openPersonDetails}
-          patch={handlePatchPerson}
-          add={(targetId, rel, name, hi, g) =>
-            handleAddMember({ rel, target: targetId, person: { name, hi, g } })
-          }
-          remove={handleRemovePerson}
-          setPhoto={handleSetPhoto}
-          onUnlinkSpouse={handleUnlinkSpouse}
-          onUnlinkParents={handleUnlinkParents}
-          canEdit={canEdit}
-        />
+        <Suspense fallback={null}>
+          <Sheet
+            id={selectedPersonId}
+            familyIndex={familyIndex}
+            t={t}
+            lang={treeState.lang}
+            displayName={displayName}
+            viewer={treeState.viewer}
+            photo={treeState.photos[selectedPersonId]}
+            setViewer={vId => setTreeState(prev => ({ ...prev, viewer: vId }))}
+            close={closePersonDetails}
+            open={openPersonDetails}
+            patch={handlePatchPerson}
+            add={(targetId, rel, name, hi, g) =>
+              handleAddMember({ rel, target: targetId, person: { name, hi, g } })
+            }
+            remove={handleRemovePerson}
+            setPhoto={handleSetPhoto}
+            onUnlinkSpouse={handleUnlinkSpouse}
+            onUnlinkParents={handleUnlinkParents}
+            canEdit={canEdit}
+          />
+        </Suspense>
       )}
 
       {/* Add Member Modal */}
       {isAddModalOpen && canEdit && (
-        <AddModal
-          familyIndex={familyIndex}
-          t={t}
-          lang={treeState.lang}
-          displayName={displayName}
-          people={treeState.data.people}
-          couples={treeState.data.couples}
-          close={() => setIsAddModalOpen(false)}
-          onAdd={handleAddMember}
-        />
+        <Suspense fallback={null}>
+          <AddModal
+            familyIndex={familyIndex}
+            t={t}
+            lang={treeState.lang}
+            displayName={displayName}
+            people={treeState.data.people}
+            couples={treeState.data.couples}
+            close={() => setIsAddModalOpen(false)}
+            onAdd={handleAddMember}
+          />
+        </Suspense>
       )}
 
       {/* Help & Keyboard Shortcuts Modal */}
@@ -1290,57 +1457,65 @@ export function App() {
 
       {/* Relationship Solver Modal */}
       {isRelationSolverOpen && (
-        <RelationSolverModal
-          isOpen={isRelationSolverOpen}
-          onClose={() => setIsRelationSolverOpen(false)}
-          familyIndex={familyIndex}
-          people={treeState.data.people}
-          lang={treeState.lang}
-          t={t}
-          displayName={displayName}
-          initialOriginId={treeState.viewer || selectedPersonId || ""}
-          onSelectPerson={openPersonDetails}
-        />
+        <Suspense fallback={null}>
+          <RelationSolverModal
+            isOpen={isRelationSolverOpen}
+            onClose={() => setIsRelationSolverOpen(false)}
+            familyIndex={familyIndex}
+            people={treeState.data.people}
+            lang={treeState.lang}
+            t={t}
+            displayName={displayName}
+            initialOriginId={treeState.viewer || selectedPersonId || ""}
+            onSelectPerson={openPersonDetails}
+          />
+        </Suspense>
       )}
     </main>
       )}
 
       {isCreateOpen && !isAuthOpen && (
-        <CreateTreeModal
-          t={t}
-          user={user}
-          activeTreeId={activeTreeId}
-          hasPrivateTree={hasPrivateTree}
-          close={() => setIsCreateOpen(false)}
-          onOpenAuth={() => setIsAuthOpen(true)}
-          onSelectTree={handleSelectTree}
-          onCreateBlank={handleCreateBlank}
-          onImport={handleCreateImport}
-          onRestore={handleCreateRestore}
-        />
+        <Suspense fallback={null}>
+          <CreateTreeModal
+            t={t}
+            user={user}
+            activeTreeId={activeTreeId}
+            hasPrivateTree={hasPrivateTree}
+            close={() => setIsCreateOpen(false)}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            onSelectTree={handleSelectTree}
+            onCreateBlank={handleCreateBlank}
+            onImport={handleCreateImport}
+            onRestore={handleCreateRestore}
+          />
+        </Suspense>
       )}
 
       {isShareOpen && !isAuthOpen && (
-        <ShareTreeModal
-          t={t}
-          user={user}
-          activeTreeId={activeTreeId}
-          activeTreeMeta={activeTreeMeta}
-          onUpdateTreeMeta={patch =>
-            setActiveTreeMeta(prev => (prev ? { ...prev, ...patch } : prev))
-          }
-          onSelectTree={handleSelectTree}
-          onOpenAuth={() => setIsAuthOpen(true)}
-          close={() => setIsShareOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <ShareTreeModal
+            t={t}
+            user={user}
+            activeTreeId={activeTreeId}
+            activeTreeMeta={activeTreeMeta}
+            onUpdateTreeMeta={patch =>
+              setActiveTreeMeta(prev => (prev ? { ...prev, ...patch } : prev))
+            }
+            onSelectTree={handleSelectTree}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            close={() => setIsShareOpen(false)}
+          />
+        </Suspense>
       )}
 
       {isAuthOpen && (
-        <AuthModal
-          t={t}
-          close={() => setIsAuthOpen(false)}
-          onSignedIn={u => setUser(u)}
-        />
+        <Suspense fallback={null}>
+          <AuthModal
+            t={t}
+            close={() => setIsAuthOpen(false)}
+            onSignedIn={u => setUser(u)}
+          />
+        </Suspense>
       )}
 
       <OnboardingToast

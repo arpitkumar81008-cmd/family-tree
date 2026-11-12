@@ -175,12 +175,19 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   gap: 6px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   white-space: nowrap;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  opacity: 1;
+  transition: background var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast);
 }
 
-.btn:hover {
-  background: var(--muted);
-  border-color: var(--muted);
+.btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 86%, var(--bg));
+  border-color: color-mix(in srgb, var(--ink) 86%, var(--bg));
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn.ghost {
@@ -189,7 +196,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   box-shadow: none;
 }
 
-.btn.ghost:hover {
+.btn.ghost:hover:not(:disabled) {
   background: var(--line);
 }
 
@@ -234,6 +241,22 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .focus-tree-btn:hover {
   background: #b80023 !important;
   border-color: #b80023 !important;
+}
+
+:root[data-theme="dark"] .reset-btn,
+:root[data-theme="dark"] .focus-tree-btn {
+  background: #c81e3d !important;
+  border-color: #c81e3d !important;
+  color: #ffffff !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .reset-btn,
+  :root:not([data-theme="light"]) .focus-tree-btn {
+    background: #c81e3d !important;
+    border-color: #c81e3d !important;
+    color: #ffffff !important;
+  }
 }
 
 /* Quick Guide Banner */
@@ -773,10 +796,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   width: 100%;
 }
 
-/* Relationship Finder Grid — Proper Spacing Between Labels & Dropdowns */
+/* Relationship Finder Grid — Two Equal Columns on Desktop, Stacked on Mobile */
 .finder-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px 24px;
   align-items: end;
 }
@@ -825,21 +848,62 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 .finder .res {
   list-style: none;
-  padding: 14px 16px;
+  padding: 16px 18px;
   margin: 4px 0 0;
-  background: var(--bg);
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.finder-highlight-card {
+  padding: 10px 12px;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-xs);
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 14px;
+  gap: 4px;
 }
 
-/* Backup Panel Grid — Clean 2-Column Editorial Layout */
+.finder-highlight-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+}
+
+.finder-highlight-term {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.finder-highlight-hindi {
+  font-family: var(--deva);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--rel);
+}
+
+.finder-highlight-reciprocal {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.finder-highlight-hindi-sub {
+  font-family: var(--deva);
+  color: var(--rel);
+}
+
+/* Backup Panel Grid — One-Column Form Layout */
 .backup-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  grid-template-columns: 1fr;
   gap: 20px;
   align-items: stretch;
 }
@@ -872,12 +936,22 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 .backup-section textarea {
   width: 100%;
-  min-height: 92px;
+  min-height: 160px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   line-height: 1.45;
   resize: vertical;
   padding: 10px 12px;
+}
+
+.backup-file-input {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-xs);
+  font-size: 13px;
+  cursor: pointer;
 }
 
 .backup-actions-row {
@@ -1222,7 +1296,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
     display: grid;
   }
   :root:not([data-viewport="laptop"]) body {
-    padding-bottom: 64px;
+    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -1231,7 +1305,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 :root[data-viewport="mobile"] body {
-  padding-bottom: 64px;
+  padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
 }
 
 @media (max-height: 500px) and (max-width: 900px) {

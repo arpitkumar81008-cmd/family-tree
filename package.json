@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "push": "node scripts/push.mjs",
-    "test": "node --test tests/e2e-navigation.test.mjs"
+    "test": "node --test tests/*.mjs"
   },
   "repository": {
     "type": "git",

@@ -123,7 +123,11 @@
   font-family: inherit;
   font-size: 13.5px;
   font-weight: 600;
-  padding: 8px 14px;
+  height: 36px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   color: var(--muted);
   border: 1px solid transparent;
@@ -199,8 +203,8 @@
 .hero-title {
   font-family: var(--display);
   font-weight: 600;
-  font-size: clamp(42px, 5.4vw, 84px);
-  line-height: 1.06;
+  font-size: clamp(28px, 4.5vw, 56px);
+  line-height: 1.08;
   letter-spacing: -0.015em;
   margin: 0;
   max-width: 100%;
@@ -1134,6 +1138,7 @@
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
+  text-decoration: none !important;
   white-space: nowrap !important;
   flex-shrink: 0 !important;
 }
@@ -1276,7 +1281,8 @@
 :root[data-viewport="mobile"] .nav-tab {
   flex: 1;
   text-align: center;
-  padding: 6px 8px;
+  height: 36px;
+  padding: 0 8px;
   font-size: 12.5px;
 }
 
@@ -1318,8 +1324,8 @@
 }
 
 :root[data-viewport="mobile"] .treewrap {
-  height: 64vh;
-  min-height: 400px;
+  height: calc(100dvh - 220px - env(safe-area-inset-bottom, 0px));
+  min-height: 360px;
 }
 
 :root[data-viewport="mobile"] .dock-controls-tray {
@@ -1347,7 +1353,8 @@
   :root:not([data-viewport="laptop"]) .nav-tab {
     flex: 1;
     text-align: center;
-    padding: 6px 8px;
+    height: 36px;
+    padding: 0 8px;
     font-size: 12.5px;
   }
 
@@ -1356,8 +1363,8 @@
   }
 
   :root:not([data-viewport="laptop"]) .treewrap {
-    height: 66vh;
-    min-height: 420px;
+    height: calc(100dvh - 220px - env(safe-area-inset-bottom, 0px));
+    min-height: 360px;
   }
 
   :root:not([data-viewport="laptop"]) .overlay {
@@ -1410,8 +1417,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
-  border-radius: 999px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--accent);
   background: var(--accent);
   color: #ffffff;
@@ -1432,6 +1440,22 @@
 
 .nav-create-private-cta:active {
   transform: translateY(0);
+}
+
+:root[data-theme="dark"] .nav-create-private-cta,
+:root[data-theme="dark"] .landing-create-private-cta {
+  background: #c81e3d;
+  border-color: #c81e3d;
+  color: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .nav-create-private-cta,
+  :root:not([data-theme="light"]) .landing-create-private-cta {
+    background: #c81e3d;
+    border-color: #c81e3d;
+    color: #ffffff;
+  }
 }
 
 .mobile-nav-btn.mobile-nav-create-cta {

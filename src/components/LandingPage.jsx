@@ -20,8 +20,13 @@ function isMotionReduced() {
 function useMobileCarousel(slideCount, dotCount = 4) {
   const trackRef = useRef(null);
   const [activeSlide, setActiveSlide] = useState(0);
+  const activeSlideRef = useRef(0);
   const pausedRef = useRef(false);
   const resumeTimerRef = useRef(null);
+
+  useEffect(() => {
+    activeSlideRef.current = activeSlide;
+  }, [activeSlide]);
 
   const activeDot =
     slideCount <= 1
@@ -42,6 +47,7 @@ function useMobileCarousel(slideCount, dotCount = 4) {
       } else {
         track.scrollLeft = left;
       }
+      activeSlideRef.current = clamped;
       setActiveSlide(clamped);
     },
     [slideCount]
@@ -78,6 +84,7 @@ function useMobileCarousel(slideCount, dotCount = 4) {
         closestIdx = i;
       }
     }
+    activeSlideRef.current = closestIdx;
     setActiveSlide(closestIdx);
   }, []);
 
@@ -97,19 +104,18 @@ function useMobileCarousel(slideCount, dotCount = 4) {
     if (typeof window === 'undefined') return undefined;
     const timer = setInterval(() => {
       if (pausedRef.current || !isMobileCarouselActive() || isMotionReduced()) return;
-      setActiveSlide(prev => {
-        const next = (prev + 1) % slideCount;
-        const track = trackRef.current;
-        if (track && track.children[next]) {
-          const left = track.children[next].offsetLeft - track.offsetLeft;
-          if (typeof track.scrollTo === 'function') {
-            track.scrollTo({ left, behavior: 'smooth' });
-          } else {
-            track.scrollLeft = left;
-          }
+      const next = (activeSlideRef.current + 1) % slideCount;
+      activeSlideRef.current = next;
+      setActiveSlide(next);
+      const track = trackRef.current;
+      if (track && track.children[next]) {
+        const left = track.children[next].offsetLeft - track.offsetLeft;
+        if (typeof track.scrollTo === 'function') {
+          track.scrollTo({ left, behavior: 'smooth' });
+        } else {
+          track.scrollLeft = left;
         }
-        return next;
-      });
+      }
     }, 3800);
 
     return () => {

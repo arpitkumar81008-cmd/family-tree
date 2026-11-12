@@ -11,7 +11,7 @@ export const en = {
   searchLabel: "Find a person",
   searchPh: "Type a name",
   noMatch: "No one by that name.",
-  foot: "Everything is saved in this browser for now. Use Backup to copy it elsewhere. Online, it would live on a server and the whole family would see the same tree.",
+  foot: "Demo edits stay in this browser; signed-in trees sync to Cloud Firestore. Export a JSON backup anytime.",
   lateTag: "Late",
   lateWord: "Late",
   close: "Close",
@@ -285,6 +285,14 @@ export const en = {
   privateLockedSignInBtn: "Sign In to Unlock",
   privateLockedGoHomeBtn: "Return to Home",
   privateLockedExploreDemoBtn: "Explore Public Demo Tree",
-  privateLockedCodeLabel: "Have an Access Code?"
+  privateLockedCodeLabel: "Have an Access Code?",
+  saveFailedBanner: "Not saved to cloud — changes are kept locally.",
+  retry: "Retry",
+  loadingTree: "Loading family tree…",
+  treeLoadError: "Couldn't load this family tree",
+  treeLoadErrorBody: "We couldn't load this tree right now, or you may not have permission to view it. Check your connection and try again.",
+  forgotPassword: "Forgot password?",
+  resetSent: "Password reset email sent! Check your inbox (and spam folder).",
+  sendResetLink: "Send Reset Link"
 };
 export default en;

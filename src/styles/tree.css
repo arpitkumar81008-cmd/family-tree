@@ -13,8 +13,8 @@
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
-  height: calc(100vh - 210px);
-  min-height: 540px;
+  height: calc(100dvh - 210px - env(safe-area-inset-bottom, 0px));
+  min-height: 400px;
   margin-block: 0;
   user-select: none;
   touch-action: pan-x pan-y;
@@ -192,7 +192,7 @@
 }
 
 .card .nm {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.2;
   margin-top: 6px;
@@ -205,7 +205,7 @@
 }
 
 .card .rl {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -215,7 +215,7 @@
 }
 
 .card .tag {
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -225,6 +225,17 @@
   background: rgba(224, 0, 48, 0.1);
   border: 1px solid rgba(224, 0, 48, 0.3);
   border-radius: var(--radius-xs);
+}
+
+.card.is-compact {
+  justify-content: center;
+  padding: 6px;
+}
+
+.card.is-compact .av {
+  width: 56px;
+  height: 56px;
+  font-size: 22px;
 }
 
 /* Avatar inside Card */
@@ -595,9 +606,9 @@
   margin-block: 0;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 210px);
-  max-height: calc(100vh - 210px);
-  min-height: 540px;
+  height: calc(100dvh - 210px - env(safe-area-inset-bottom, 0px));
+  max-height: calc(100dvh - 210px - env(safe-area-inset-bottom, 0px));
+  min-height: 400px;
   overflow: hidden;
   z-index: 35;
 }
@@ -968,11 +979,11 @@
   .subtrees-sidebar {
     position: fixed;
     top: 56px;
-    bottom: 64px;
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
     left: 0;
     margin-block: 0;
     height: auto;
-    max-height: calc(100dvh - 120px);
+    max-height: calc(100dvh - 120px - env(safe-area-inset-bottom, 0px));
     min-height: 0;
     width: min(300px, 86vw);
     box-shadow: 8px 0 28px rgba(0, 0, 0, 0.2);
@@ -995,11 +1006,11 @@
 :root[data-viewport="mobile"] .subtrees-sidebar {
   position: fixed;
   top: 56px;
-  bottom: 64px;
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   left: 0;
   margin-block: 0;
   height: auto;
-  max-height: calc(100dvh - 120px);
+  max-height: calc(100dvh - 120px - env(safe-area-inset-bottom, 0px));
   min-height: 0;
   width: min(300px, 86vw);
   box-shadow: 8px 0 28px rgba(0, 0, 0, 0.2);

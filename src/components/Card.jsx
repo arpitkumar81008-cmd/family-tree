@@ -25,31 +25,33 @@ export function Card({
   t,
   displayName,
   onClick,
-  onKeyDown
+  onKeyDown,
+  zoom = 1
 }) {
   const name = displayName(person.id);
   const initials = getInitials(name);
+  const isCompact = zoom < 0.6;
 
   return (
     <div
       role="button"
       tabIndex={0}
       data-person-id={person.id}
-      className={`card${isMe ? " me" : ""}${isHit ? " hit" : ""}${isDim ? " dim" : ""}`}
+      className={`card${isMe ? " me" : ""}${isHit ? " hit" : ""}${isDim ? " dim" : ""}${isCompact ? " is-compact" : ""}`}
       style={{
         left: `${pos.x}px`,
         top: `${pos.y}px`,
         width: "96px",
         height: `${cardHeight}px`
       }}
-      aria-label={`${name}, ${relationLabel || ""}`}
+      aria-label={relationLabel ? `${name}, ${relationLabel}` : name}
       onClick={onClick}
       onKeyDown={onKeyDown}
     >
-      <Avatar photo={photo} label={t("photoOf", name)} text={initials} />
-      <span className="nm">{name}</span>
-      {relationLabel && <span className="rl">{relationLabel}</span>}
-      {person.late && <span className="tag">{t("lateTag")}</span>}
+      <Avatar photo={isCompact ? null : photo} label={t("photoOf", name)} text={initials} />
+      {!isCompact && <span className="nm">{name}</span>}
+      {!isCompact && relationLabel && <span className="rl">{relationLabel}</span>}
+      {!isCompact && person.late && <span className="tag">{t("lateTag")}</span>}
     </div>
   );
 }

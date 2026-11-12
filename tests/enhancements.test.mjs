@@ -60,13 +60,11 @@ test('Bilingual parity: 100% key parity between en.js and hi.js', () => {
   );
 });
 
-test('Kapoor Demo Lineage: INITIAL_DATA has Kapoor family & in-law branches', () => {
+test('Fictional Demo Lineage: INITIAL_DATA has fictional Verma family & in-law branches', () => {
   const names = INITIAL_DATA.people.map(p => p.name);
-  assert.ok(names.includes('Prithviraj Kapoor'), 'Includes Prithviraj Kapoor');
-  assert.ok(names.includes('Raj Kapoor'), 'Includes Raj Kapoor');
-  assert.ok(names.includes('Ranbir Kapoor'), 'Includes Ranbir Kapoor');
-  assert.ok(names.includes('Alia Bhatt'), 'Includes Alia Bhatt');
-  assert.ok(names.includes('Raha Kapoor'), 'Includes Raha Kapoor');
+  assert.ok(names.some(n => n.includes('Verma')), 'Includes fictional Verma lineage members');
+  assert.ok(!names.includes('Prithviraj Kapoor'), 'Must not include real Kapoor family names (S8)');
+  assert.ok(INITIAL_DATA.people.length >= 20, 'Has rich multi-generation demo family');
   assert.ok(INITIAL_DATA.people.every(p => p.id && p.name && p.hi), 'All members have id, name, and Hindi name');
 });
 

@@ -3,7 +3,8 @@ import {
   isFirebaseConfigured,
   signInWithGoogle,
   signInWithEmail,
-  signUpWithEmail
+  signUpWithEmail,
+  resetPassword
 } from '../services/firebase.js';
 import { useSmartAutoAnimate } from '../utils/useSmartAutoAnimate.js';
 
@@ -29,12 +30,13 @@ export function saveLocalAuthUser(user) {
 
 export function AuthModal({ t, close, onSignedIn }) {
   const cloudConfigured = isFirebaseConfigured();
-  const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
+  const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'reset'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [infoMsg, setInfoMsg] = useState('');
   const ref = useRef(null);
   const firstRef = useRef(null);
   const formAnimRef = useSmartAutoAnimate();
@@ -93,6 +95,24 @@ export function AuthModal({ t, close, onSignedIn }) {
   const handleEmailSubmit = async e => {
     e.preventDefault();
     setErr('');
+    setInfoMsg('');
+    if (mode === 'reset') {
+      if (!email.trim()) {
+        setErr('Please enter your email address.');
+        return;
+      }
+      setBusy(true);
+      try {
+        await resetPassword(email);
+        setInfoMsg('Password reset email sent! Check your inbox (and spam folder).');
+      } catch (e) {
+        setErr(e?.message || 'Could not send password reset email.');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
     if (!email.trim() || password.length < 6) {
       setErr('Please enter a valid email and a password of at least 6 characters.');
       return;
@@ -197,17 +217,19 @@ export function AuthModal({ t, close, onSignedIn }) {
               onChange={e => setEmail(e.target.value)}
             />
           </div>
-          <div className="field">
-            <label htmlFor="auth-pass">{t('passwordLabel')}</label>
-            <input
-              id="auth-pass"
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-            />
-          </div>
+          {mode !== 'reset' && (
+            <div className="field">
+              <label htmlFor="auth-pass">{t('passwordLabel')}</label>
+              <input
+                id="auth-pass"
+                type="password"
+                required
+                minLength={6}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+            </div>
+          )}
 
           {err && (
             <p className="msg" role="status">
@@ -215,20 +237,46 @@ export function AuthModal({ t, close, onSignedIn }) {
             </p>
           )}
 
-          <div className="actions">
+          {infoMsg && (
+            <p className="msg" role="status" style={{ color: 'var(--accent, #2e7d32)' }}>
+              {infoMsg}
+            </p>
+          )}
+
+          <div className="actions" style={{ flexWrap: 'wrap', gap: '8px' }}>
             <button type="submit" className="btn" disabled={busy}>
-              {mode === 'signup' ? t('signUp') : t('signIn')}
+              {mode === 'reset'
+                ? 'Send Reset Link'
+                : mode === 'signup'
+                  ? t('signUp')
+                  : t('signIn')}
             </button>
+            {cloudConfigured && mode === 'signin' && (
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => {
+                  setMode('reset');
+                  setErr('');
+                  setInfoMsg('');
+                }}
+              >
+                Forgot password?
+              </button>
+            )}
             {cloudConfigured && (
               <button
                 type="button"
                 className="btn ghost"
                 onClick={() => {
-                  setMode(m => (m === 'signup' ? 'signin' : 'signup'));
+                  setMode(m => (m === 'signup' ? 'signin' : m === 'reset' ? 'signin' : 'signup'));
                   setErr('');
+                  setInfoMsg('');
                 }}
               >
-                {mode === 'signup' ? t('switchToSignIn') : t('switchToSignUp')}
+                {mode === 'signup' || mode === 'reset'
+                  ? t('switchToSignIn')
+                  : t('switchToSignUp')}
               </button>
             )}
           </div>

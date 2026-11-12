@@ -5,7 +5,7 @@
   --surface: #ffffff;
   --ink: #1e293b;
   --muted: #5b6778;
-  --line: #dce2ea;
+  --line: #8b9bb0;
   --branch: #2c4c6e;
   --main-branch: #b91c3b;
   --other-branch: #64829c;
@@ -31,7 +31,7 @@
     --surface: #121816;
     --ink: #f1f3ee;
     --muted: #a3aba6;
-    --line: #2c3531;
+    --line: #4b5968;
     --branch: #f1f3ee;
     --main-branch: #ff4560;
     --other-branch: #a3aba6;
@@ -72,7 +72,7 @@
   font-size: 15px;
 }
 :root[data-text-size="large"] .card .rl {
-  font-size: 12px;
+  font-size: 13px;
 }
 
 :root[data-text-size="xlarge"] {
@@ -85,7 +85,7 @@
   font-size: 16.5px;
 }
 :root[data-text-size="xlarge"] .card .rl {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 :root[data-contrast="high"] {

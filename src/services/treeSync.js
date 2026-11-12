@@ -12,19 +12,21 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  runTransaction,
   query,
   where,
   limit,
   onSnapshot,
   serverTimestamp
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { getFirebaseClients, isFirebaseConfigured } from './firebase.js';
 
 const LOCAL_TREES_KEY = 'gupta_multi_trees_v1';
 const UNLOCKED_CODES_KEY = 'gupta_unlocked_tree_codes';
 const MAX_PHOTOS_BYTES = 750 * 1024; // 750 KB safety cap to stay well below Firestore's 1 MiB limit
 
-let debounceTimer = null;
+const pendingSaves = new Map();
 
 function readLocalTrees() {
   if (typeof window === 'undefined' || !window.localStorage) return {};
@@ -109,7 +111,7 @@ const SHARE_TOKEN_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
  * Generates a cryptographically random uppercase share token using crypto.getRandomValues.
  */
 export function generatePrivateShareToken(length = 12) {
-  const len = Math.max(8, Math.min(32, Number(length) || 12));
+  const len = Math.max(10, Math.min(32, Number(length) || 12));
   const bytes = new Uint8Array(len);
   if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
     globalThis.crypto.getRandomValues(bytes);
@@ -166,6 +168,9 @@ export function canUserViewTree(treeMeta, user) {
   if (!treeMeta) return false;
   if (treeMeta.isPublic) return true;
   if (canUserEditTree(treeMeta, user)) return true;
+  if (user?.uid && Array.isArray(treeMeta.viewerUids) && treeMeta.viewerUids.includes(user.uid)) {
+    return true;
+  }
   if (user?.email && Array.isArray(treeMeta.viewerEmails)) {
     const emailLower = String(user.email).trim().toLowerCase();
     if (treeMeta.viewerEmails.some(e => String(e).trim().toLowerCase() === emailLower)) {
@@ -411,28 +416,25 @@ export async function listAvailableTrees(user) {
         );
         const ownSnap = await getDocs(ownQuery);
         ownSnap.forEach(d => results.set(d.id, { id: d.id, ...d.data() }));
-      }
 
-      if (user?.email) {
-        const emailLower = String(user.email).trim().toLowerCase();
         try {
-          const edQuery = query(
+          const collabQuery = query(
             collection(db, 'trees'),
-            where('editorEmails', 'array-contains', emailLower),
+            where('collaboratorUids', 'array-contains', user.uid),
             limit(25)
           );
-          const edSnap = await getDocs(edQuery);
-          edSnap.forEach(d => results.set(d.id, { id: d.id, ...d.data() }));
+          const collabSnap = await getDocs(collabQuery);
+          collabSnap.forEach(d => results.set(d.id, { id: d.id, ...d.data() }));
         } catch {}
 
         try {
-          const vwQuery = query(
+          const viewerQuery = query(
             collection(db, 'trees'),
-            where('viewerEmails', 'array-contains', emailLower),
+            where('viewerUids', 'array-contains', user.uid),
             limit(25)
           );
-          const vwSnap = await getDocs(vwQuery);
-          vwSnap.forEach(d => results.set(d.id, { id: d.id, ...d.data() }));
+          const viewerSnap = await getDocs(viewerQuery);
+          viewerSnap.forEach(d => results.set(d.id, { id: d.id, ...d.data() }));
         } catch {}
       }
 
@@ -460,9 +462,10 @@ export async function listAvailableTrees(user) {
 }
 
 /**
- * Looks up a family tree by its Family Access Code (shareCode) across local and cloud storage.
+ * Redeems a Family Access Code via the `redeemShareCode` Cloud Function (or local registry in local-only mode),
+ * granting the caller's UID viewer or editor access and returning the tree document.
  */
-export async function findTreeByShareCode(rawCode) {
+export async function redeemShareCode(rawCode) {
   const cleanCode = String(rawCode || '').trim().toUpperCase();
   if (!cleanCode) return null;
 
@@ -474,22 +477,22 @@ export async function findTreeByShareCode(rawCode) {
     }
   }
 
-  const { db } = getFirebaseClients();
-  if (db && isFirebaseConfigured()) {
-    try {
-      const q = query(
-        collection(db, 'trees'),
-        where('shareCode', '==', cleanCode),
-        limit(5)
-      );
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        const d = snap.docs[0];
-        recordUnlockedShareCode(d.id, cleanCode);
-        return { id: d.id, ...d.data() };
-      }
-    } catch (err) {
-      console.warn('Failed to query tree by shareCode:', err);
+  const { db, auth, functions } = getFirebaseClients();
+  if (db && functions && isFirebaseConfigured()) {
+    if (!auth?.currentUser) {
+      const authErr = new Error('Please sign in to redeem a Family Access Code.');
+      authErr.code = 'AUTH_REQUIRED';
+      throw authErr;
+    }
+    const callRedeem = httpsCallable(functions, 'redeemShareCode');
+    const result = await callRedeem({ code: cleanCode });
+    const treeId = result?.data?.treeId;
+    if (!treeId) return null;
+
+    recordUnlockedShareCode(treeId, cleanCode);
+    const snap = await getDoc(doc(db, 'trees', treeId));
+    if (snap.exists()) {
+      return { id: snap.id, ...snap.data() };
     }
   }
 
@@ -497,7 +500,60 @@ export async function findTreeByShareCode(rawCode) {
 }
 
 /**
- * Updates the sharing settings (isPublic, viewerEmails, editorEmails, shareCode, shareCodeRole)
+ * Looks up and redeems a family tree by its Family Access Code (shareCode).
+ * Delegates to the `redeemShareCode` callable function when Firebase is configured.
+ */
+export async function findTreeByShareCode(rawCode) {
+  try {
+    return await redeemShareCode(rawCode);
+  } catch (err) {
+    if (err?.code === 'AUTH_REQUIRED' || err?.code === 'functions/resource-exhausted') {
+      throw err;
+    }
+    console.warn('Failed to redeem shareCode:', err);
+    return null;
+  }
+}
+
+/**
+ * Reads private sharing settings (`viewerEmails`, `editorEmails`, `shareCode`, `shareCodeRole`)
+ * from `trees/{treeId}/private/sharing` (owner-only in Firestore).
+ */
+export async function getTreeSharingSettings(treeId) {
+  if (!treeId) return null;
+  const localMap = readLocalTrees();
+  const localTree = localMap[treeId] || {};
+  const fallback = {
+    viewerEmails: Array.isArray(localTree.viewerEmails) ? localTree.viewerEmails : [],
+    editorEmails: Array.isArray(localTree.editorEmails) ? localTree.editorEmails : [],
+    shareCode: typeof localTree.shareCode === 'string' ? localTree.shareCode : '',
+    shareCodeRole: localTree.shareCodeRole === 'editor' ? 'editor' : 'viewer'
+  };
+
+  const { db } = getFirebaseClients();
+  if (db && isFirebaseConfigured()) {
+    try {
+      const snap = await getDoc(doc(db, 'trees', treeId, 'private', 'sharing'));
+      if (snap.exists()) {
+        const d = snap.data() || {};
+        return {
+          viewerEmails: Array.isArray(d.viewerEmails) ? d.viewerEmails : [],
+          editorEmails: Array.isArray(d.editorEmails) ? d.editorEmails : [],
+          shareCode: typeof d.shareCode === 'string' ? d.shareCode : '',
+          shareCodeRole: d.shareCodeRole === 'editor' ? 'editor' : 'viewer'
+        };
+      }
+    } catch (err) {
+      console.warn('Could not read private sharing settings:', err);
+    }
+  }
+
+  return fallback;
+}
+
+/**
+ * Updates the sharing settings (`isPublic` on `trees/{treeId}`, and
+ * `viewerEmails`, `editorEmails`, `shareCode`, `shareCodeRole` on `trees/{treeId}/private/sharing`)
  * for a tree owned by the current user.
  */
 export async function updateTreeSharingSettings(treeId, patch, user) {
@@ -505,25 +561,35 @@ export async function updateTreeSharingSettings(treeId, patch, user) {
 
   const nowIso = new Date().toISOString();
   const cleanPatch = {};
+  const publicPatch = {};
+  const privatePatch = {};
 
   if (typeof patch.isPublic === 'boolean') {
     cleanPatch.isPublic = patch.isPublic;
+    publicPatch.isPublic = patch.isPublic;
   }
   if (Array.isArray(patch.viewerEmails)) {
-    cleanPatch.viewerEmails = Array.from(
+    const cleanViewers = Array.from(
       new Set(patch.viewerEmails.map(e => String(e).trim().toLowerCase()).filter(Boolean))
     ).slice(0, 50);
+    cleanPatch.viewerEmails = cleanViewers;
+    privatePatch.viewerEmails = cleanViewers;
   }
   if (Array.isArray(patch.editorEmails)) {
-    cleanPatch.editorEmails = Array.from(
+    const cleanEditors = Array.from(
       new Set(patch.editorEmails.map(e => String(e).trim().toLowerCase()).filter(Boolean))
     ).slice(0, 50);
+    cleanPatch.editorEmails = cleanEditors;
+    privatePatch.editorEmails = cleanEditors;
   }
   if (typeof patch.shareCode === 'string') {
-    cleanPatch.shareCode = patch.shareCode.trim().toUpperCase().slice(0, 32);
+    const cleanCode = patch.shareCode.trim().toUpperCase().slice(0, 32);
+    cleanPatch.shareCode = cleanCode;
+    privatePatch.shareCode = cleanCode;
   }
   if (patch.shareCodeRole === 'viewer' || patch.shareCodeRole === 'editor') {
     cleanPatch.shareCodeRole = patch.shareCodeRole;
+    privatePatch.shareCodeRole = patch.shareCodeRole;
   }
 
   const localMap = readLocalTrees();
@@ -538,10 +604,22 @@ export async function updateTreeSharingSettings(treeId, patch, user) {
 
   const { db } = getFirebaseClients();
   if (db && isFirebaseConfigured()) {
-    await updateDoc(doc(db, 'trees', treeId), {
-      ...cleanPatch,
-      updatedAt: serverTimestamp()
-    });
+    if (Object.keys(publicPatch).length > 0) {
+      await updateDoc(doc(db, 'trees', treeId), {
+        ...publicPatch,
+        updatedAt: serverTimestamp()
+      });
+    }
+    if (Object.keys(privatePatch).length > 0) {
+      await setDoc(
+        doc(db, 'trees', treeId, 'private', 'sharing'),
+        {
+          ...privatePatch,
+          updatedAt: serverTimestamp()
+        },
+        { merge: true }
+      );
+    }
   }
 
   return cleanPatch;
@@ -559,8 +637,15 @@ export async function createUserTree({ title, data, photos = {}, isPublic = fals
     throw new Error('PHOTOS_TOO_LARGE');
   }
 
-  const treeId =
-    'tree_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+  const { db } = getFirebaseClients();
+  const cloudEnabled = Boolean(db && isFirebaseConfigured());
+  const treeRef = cloudEnabled ? doc(collection(db, 'trees')) : null;
+  const treeId = treeRef
+    ? treeRef.id
+    : typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID
+      ? globalThis.crypto.randomUUID()
+      : 'tree_' + generatePrivateShareToken(16).toLowerCase();
+
   const cleanTitle = (title || 'Family Tree').trim().slice(0, 120);
   const nowIso = new Date().toISOString();
 
@@ -576,10 +661,8 @@ export async function createUserTree({ title, data, photos = {}, isPublic = fals
     ownerName: (user.displayName || 'Family Member').slice(0, 120),
     isPublic: Boolean(isPublic),
     collaboratorUids: [],
-    viewerEmails: [],
-    editorEmails: [],
-    shareCode: '',
-    shareCodeRole: 'viewer',
+    viewerUids: [],
+    version: 1,
     data: {
       people: Array.isArray(data?.people) ? data.people : [],
       couples: Array.isArray(data?.couples) ? data.couples : []
@@ -590,11 +673,17 @@ export async function createUserTree({ title, data, photos = {}, isPublic = fals
     updatedAt: nowIso
   };
 
-  const { db } = getFirebaseClients();
-  if (db && isFirebaseConfigured()) {
-    await setDoc(doc(db, 'trees', treeId), {
+  if (cloudEnabled && treeRef) {
+    await setDoc(treeRef, {
       ...payload,
       createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    await setDoc(doc(db, 'trees', treeId, 'private', 'sharing'), {
+      viewerEmails: [],
+      editorEmails: [],
+      shareCode: '',
+      shareCodeRole: 'viewer',
       updatedAt: serverTimestamp()
     });
   }
@@ -608,7 +697,127 @@ export async function createUserTree({ title, data, photos = {}, isPublic = fals
 }
 
 /**
+ * Updates only the lineage `data` (and optional `lang`/`title`) using a Firestore transaction
+ * with optimistic `version` checking.
+ */
+export async function saveTreeData(treeId, treeDoc, user) {
+  if (!treeId) return false;
+  if (!canUserEditTree({ id: treeId, ...treeDoc }, user)) {
+    return false;
+  }
+
+  const nowIso = new Date().toISOString();
+  const localMap = readLocalTrees();
+  const existing = localMap[treeId] || {};
+  const nextData = {
+    people: Array.isArray(treeDoc.data?.people) ? treeDoc.data.people : [],
+    couples: Array.isArray(treeDoc.data?.couples) ? treeDoc.data.couples : []
+  };
+  const nextLang = treeDoc.lang === 'hi' ? 'hi' : 'en';
+  const expectedVersion = typeof treeDoc.version === 'number' ? treeDoc.version : null;
+
+  localMap[treeId] = {
+    ...existing,
+    data: nextData,
+    lang: nextLang,
+    updatedAt: nowIso
+  };
+  writeLocalTrees(localMap);
+
+  const { db } = getFirebaseClients();
+  if (db && isFirebaseConfigured()) {
+    try {
+      const treeRef = doc(db, 'trees', treeId);
+      const nextVersion = await runTransaction(db, async tx => {
+        const snap = await tx.get(treeRef);
+        if (!snap.exists()) throw new Error('TREE_NOT_FOUND');
+        const snapData = snap.data() || {};
+        const currentVersion = Number(snapData.version || 0);
+        if (expectedVersion !== null && currentVersion > expectedVersion) {
+          const err = new Error('VERSION_CONFLICT');
+          err.code = 'VERSION_CONFLICT';
+          throw err;
+        }
+        const bumped = currentVersion + 1;
+        tx.update(treeRef, {
+          data: nextData,
+          lang: nextLang,
+          version: bumped,
+          updatedAt: serverTimestamp()
+        });
+        return bumped;
+      });
+      localMap[treeId].version = nextVersion;
+      writeLocalTrees(localMap);
+    } catch (err) {
+      console.warn('Cloud tree data update deferred:', err);
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Updates only `photos` using a Firestore transaction with optimistic `version` checking.
+ */
+export async function saveTreePhotos(treeId, photos, user, treeMeta = {}) {
+  if (!treeId) return false;
+  if (!canUserEditTree({ id: treeId, ...treeMeta }, user)) {
+    return false;
+  }
+  const safePhotos = photos && typeof photos === 'object' ? photos : {};
+  if (!isPhotosPayloadWithinLimit(safePhotos)) {
+    console.warn('Photos payload exceeds 750 KB cloud limit');
+    return false;
+  }
+
+  const nowIso = new Date().toISOString();
+  const localMap = readLocalTrees();
+  const existing = localMap[treeId] || {};
+  const expectedVersion = typeof treeMeta.version === 'number' ? treeMeta.version : null;
+
+  localMap[treeId] = {
+    ...existing,
+    photos: safePhotos,
+    updatedAt: nowIso
+  };
+  writeLocalTrees(localMap);
+
+  const { db } = getFirebaseClients();
+  if (db && isFirebaseConfigured()) {
+    try {
+      const treeRef = doc(db, 'trees', treeId);
+      const nextVersion = await runTransaction(db, async tx => {
+        const snap = await tx.get(treeRef);
+        if (!snap.exists()) throw new Error('TREE_NOT_FOUND');
+        const snapData = snap.data() || {};
+        const currentVersion = Number(snapData.version || 0);
+        if (expectedVersion !== null && currentVersion > expectedVersion) {
+          const err = new Error('VERSION_CONFLICT');
+          err.code = 'VERSION_CONFLICT';
+          throw err;
+        }
+        const bumped = currentVersion + 1;
+        tx.update(treeRef, {
+          photos: safePhotos,
+          version: bumped,
+          updatedAt: serverTimestamp()
+        });
+        return bumped;
+      });
+      localMap[treeId].version = nextVersion;
+      writeLocalTrees(localMap);
+    } catch (err) {
+      console.warn('Cloud tree photos update deferred:', err);
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * Updates an existing tree when the current user is the owner or collaborator.
+ * Uses a Firestore transaction with `version` checking and never overwrites sharing/ownership fields.
  */
 export async function saveUserTree(treeId, treeDoc, user) {
   if (!treeId) return false;
@@ -623,6 +832,7 @@ export async function saveUserTree(treeId, treeDoc, user) {
   const nowIso = new Date().toISOString();
   const localMap = readLocalTrees();
   const existing = localMap[treeId] || {};
+  const expectedVersion = typeof treeDoc.version === 'number' ? treeDoc.version : null;
   const updated = {
     ...existing,
     title: (treeDoc.title || existing.title || 'Family Tree').slice(0, 120),
@@ -630,10 +840,7 @@ export async function saveUserTree(treeId, treeDoc, user) {
     ownerName: (treeDoc.ownerName || existing.ownerName || user?.displayName || 'Family Member').slice(0, 120),
     isPublic: Boolean(treeDoc.isPublic ?? existing.isPublic ?? false),
     collaboratorUids: Array.isArray(treeDoc.collaboratorUids) ? treeDoc.collaboratorUids : (existing.collaboratorUids || []),
-    viewerEmails: Array.isArray(treeDoc.viewerEmails) ? treeDoc.viewerEmails : (existing.viewerEmails || []),
-    editorEmails: Array.isArray(treeDoc.editorEmails) ? treeDoc.editorEmails : (existing.editorEmails || []),
-    shareCode: typeof treeDoc.shareCode === 'string' ? treeDoc.shareCode : (existing.shareCode || ''),
-    shareCodeRole: treeDoc.shareCodeRole || existing.shareCodeRole || 'viewer',
+    viewerUids: Array.isArray(treeDoc.viewerUids) ? treeDoc.viewerUids : (existing.viewerUids || []),
     data: {
       people: Array.isArray(treeDoc.data?.people) ? treeDoc.data.people : [],
       couples: Array.isArray(treeDoc.data?.couples) ? treeDoc.data.couples : []
@@ -650,12 +857,29 @@ export async function saveUserTree(treeId, treeDoc, user) {
   const { db } = getFirebaseClients();
   if (db && isFirebaseConfigured()) {
     try {
-      await updateDoc(doc(db, 'trees', treeId), {
-        data: updated.data,
-        photos: updated.photos,
-        lang: updated.lang,
-        updatedAt: serverTimestamp()
+      const treeRef = doc(db, 'trees', treeId);
+      const nextVersion = await runTransaction(db, async tx => {
+        const snap = await tx.get(treeRef);
+        if (!snap.exists()) throw new Error('TREE_NOT_FOUND');
+        const snapData = snap.data() || {};
+        const currentVersion = Number(snapData.version || 0);
+        if (expectedVersion !== null && currentVersion > expectedVersion) {
+          const err = new Error('VERSION_CONFLICT');
+          err.code = 'VERSION_CONFLICT';
+          throw err;
+        }
+        const bumped = currentVersion + 1;
+        tx.update(treeRef, {
+          data: updated.data,
+          photos: updated.photos,
+          lang: updated.lang,
+          version: bumped,
+          updatedAt: serverTimestamp()
+        });
+        return bumped;
       });
+      localMap[treeId].version = nextVersion;
+      writeLocalTrees(localMap);
     } catch (err) {
       console.warn('Cloud tree update deferred:', err);
       return false;
@@ -665,8 +889,28 @@ export async function saveUserTree(treeId, treeDoc, user) {
 }
 
 /**
+ * Flushes all pending per-tree debounced cloud saves immediately (e.g. on pagehide / visibilitychange).
+ */
+export function flushPendingSaves() {
+  for (const [treeId, entry] of pendingSaves.entries()) {
+    clearTimeout(entry.timer);
+    pendingSaves.delete(treeId);
+    saveUserTree(treeId, entry.treeDoc, entry.user);
+  }
+}
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  window.addEventListener('pagehide', flushPendingSaves);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      flushPendingSaves();
+    }
+  });
+}
+
+/**
  * Immediately caches the updated tree to localStorage (0ms latency so HMR/reloads never lose edits)
- * and debounces (600ms) the network write to Cloud Firestore.
+ * and debounces (600ms) the network write to Cloud Firestore per treeId.
  */
 export function saveUserTreeDebounced(treeId, treeDoc, user) {
   if (!treeId) return;
@@ -683,10 +927,7 @@ export function saveUserTreeDebounced(treeId, treeDoc, user) {
       ownerName: (treeDoc.ownerName || user?.displayName || 'Family Member').slice(0, 120),
       isPublic: Boolean(treeDoc.isPublic ?? false),
       collaboratorUids: Array.isArray(treeDoc.collaboratorUids) ? treeDoc.collaboratorUids : [],
-      viewerEmails: Array.isArray(treeDoc.viewerEmails) ? treeDoc.viewerEmails : [],
-      editorEmails: Array.isArray(treeDoc.editorEmails) ? treeDoc.editorEmails : [],
-      shareCode: typeof treeDoc.shareCode === 'string' ? treeDoc.shareCode : '',
-      shareCodeRole: treeDoc.shareCodeRole || 'viewer',
+      viewerUids: Array.isArray(treeDoc.viewerUids) ? treeDoc.viewerUids : [],
       data: {
         people: Array.isArray(treeDoc.data?.people) ? treeDoc.data.people : [],
         couples: Array.isArray(treeDoc.data?.couples) ? treeDoc.data.couples : []
@@ -698,8 +939,13 @@ export function saveUserTreeDebounced(treeId, treeDoc, user) {
     writeLocalTrees(localMap);
   } catch {}
 
-  if (debounceTimer) clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => {
+  const existingPending = pendingSaves.get(treeId);
+  if (existingPending?.timer) {
+    clearTimeout(existingPending.timer);
+  }
+  const timer = setTimeout(() => {
+    pendingSaves.delete(treeId);
     saveUserTree(treeId, treeDoc, user);
   }, 600);
+  pendingSaves.set(treeId, { timer, treeDoc, user });
 }

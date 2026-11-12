@@ -122,24 +122,30 @@ export function CreateTreeModal({
       return;
     }
     setMsg('');
-    let parsed;
-    try {
-      parsed = JSON.parse(importText);
-      const res = validateTreeData(parsed.data);
-      if (!res.valid) throw new Error(res.error);
-    } catch {
-      setMsg(t('importBad'));
-      return;
-    }
-
-    const photos = parsed.photos && typeof photos === 'object' ? parsed.photos : {};
-    if (!isPhotosPayloadWithinLimit(photos)) {
-      setMsg(t('noSpace'));
-      return;
-    }
-
     setBusy(true);
     try {
+      let parsed;
+      try {
+        parsed = JSON.parse(importText);
+      } catch {
+        throw new Error(t('importBad'));
+      }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error(t('importBad'));
+      }
+      const res = validateTreeData(parsed.data);
+      if (!res.valid) {
+        throw new Error(res.error || t('importBad'));
+      }
+
+      const photos = parsed.photos && typeof parsed.photos === 'object' && !Array.isArray(parsed.photos)
+        ? parsed.photos
+        : {};
+      if (!isPhotosPayloadWithinLimit(photos)) {
+        setMsg(t('noSpace'));
+        return;
+      }
+
       await onImport({
         title: treeTitle.trim() || parsed.title || 'Imported Family Tree',
         data: parsed.data,

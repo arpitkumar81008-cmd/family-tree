@@ -18,6 +18,8 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
 
   const relAB = isValid ? solveComplexRelation(familyIndex, firstId, secondId, lang) : null;
   const relBA = isValid ? solveComplexRelation(familyIndex, secondId, firstId, lang) : null;
+  const relABHi = isValid ? solveComplexRelation(familyIndex, firstId, secondId, "hi") : null;
+  const relBAHi = isValid ? solveComplexRelation(familyIndex, secondId, firstId, "hi") : null;
 
   const handleSwap = () => {
     setFirstId(secondId);
@@ -126,6 +128,26 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
               <span style={{ ...badgeStyle, color: "var(--ink)" }}>
                 {t("commonAnc")}: <strong>{displayName(relAB.commonAncestorId)}</strong>
               </span>
+            )}
+          </div>
+
+          {/* Highlighted Result Card with Hindi Term */}
+          <div className="finder-highlight-card">
+            <div className="finder-highlight-main">
+              <span className="finder-highlight-term">{relAB.shortLabel}</span>
+              {relABHi?.shortLabel && relABHi.shortLabel !== relAB.shortLabel && (
+                <span className="finder-highlight-hindi" lang="hi">
+                  {relABHi.shortLabel}
+                </span>
+              )}
+            </div>
+            {relBA?.shortLabel && (
+              <div className="finder-highlight-reciprocal">
+                {displayName(firstId)} → {displayName(secondId)}: <strong>{relBA.shortLabel}</strong>
+                {relBAHi?.shortLabel && relBAHi.shortLabel !== relBA.shortLabel && (
+                  <span className="finder-highlight-hindi-sub" lang="hi"> ({relBAHi.shortLabel})</span>
+                )}
+              </div>
             )}
           </div>
 
@@ -253,6 +275,38 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
     }
   };
 
+  const handleImportJsonString = (rawText) => {
+    try {
+      const parsed = JSON.parse(rawText);
+      const d = parsed.data;
+      const res = validateTreeData(d);
+      if (!res.valid) {
+        throw new Error(res.error);
+      }
+      onImport(
+        { people: d.people, couples: d.couples },
+        parsed.photos && typeof parsed.photos === "object" ? parsed.photos : undefined
+      );
+      setStatusMsg(t("importOk"));
+      setImportText("");
+    } catch {
+      setStatusMsg(t("importBad"));
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      handleImportJsonString(text);
+    } catch {
+      setStatusMsg(t("importBad"));
+    } finally {
+      e.target.value = "";
+    }
+  };
+
   return (
     <div className="backup reveal-parent" ref={backupAnimRef}>
       <p className="muted hover-explanation">{t("backupHelpSub")}</p>
@@ -265,7 +319,7 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
               id="bx"
               ref={exportBoxRef}
               readOnly
-              rows={4}
+              rows={8}
               value={exportPayload}
               onFocus={e => e.currentTarget.select()}
             />
@@ -275,6 +329,13 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
             <button
               type="button"
               className="btn"
+              onClick={handleDownloadJson}
+            >
+              {isHi ? "JSON डाउनलोड करें" : "Download .json"}
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(exportPayload);
@@ -286,13 +347,6 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
               }}
             >
               {t("copy")}
-            </button>
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={handleDownloadJson}
-            >
-              {isHi ? "JSON डाउनलोड करें" : "Download .json"}
             </button>
             <label className="check">
               <input
@@ -312,10 +366,23 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
               <label htmlFor="bi">{t("importLbl")}</label>
               <textarea
                 id="bi"
-                rows={4}
+                rows={8}
                 value={importText}
                 placeholder={t("importPh")}
                 onChange={e => setImportText(e.target.value)}
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="bi-file">
+                {isHi ? "या .json फ़ाइल अपलोड करें" : "Upload .json file"}
+              </label>
+              <input
+                id="bi-file"
+                type="file"
+                accept=".json"
+                className="backup-file-input"
+                onChange={handleFileUpload}
               />
             </div>
 
@@ -324,24 +391,7 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
                 type="button"
                 className="btn"
                 disabled={!importText.trim()}
-                onClick={() => {
-                  try {
-                    const parsed = JSON.parse(importText);
-                    const d = parsed.data;
-                    const res = validateTreeData(d);
-                    if (!res.valid) {
-                      throw new Error(res.error);
-                    }
-                    onImport(
-                      { people: d.people, couples: d.couples },
-                      parsed.photos && typeof parsed.photos === "object" ? parsed.photos : undefined
-                    );
-                    setStatusMsg(t("importOk"));
-                    setImportText("");
-                  } catch {
-                    setStatusMsg(t("importBad"));
-                  }
-                }}
+                onClick={() => handleImportJsonString(importText)}
               >
                 {t("importBtn")}
               </button>

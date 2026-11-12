@@ -1,10 +1,7 @@
 /**
- * LocalStorage persistence & non-destructive merge engine.
- * - Preserves manually added members across code updates, hot reloads, and cloud syncs.
- * - Keeps personal Gupta family storage keys strictly isolated from the public demo tree,
- *   while automatically recovering and merging any members the owner added in localStorage
- *   ("gupta-family-tree-v3", "gupta-family-tree-v2", "gupta-family-tree-v1") when their
- *   private tree ("tree_gupta_private_akg") is loaded.
+ * LocalStorage persistence & state helpers.
+ * - Preserves demo tree additions in localStorage separately from cloud-synced private trees.
+ * - Keeps cloud tree state authoritative when loading from Firestore.
  */
 import { INITIAL_DATA } from "../data/familyData.js";
 import { dedup, deepMergeTree, STORAGE_KEY } from "./deduplication.js";
@@ -16,7 +13,7 @@ import {
 
 export { getLastPrivateTreeId, setLastPrivateTreeId, clearLastPrivateTreeId };
 
-export const LANG_STORAGE_KEY = "gupta_lang";
+export const LANG_STORAGE_KEY = "family_tree_lang";
 
 export function getStoredLanguage(defaultLang = "en") {
   if (typeof window === "undefined" || !window.localStorage) return defaultLang;
@@ -35,8 +32,8 @@ export function setStoredLanguage(lang) {
   } catch {}
 }
 
-export const CANVAS_ZOOM_KEY = "gupta_canvas_zoom";
-export const CANVAS_PAN_KEY = "gupta_canvas_pan";
+export const CANVAS_ZOOM_KEY = "family_tree_canvas_zoom";
+export const CANVAS_PAN_KEY = "family_tree_canvas_pan";
 
 export const MIN_CANVAS_ZOOM = 0.4;
 export const MAX_CANVAS_ZOOM = 1.4;
@@ -109,11 +106,6 @@ export function saveCanvasPan(pan) {
 }
 
 const DELETED_IDS_KEY = "family_tree_deleted_ids_v1";
-const PERSONAL_LEGACY_KEYS = [
-  "gupta-family-tree-v3",
-  "gupta-family-tree-v2",
-  "gupta-family-tree-v1"
-];
 
 const clone = obj => JSON.parse(JSON.stringify(obj));
 
@@ -196,13 +188,12 @@ export function loadInitialTreeState() {
 }
 
 /**
- * Merges a signed-in user's cloud tree with any locally saved snapshots or historical
- * localStorage keys ("gupta-family-tree-v3", "v2", "v1") so manually added family members
- * are never lost across code updates or refreshes.
+ * Normalizes and deduplicates a signed-in user's cloud tree without letting
+ * stale localStorage caches overwrite authoritative cloud edits.
  */
 export function mergeCloudTreeWithLocalHistory(treeId, cloudData, cloudPhotos = {}, lang = "en") {
   const globalLang = getStoredLanguage(lang || "en");
-  let state = {
+  const state = {
     data: clone(cloudData || { people: [], couples: [] }),
     photos: clone(cloudPhotos || {}),
     viewer: "",
@@ -212,33 +203,6 @@ export function mergeCloudTreeWithLocalHistory(treeId, cloudData, cloudPhotos = 
   if (typeof window === "undefined" || !window.localStorage) {
     return dedup(state);
   }
-
-  // 1. If this is Arpit's personal Gupta tree, merge any members from historical localStorage keys
-  if (treeId === "tree_gupta_private_akg") {
-    for (const key of PERSONAL_LEGACY_KEYS) {
-      try {
-        const raw = localStorage.getItem(key);
-        if (!raw) continue;
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object" && Array.isArray(parsed.data?.people)) {
-          state = deepMergeTree(state, parsed);
-        }
-      } catch {}
-    }
-  }
-
-  // 2. Also merge with local multi-tree cache for this specific treeId
-  try {
-    const multiMap = JSON.parse(localStorage.getItem("gupta_multi_trees_v1") || "{}") || {};
-    const localTree = multiMap[treeId];
-    if (localTree && Array.isArray(localTree.data?.people)) {
-      state = deepMergeTree(state, {
-        data: localTree.data,
-        photos: localTree.photos || {},
-        lang: getStoredLanguage(localTree.lang || state.lang)
-      });
-    }
-  } catch {}
 
   const deletedSet = getDeletedIds(treeId || "public_demo");
   return dedup(filterDeletedFromState(state, deletedSet));

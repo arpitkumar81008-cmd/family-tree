@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  getTreeSharingSettings,
   updateTreeSharingSettings,
   findTreeByShareCode,
   generatePrivateShareToken,
@@ -53,6 +54,21 @@ export function ShareTreeModal({
   }, [activeTreeMeta]);
 
   useEffect(() => {
+    let cancelled = false;
+    if (!isOwner || !activeTreeId) return undefined;
+    getTreeSharingSettings(activeTreeId).then(settings => {
+      if (cancelled || !settings) return;
+      setShareCode(settings.shareCode || '');
+      setShareCodeRole(settings.shareCodeRole === 'editor' ? 'editor' : 'viewer');
+      setViewerEmails(Array.isArray(settings.viewerEmails) ? settings.viewerEmails : []);
+      setEditorEmails(Array.isArray(settings.editorEmails) ? settings.editorEmails : []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOwner, activeTreeId]);
+
+  useEffect(() => {
     firstRef.current?.focus();
     const onKey = e => {
       if (e.key === 'Escape') close();
@@ -89,6 +105,10 @@ export function ShareTreeModal({
   const handleSaveCode = async e => {
     e?.preventDefault?.();
     const clean = shareCode.trim().toUpperCase();
+    if (clean && clean.length < 10) {
+      setMsg('Access code must be at least 10 characters (or click Generate Code).');
+      return;
+    }
     setShareCode(clean);
     await applySharingPatch({
       shareCode: clean,
@@ -174,8 +194,14 @@ export function ShareTreeModal({
       } else {
         setJoinMsg(t('joinByCodeNotFound'));
       }
-    } catch {
-      setJoinMsg(t('joinByCodeNotFound'));
+    } catch (err) {
+      if (err?.code === 'AUTH_REQUIRED') {
+        setJoinMsg('Please sign in first to redeem a Family Access Code.');
+      } else if (err?.code === 'functions/resource-exhausted') {
+        setJoinMsg('Too many attempts. Please wait a few minutes and try again.');
+      } else {
+        setJoinMsg(t('joinByCodeNotFound'));
+      }
     } finally {
       setBusy(false);
     }

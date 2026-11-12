@@ -10,6 +10,8 @@ import {
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
   updateProfile,
   signOut,
   onAuthStateChanged
@@ -20,6 +22,7 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager
 } from 'firebase/firestore';
+import { getFunctions } from 'firebase/functions';
 
 const RUNTIME_CONFIG_KEY = 'gupta_firebase_config';
 
@@ -80,13 +83,14 @@ export function getFirebaseClients() {
   if (cachedClients) return cachedClients;
   const cfg = loadFirebaseConfig();
   if (!cfg.apiKey || !cfg.projectId) {
-    return { app: null, auth: null, db: null };
+    return { app: null, auth: null, db: null, functions: null };
   }
 
   try {
     const isNewApp = getApps().length === 0;
     const app = isNewApp ? initializeApp(cfg) : getApp();
     const auth = getAuth(app);
+    const functions = getFunctions(app, 'asia-south1');
     let db;
     const dbId = cfg.databaseId && cfg.databaseId !== '(default)' ? cfg.databaseId : undefined;
     if (isNewApp) {
@@ -106,11 +110,11 @@ export function getFirebaseClients() {
     } else {
       db = dbId ? getFirestore(app, dbId) : getFirestore(app);
     }
-    cachedClients = { app, auth, db };
+    cachedClients = { app, auth, db, functions };
     return cachedClients;
   } catch (err) {
     console.error('Firebase initialization error:', err);
-    return { app: null, auth: null, db: null };
+    return { app: null, auth: null, db: null, functions: null };
   }
 }
 
@@ -159,7 +163,18 @@ export async function signUpWithEmail(email, password, displayName = '') {
       await updateProfile(cred.user, { displayName: displayName.trim() });
     } catch {}
   }
+  try {
+    await sendEmailVerification(cred.user);
+  } catch {}
   return cred.user;
+}
+
+export async function resetPassword(email) {
+  const { auth } = getFirebaseClients();
+  if (!auth) throw new Error('FIREBASE_NOT_CONFIGURED');
+  const cleanEmail = String(email || '').trim();
+  if (!cleanEmail) throw new Error('EMAIL_REQUIRED');
+  await sendPasswordResetEmail(auth, cleanEmail);
 }
 
 export async function signOutUser() {
