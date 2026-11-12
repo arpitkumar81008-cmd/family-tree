@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { animate, stagger } from 'motion';
 import { Card } from './Card.jsx';
 import CanvasDock from './CanvasDock.jsx';
+import SubTreesSidebar from './SubTreesSidebar.jsx';
 import { calculateKinship } from '../utils/kinship.js';
 import { saveCanvasPan, saveCanvasZoom } from '../utils/storage.js';
 
@@ -23,7 +24,9 @@ export function Canvas({
   onZoom,
   onResetViewer,
   isFullscreen: isFullscreenProp,
-  onToggleFullscreen: onToggleFullscreenProp
+  onToggleFullscreen: onToggleFullscreenProp,
+  collapsedSubTrees: collapsedSubTreesProp,
+  onToggleSubTree: onToggleSubTreeProp
 }) {
   const containerRef = useRef(null);
   const stageRef = useRef(null);
@@ -50,6 +53,94 @@ export function Canvas({
   const [internalFullscreen, setInternalFullscreen] = useState(false);
   const isFullscreen = isFullscreenProp !== undefined ? isFullscreenProp : internalFullscreen;
   const prevFullscreenRef = useRef(isFullscreen);
+
+  const [internalCollapsedSubTrees, setInternalCollapsedSubTrees] = useState({});
+  const collapsedSubTrees = collapsedSubTreesProp !== undefined
+    ? collapsedSubTreesProp
+    : internalCollapsedSubTrees;
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const subTrees = layout?.subTrees || [];
+
+  const isSubTreeCollapsed = useCallback((id) => {
+    return collapsedSubTrees instanceof Set
+      ? collapsedSubTrees.has(id)
+      : Boolean(collapsedSubTrees?.[id]);
+  }, [collapsedSubTrees]);
+
+  const handleToggleSubTree = useCallback((subTreeId) => {
+    if (onToggleSubTreeProp) {
+      onToggleSubTreeProp(subTreeId);
+    }
+    if (collapsedSubTreesProp === undefined) {
+      setInternalCollapsedSubTrees(prev => ({
+        ...prev,
+        [subTreeId]: !prev[subTreeId]
+      }));
+    }
+  }, [collapsedSubTreesProp, onToggleSubTreeProp]);
+
+  const hiddenMemberIds = useMemo(() => {
+    const hidden = new Set();
+    subTrees.forEach(st => {
+      if (isSubTreeCollapsed(st.id)) {
+        (st.memberIds || []).forEach(id => hidden.add(id));
+      }
+    });
+    return hidden;
+  }, [subTrees, isSubTreeCollapsed]);
+
+  const handleFocusSubTree = useCallback((subTree) => {
+    if (!subTree) return;
+    if (isSubTreeCollapsed(subTree.id)) {
+      handleToggleSubTree(subTree.id);
+    }
+    const el = containerRef.current;
+    const bb = subTree.boundingBox;
+    if (el && bb && bb.w > 0 && bb.h > 0) {
+      const pad = 64;
+      const fitZoom = Math.min(
+        1.1,
+        Math.max(0.45, Math.min(el.clientWidth / (bb.w + pad * 2), el.clientHeight / (bb.h + pad * 2)))
+      );
+      const nextZoom = Number(fitZoom.toFixed(2));
+      setZoom?.(nextZoom);
+      saveCanvasZoom(nextZoom);
+      requestAnimationFrame(() => {
+        const targetLeft = Math.max(0, (bb.x + bb.w / 2) * nextZoom - el.clientWidth / 2);
+        const targetTop = Math.max(0, (bb.y + bb.h / 2) * nextZoom - el.clientHeight / 2);
+        el.scrollTo({ left: targetLeft, top: targetTop, behavior: 'smooth' });
+        saveCanvasPan({ scrollLeft: targetLeft, scrollTop: targetTop });
+      });
+    }
+    setIsSidebarOpen(false);
+  }, [isSubTreeCollapsed, handleToggleSubTree, setZoom]);
+
+  const handleFocusMember = useCallback((personId) => {
+    if (!personId) return;
+    const ownerSubTree = subTrees.find(st => (st.memberIds || []).includes(personId));
+    if (ownerSubTree && isSubTreeCollapsed(ownerSubTree.id)) {
+      handleToggleSubTree(ownerSubTree.id);
+    }
+    const el = containerRef.current;
+    const pPos = layoutRef.current?.pos?.[personId];
+    if (el && pPos) {
+      const curZoom = zoomRef.current || 1;
+      const targetZoom = curZoom < 0.8 ? 0.95 : curZoom;
+      if (targetZoom !== curZoom) {
+        setZoom?.(targetZoom);
+        saveCanvasZoom(targetZoom);
+      }
+      requestAnimationFrame(() => {
+        const targetLeft = Math.max(0, (pPos.x + 48) * targetZoom - el.clientWidth / 2);
+        const targetTop = Math.max(0, (pPos.y + (cardHeight || 138) / 2) * targetZoom - el.clientHeight / 2);
+        el.scrollTo({ left: targetLeft, top: targetTop, behavior: 'smooth' });
+        saveCanvasPan({ scrollLeft: targetLeft, scrollTop: targetTop });
+      });
+    }
+    setIsSidebarOpen(false);
+  }, [subTrees, isSubTreeCollapsed, handleToggleSubTree, setZoom, cardHeight]);
 
   const handleToggleFullscreen = useCallback(async () => {
     const next = !isFullscreen;
@@ -500,6 +591,7 @@ export function Canvas({
 
       treeState.data.people.forEach(target => {
         if (target.id === personId) return;
+        if (hiddenMemberIds.has(target.id)) return;
         if (searchQuery && !searchMatches.some(m => m.id === target.id)) return;
         const targetPos = layout.pos[target.id];
         if (!targetPos) return;
@@ -531,129 +623,207 @@ export function Canvas({
   const isSearchActive = !!searchQuery.trim();
   const layoutW = layout?.W || layout?.totalWidth || 0;
   const layoutH = layout?.H || layout?.totalHeight || 0;
+  const subTreesLabel = (() => {
+    const val = typeof t === 'function' ? t('subTreesTitle') : 'subTreesTitle';
+    if (val && val !== 'subTreesTitle') return val;
+    return lang === 'hi' ? 'उप-वंश' : 'Sub-Trees';
+  })();
 
   return (
     <div ref={hostRef} className={`treewrap-host${isFullscreen ? ' is-fullscreen' : ''}`}>
-      <div
-        ref={containerRef}
-        className="treewrap"
-        tabIndex={0}
-        role="region"
-        aria-label={t("treeRegion")}
-        onMouseDown={e => {
-          if (e.button === 0 && containerRef.current) {
-            panRef.current = {
-              active: true,
-              hasDragged: false,
-              sx: e.clientX,
-              sy: e.clientY,
-              sl: containerRef.current.scrollLeft,
-              st: containerRef.current.scrollTop
-            };
-          }
-        }}
-      >
+      <div className="canvas-layout">
+        {isSidebarOpen && (
+          <div
+            className="subtrees-drawer-backdrop"
+            onClick={() => setIsSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+        <SubTreesSidebar
+          subTrees={subTrees}
+          collapsedSubTrees={collapsedSubTrees}
+          onToggleSubTree={handleToggleSubTree}
+          onFocusSubTree={handleFocusSubTree}
+          onFocusMember={handleFocusMember}
+          familyIndex={familyIndex}
+          displayName={displayName}
+          viewer={viewer}
+          t={t}
+          lang={lang}
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+        />
         <div
-          className="sizer"
-          style={{
-            width: layoutW * zoom,
-            height: layoutH * zoom
+          ref={containerRef}
+          className="treewrap"
+          tabIndex={0}
+          role="region"
+          aria-label={t("treeRegion")}
+          onMouseDown={e => {
+            if (e.button === 0 && containerRef.current) {
+              panRef.current = {
+                active: true,
+                hasDragged: false,
+                sx: e.clientX,
+                sy: e.clientY,
+                sl: containerRef.current.scrollLeft,
+                st: containerRef.current.scrollTop
+              };
+            }
           }}
         >
           <div
-            ref={stageRef}
-            className="stage"
+            className="sizer"
             style={{
-              width: layoutW,
-              height: layoutH,
-              transform: `scale(${zoom})`
+              width: layoutW * zoom,
+              height: layoutH * zoom
             }}
           >
-            {/* SVG Connector Lines */}
-            <svg
-              className="lines"
-              width={layoutW}
-              height={layoutH}
-              viewBox={`0 0 ${layoutW} ${layoutH}`}
-              aria-hidden="true"
+            <div
+              ref={stageRef}
+              className="stage"
+              style={{
+                width: layoutW,
+                height: layoutH,
+                transform: `scale(${zoom})`
+              }}
             >
-              {layout?.guideLines && (
-                <path className="guide-line" d={layout.guideLines} />
-              )}
-              {layout?.otherPath && (
-                <path className="other-branch-line" d={layout.otherPath} />
-              )}
-              {layout?.bridgePath && (
-                <path className="bridge-line" d={layout.bridgePath} />
-              )}
-              {layout?.mainPath && (
-                <path className="main-branch-line" d={layout.mainPath} />
-              )}
-              {!layout?.mainPath && !layout?.otherPath && layout?.path && (
-                <path className="main-branch-line" d={layout.path} />
-              )}
-            </svg>
-
-            {/* Branch Header Pills */}
-            {(layout?.branchLabels || []).map((b, idx) => (
-              <div
-                key={`br_${idx}`}
-                className="branch-pill"
-                style={{ left: `${b.x}px`, top: `${b.y}px` }}
+              {/* SVG Connector Lines */}
+              <svg
+                className="lines"
+                width={layoutW}
+                height={layoutH}
+                viewBox={`0 0 ${layoutW} ${layoutH}`}
+                aria-hidden="true"
               >
-                {b.text}
-              </div>
-            ))}
+                {layout?.guideLines && (
+                  <path className="guide-line" d={layout.guideLines} />
+                )}
+                {layout?.otherPath && (
+                  <path className="other-branch-line" d={layout.otherPath} />
+                )}
+                {layout?.bridgePath && (
+                  <path className="bridge-line" d={layout.bridgePath} />
+                )}
+                {layout?.mainPath && (
+                  <path className="main-branch-line" d={layout.mainPath} />
+                )}
+                {!layout?.mainPath && !layout?.otherPath && layout?.path && (
+                  <path className="main-branch-line" d={layout.path} />
+                )}
+              </svg>
 
-            {/* Generation Rail & Pills */}
-            {(layout?.genLabels || []).map(g => (
-              <div
-                key={g.g}
-                className="gen-rail"
-                style={{ top: `${g.labelY}px` }}
-              >
-                <span className="gen-pill">{g.labelText}</span>
-              </div>
-            ))}
+              {/* Collapsible Sub-Tree Containers (Header-on-top, synced with SubTreesSidebar) */}
+              {subTrees.map((st) => {
+                const collapsed = isSubTreeCollapsed(st.id);
+                const bb = st.boundingBox || { x: 0, y: 0, w: 0, h: 0 };
+                return (
+                  <div
+                    key={st.id}
+                    className={`canvas-subtree-box${st.isMain ? ' is-main' : ''}${collapsed ? ' is-collapsed' : ''}`}
+                    style={{
+                      left: `${Math.max(12, bb.x - 16)}px`,
+                      top: `${Math.max(8, bb.y - 44)}px`,
+                      width: collapsed ? 'auto' : `${Math.max(bb.w + 32, 240)}px`,
+                      height: collapsed ? 'auto' : `${bb.h + 60}px`
+                    }}
+                  >
+                    <div className="canvas-subtree-header">
+                      <button
+                        type="button"
+                        className="canvas-subtree-toggle"
+                        aria-expanded={!collapsed}
+                        aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${st.title}`}
+                        onMouseDown={e => e.stopPropagation()}
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleToggleSubTree(st.id);
+                        }}
+                      >
+                        <span aria-hidden="true">{collapsed ? '▸' : '▾'}</span>
+                      </button>
+                      <span className="canvas-subtree-title">
+                        <span aria-hidden="true">{st.isMain ? '★' : '✦'}</span> {st.title}
+                      </span>
+                      <span className="canvas-subtree-count">{st.memberIds?.length || 0}</span>
+                    </div>
+                  </div>
+                );
+              })}
 
-            {/* Member Cards */}
-            {treeState.data.people.map(person => {
-              const pos = layout?.pos?.[person.id];
-              if (!pos) return null;
+              {/* Branch Header Pills (Mode 2 / fallback when subTrees metadata is empty) */}
+              {!subTrees.length && (layout?.branchLabels || []).map((b, idx) => (
+                <div
+                  key={`br_${idx}`}
+                  className="branch-pill"
+                  style={{ left: `${b.x}px`, top: `${b.y}px` }}
+                >
+                  {b.text}
+                </div>
+              ))}
 
-              const isMe = viewer === person.id;
-              const isHit = isSearchActive && searchMatches.some(m => m.id === person.id);
-              const isDim = isSearchActive && !isHit;
+              {/* Generation Rail & Pills */}
+              {(layout?.genLabels || []).map(g => (
+                <div
+                  key={g.g}
+                  className="gen-rail"
+                  style={{ top: `${g.labelY}px` }}
+                >
+                  <span className="gen-pill">{g.labelText}</span>
+                </div>
+              ))}
 
-              const relLabel = viewer
-                ? calculateKinship(familyIndex, viewer, person.id, lang)[0]
-                : "";
+              {/* Member Cards */}
+              {treeState.data.people.map(person => {
+                if (hiddenMemberIds.has(person.id)) return null;
+                const pos = layout?.pos?.[person.id];
+                if (!pos) return null;
 
-              return (
-                <Card
-                  key={person.id}
-                  person={person}
-                  pos={pos}
-                  cardHeight={cardHeight}
-                  relationLabel={relLabel}
-                  photo={treeState.photos[person.id]}
-                  isMe={isMe}
-                  isHit={isHit}
-                  isDim={isDim}
-                  t={t}
-                  displayName={displayName}
-                  onClick={() => {
-                    if (!panRef.current.hasDragged && !pinchRef.current.hasPinched) {
-                      onCardClick(person.id);
-                    }
-                  }}
-                  onKeyDown={e => handleCardKeyDown(e, person.id)}
-                />
-              );
-            })}
+                const isMe = viewer === person.id;
+                const isHit = isSearchActive && searchMatches.some(m => m.id === person.id);
+                const isDim = isSearchActive && !isHit;
+
+                const relLabel = viewer
+                  ? calculateKinship(familyIndex, viewer, person.id, lang)[0]
+                  : "";
+
+                return (
+                  <Card
+                    key={person.id}
+                    person={person}
+                    pos={pos}
+                    cardHeight={cardHeight}
+                    relationLabel={relLabel}
+                    photo={treeState.photos[person.id]}
+                    isMe={isMe}
+                    isHit={isHit}
+                    isDim={isDim}
+                    t={t}
+                    displayName={displayName}
+                    onClick={() => {
+                      if (!panRef.current.hasDragged && !pinchRef.current.hasPinched) {
+                        onCardClick(person.id);
+                      }
+                    }}
+                    onKeyDown={e => handleCardKeyDown(e, person.id)}
+                  />
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
+      {/* Mobile Sub-Trees Drawer Toggle Button */}
+      <button
+        type="button"
+        className="subtrees-drawer-toggle"
+        aria-expanded={isSidebarOpen}
+        aria-label={subTreesLabel}
+        onClick={() => setIsSidebarOpen(prev => !prev)}
+      >
+        <span aria-hidden="true">🌿</span>
+        <span>{subTreesLabel}</span>
+      </button>
       {/* Floating Full-Screen Toggle Button */}
       <button
         type="button"

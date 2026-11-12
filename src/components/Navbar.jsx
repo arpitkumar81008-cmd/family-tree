@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import SettingsPopover from './SettingsPopover.jsx';
 import { isFirebaseConfigured } from '../services/firebase.js';
+import {
+  buildPrivateShareUrl,
+  generatePrivateShareToken,
+  updateTreeSharingSettings
+} from '../services/treeSync.js';
 
 export function Navbar({
   currentView = 'home',
@@ -11,12 +16,15 @@ export function Navbar({
   activeTreeTitle = '',
   activeTreeMeta = null,
   isPrivateTree,
+  hasPrivateTree,
   isOwner,
   user = null,
   onOpenAuth,
   onSignOut,
   onOpenTreesModal,
   onOpenShareModal,
+  onCreatePrivateTree,
+  onEnsurePrivateShareLink,
   onNavigateHome,
   onNavigateDemo,
   onNavigateMyTree,
@@ -224,6 +232,11 @@ export function Navbar({
     return key;
   });
 
+  const tr = (key, fallback) => {
+    const res = translate(key);
+    return !res || res === key ? fallback : res;
+  };
+
   const isHome = currentView === 'home';
   const isDemo = currentView === 'tree' && (!activeTreeId || activeTreeId === '');
   const isMyTree = currentView === 'tree' && Boolean(activeTreeId && activeTreeId.trim() !== '');
@@ -266,7 +279,52 @@ export function Navbar({
     !isDemoTree && (isPrivateTree ?? (activeTreeMeta && activeTreeMeta.isPublic === false))
   );
 
+  const showDemoTab = hasPrivateTree !== true;
+  const showMyTreeTab = hasPrivateTree !== false;
+  const showCreatePrivateCta = hasPrivateTree === false;
+
+  const handleCreatePrivateClick = () => {
+    if (onCreatePrivateTree) {
+      onCreatePrivateTree();
+    } else if (onOpenTreesModal) {
+      onOpenTreesModal();
+    } else if (onOpenAuth && !user) {
+      onOpenAuth();
+    }
+  };
+
   const copyShareLink = async () => {
+    if (isPrivate && activeTreeId) {
+      try {
+        let shareUrl = '';
+        if (onEnsurePrivateShareLink) {
+          const res = await onEnsurePrivateShareLink(activeTreeId);
+          if (typeof res === 'string') {
+            shareUrl = res.includes('view=tree') ? res : buildPrivateShareUrl(activeTreeId, res);
+          } else if (res && typeof res === 'object') {
+            shareUrl = res.url || buildPrivateShareUrl(activeTreeId, res.shareCode || '');
+          }
+        } else {
+          let code = (activeTreeMeta?.shareCode || '').trim().toUpperCase();
+          if (!code && isOwnerTree && user?.uid) {
+            code = generatePrivateShareToken();
+            await updateTreeSharingSettings(
+              activeTreeId,
+              { shareCode: code, shareCodeRole: activeTreeMeta?.shareCodeRole || 'viewer' },
+              user
+            );
+          }
+          shareUrl = buildPrivateShareUrl(activeTreeId, code);
+        }
+        if (shareUrl && navigator?.clipboard?.writeText) {
+          await navigator.clipboard.writeText(shareUrl);
+        }
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {}
+      return;
+    }
+
     if (onOpenShareModal) {
       onOpenShareModal();
       return;
@@ -323,36 +381,51 @@ export function Navbar({
           {translate('navHome')}
         </button>
 
-        <button
-          id="nav-btn-demo"
-          data-testid="nav-btn-demo"
-          type="button"
-          role="tab"
-          aria-selected={isDemo}
-          aria-current={isDemo ? 'page' : undefined}
-          className={`nav-tab${isDemo ? ' active' : ''}`}
-          aria-label={translate('navDemoTree')}
-          onClick={handleDemoClick}
-        >
-          {translate('navDemoTree')}
-        </button>
+        {showDemoTab && (
+          <button
+            id="nav-btn-demo"
+            data-testid="nav-btn-demo"
+            type="button"
+            role="tab"
+            aria-selected={isDemo}
+            aria-current={isDemo ? 'page' : undefined}
+            className={`nav-tab${isDemo ? ' active' : ''}`}
+            aria-label={translate('navDemoTree')}
+            onClick={handleDemoClick}
+          >
+            {translate('navDemoTree')}
+          </button>
+        )}
 
-        <button
-          id="nav-btn-mytree"
-          data-testid="nav-btn-mytree"
-          type="button"
-          role="tab"
-          aria-selected={isMyTree}
-          aria-current={isMyTree ? 'page' : undefined}
-          className={`nav-tab${isMyTree ? ' active' : ''}`}
-          aria-label={translate('navMyTree')}
-          onClick={handleMyTreeClick}
-        >
-          {translate('navMyTree')}
-        </button>
+        {showMyTreeTab && (
+          <button
+            id="nav-btn-mytree"
+            data-testid="nav-btn-mytree"
+            type="button"
+            role="tab"
+            aria-selected={isMyTree}
+            aria-current={isMyTree ? 'page' : undefined}
+            className={`nav-tab${isMyTree ? ' active' : ''}`}
+            aria-label={translate('navMyTree')}
+            onClick={handleMyTreeClick}
+          >
+            {translate('navMyTree')}
+          </button>
+        )}
       </div>
 
       <div className="nav-actions">
+        {showCreatePrivateCta && (
+          <button
+            id="nav-btn-create-private"
+            data-testid="nav-btn-create-private"
+            type="button"
+            className="btn nav-action-btn nav-create-private-cta"
+            onClick={handleCreatePrivateClick}
+          >
+            ✨ {tr('navCreatePrivateCta', lang === 'hi' ? 'अपना निजी वृक्ष बनाएं' : 'Create Your Private Tree')}
+          </button>
+        )}
         {currentView !== 'home' && (
           <span
             className="stats-badge nav-status-badge active-tree-badge"
@@ -383,7 +456,7 @@ export function Navbar({
           </span>
         )}
 
-        {(!activeTreeId || cloudConfigured) && (
+        {(!activeTreeId || cloudConfigured || isPrivate) && (
           <button
             type="button"
             className="zbtn nav-action-btn"

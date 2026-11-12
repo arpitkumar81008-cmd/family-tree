@@ -7,7 +7,7 @@
 export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId = "") {
   const CARD_W = 96, COUPLE_GAP = 16, SIBLING_GAP = 24, SECTOR_GAP = 140, TREE_GAP = 80, TOP_PAD = 50, LEFT_PAD = 80;
   let { people, couples } = data;
-  if (!people || !people.length) return { pos: {}, W: 320, H: 200, path: "", guideLines: "", genLabels: [], branchLabels: [] };
+  if (!people || !people.length) return { pos: {}, W: 320, H: 200, path: "", guideLines: "", genLabels: [], branchLabels: [], subTrees: [] };
   const ROW_GAP = Math.max(128, Math.min(240, 88 + Math.max(0, (couples?.length || 0) - 8) * 6));
 
   let byId = {};
@@ -204,6 +204,7 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
     // 6. Position Main Tree in the Center
     let pos = {};
     let placedCards = [];
+    let mainMemberIds = new Set();
 
     function positionSubtree(item, leftX, depth, visitedItems = new Set()) {
       if (visitedItems.has(item)) return;
@@ -220,6 +221,7 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
         let cardX = leftX + (subW - CARD_W) / 2;
         pos[pId] = { x: cardX, y: rowY };
         placedCards.push({ id: pId, x: cardX, y: rowY });
+        mainMemberIds.add(pId);
       } else {
         let c = item;
         let unitW = (c.h && c.w) ? CARD_W * 2 + COUPLE_GAP : CARD_W;
@@ -230,12 +232,16 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
           pos[c.w] = { x: unitLeftX + CARD_W + COUPLE_GAP, y: rowY };
           placedCards.push({ id: c.h, x: unitLeftX, y: rowY });
           placedCards.push({ id: c.w, x: unitLeftX + CARD_W + COUPLE_GAP, y: rowY });
+          mainMemberIds.add(c.h);
+          mainMemberIds.add(c.w);
         } else if (c.h) {
           pos[c.h] = { x: unitLeftX, y: rowY };
           placedCards.push({ id: c.h, x: unitLeftX, y: rowY });
+          mainMemberIds.add(c.h);
         } else if (c.w) {
           pos[c.w] = { x: unitLeftX, y: rowY };
           placedCards.push({ id: c.w, x: unitLeftX, y: rowY });
+          mainMemberIds.add(c.w);
         }
 
         let kids = c.kids || [];
@@ -361,7 +367,7 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
 
     let spouseStartX = mainTreeMaxX + SECTOR_GAP;
 
-    function positionInLawSubtree(item, leftX, depth, visitedItems = new Set()) {
+    function positionInLawSubtree(item, leftX, depth, visitedItems = new Set(), memberCollector = null) {
       if (visitedItems.has(item)) return;
       let nextVisited = new Set(visitedItems);
       nextVisited.add(item);
@@ -371,12 +377,13 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
         let pId = item;
         let matchingCouples = spouseCouples.filter(sc => sc.h === pId || sc.w === pId);
         let unplacedCouple = matchingCouples.find(sc => !pos[sc.h] || (sc.w && !pos[sc.w]));
-        if (unplacedCouple) return positionInLawSubtree(unplacedCouple, leftX, depth, nextVisited);
+        if (unplacedCouple) return positionInLawSubtree(unplacedCouple, leftX, depth, nextVisited, memberCollector);
         if (!pos[pId]) {
           let sw = nodeSubtreeWidth.get(pId) || CARD_W;
           let cardX = leftX + (sw - CARD_W) / 2;
           pos[pId] = { x: cardX, y: rowY };
           placedCards.push({ id: pId, x: cardX, y: rowY });
+          if (memberCollector) memberCollector.add(pId);
         }
       } else {
         let c = item;
@@ -388,17 +395,21 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
           if (!pos[c.h]) {
             pos[c.h] = { x: coupleLeftX, y: rowY };
             placedCards.push({ id: c.h, x: coupleLeftX, y: rowY });
+            if (memberCollector) memberCollector.add(c.h);
           }
           if (!pos[c.w]) {
             pos[c.w] = { x: coupleLeftX + CARD_W + COUPLE_GAP, y: rowY };
             placedCards.push({ id: c.w, x: coupleLeftX + CARD_W + COUPLE_GAP, y: rowY });
+            if (memberCollector) memberCollector.add(c.w);
           }
         } else if (c.h && !pos[c.h]) {
           pos[c.h] = { x: coupleLeftX, y: rowY };
           placedCards.push({ id: c.h, x: coupleLeftX, y: rowY });
+          if (memberCollector) memberCollector.add(c.h);
         } else if (c.w && !pos[c.w]) {
           pos[c.w] = { x: coupleLeftX, y: rowY };
           placedCards.push({ id: c.w, x: coupleLeftX, y: rowY });
+          if (memberCollector) memberCollector.add(c.w);
         }
 
         let kids = (c.kids || []).filter(kId => !mainDescendants.has(kId) && !personMainCouple.has(kId));
@@ -426,7 +437,7 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
           let curChildLeft = leftX + (sw - totalChildW) / 2;
           childItems.forEach(child => {
             let cw = nodeSubtreeWidth.get(child) || CARD_W;
-            positionInLawSubtree(child, curChildLeft, depth + 1, nextVisited);
+            positionInLawSubtree(child, curChildLeft, depth + 1, nextVisited, memberCollector);
             curChildLeft += cw + SIBLING_GAP;
           });
         }
@@ -451,11 +462,23 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       return null;
     }
 
-    inLawRootCouples.forEach(rc => {
+    let inLawSubTreeRecords = [];
+    function findOwnerMemberSet(relatedIds = []) {
+      for (let rid of relatedIds) {
+        if (!rid) continue;
+        if (mainMemberIds.has(rid)) return mainMemberIds;
+        let found = inLawSubTreeRecords.find(rec => rec.memberSet.has(rid));
+        if (found) return found.memberSet;
+      }
+      return null;
+    }
+
+    inLawRootCouples.forEach((rc, rcIdx) => {
       let rcDepth = depthMap.get(rc) !== undefined ? depthMap.get(rc) : 1;
       let rcSubtreeW = nodeSubtreeWidth.get(rc) || (CARD_W * 2 + COUPLE_GAP);
+      let memberCollector = new Set();
 
-      positionInLawSubtree(rc, spouseStartX, rcDepth);
+      positionInLawSubtree(rc, spouseStartX, rcDepth, new Set(), memberCollector);
 
       let branchTitle = lang === 'hi' ? '✦ ससुराल पक्ष (मायका)' : "✦ In-Law Family Branch";
       let linkedSpouseId = findLinkedMainSpouseInSubtree(rc);
@@ -472,11 +495,21 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
         y: TOP_PAD + rcDepth * (cardHeight + ROW_GAP) - 30
       });
 
+      if (memberCollector.size > 0) {
+        inLawSubTreeRecords.push({
+          id: `inlaw-${rc.h || rc.w || rcIdx}`,
+          title: branchTitle.replace(/^[★✦]\s*/, ''),
+          isMain: false,
+          rootIds: [rc.h, rc.w].filter(Boolean),
+          memberSet: memberCollector
+        });
+      }
+
       spouseStartX += Math.max(rcSubtreeW, 220) + SECTOR_GAP;
     });
 
     // 8b. Place any remaining spouse couples that weren't reached via inLawRootCouples
-    spouseCouples.forEach(sc => {
+    spouseCouples.forEach((sc, scIdx) => {
       let isHPlaced = sc.h && pos[sc.h];
       let isWPlaced = sc.w && pos[sc.w];
       if (isHPlaced && isWPlaced) {
@@ -485,6 +518,7 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
         let parentDepth = Math.round((parentY - TOP_PAD) / (cardHeight + ROW_GAP));
         let kids = (sc.kids || []).filter(kId => !pos[kId]);
         if (kids.length) {
+          let ownerSet = findOwnerMemberSet([sc.h, sc.w]);
           let kidDepth = parentDepth + 1;
           let kidRowY = TOP_PAD + kidDepth * (cardHeight + ROW_GAP);
           let cardsOnRow = placedCards.filter(c => Math.abs(pos[c.id].y - kidRowY) < 10);
@@ -493,26 +527,47 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
           kids.forEach(kId => {
             pos[kId] = { x: curX, y: kidRowY };
             placedCards.push({ id: kId, x: curX, y: kidRowY });
+            if (ownerSet) ownerSet.add(kId);
             curX += CARD_W + SIBLING_GAP;
           });
         }
         return;
       }
 
+      let ownerSet = findOwnerMemberSet([sc.h, sc.w]);
       if (isHPlaced && sc.w && !pos[sc.w]) {
         let hy = pos[sc.h].y;
         let hx = pos[sc.h].x;
         pos[sc.w] = { x: hx + CARD_W + COUPLE_GAP, y: hy };
         placedCards.push({ id: sc.w, x: pos[sc.w].x, y: hy });
+        if (ownerSet) ownerSet.add(sc.w);
       } else if (isWPlaced && sc.h && !pos[sc.h]) {
         let wy = pos[sc.w].y;
         let wx = pos[sc.w].x;
         pos[sc.h] = { x: wx - CARD_W - COUPLE_GAP, y: wy };
         placedCards.push({ id: sc.h, x: pos[sc.h].x, y: wy });
+        if (ownerSet) ownerSet.add(sc.h);
       } else if (!isHPlaced && !isWPlaced) {
         let scDepth = depthMap.get(sc) !== undefined ? depthMap.get(sc) : 2;
         let scSubtreeW = nodeSubtreeWidth.get(sc) || (CARD_W * 2 + COUPLE_GAP);
-        positionInLawSubtree(sc, spouseStartX, scDepth);
+        let extraCollector = new Set();
+        positionInLawSubtree(sc, spouseStartX, scDepth, new Set(), extraCollector);
+        if (extraCollector.size > 0) {
+          let headPerson = byId[sc.h || sc.w];
+          let fallbackTitle = headPerson
+            ? (lang === 'hi'
+                ? `${headPerson.hi || headPerson.name} परिवार`
+                : `${headPerson.name} Family`)
+            : (lang === 'hi' ? 'अन्य परिवार शाखा' : 'Side Family Branch');
+          inLawSubTreeRecords.push({
+            id: `side-${sc.h || sc.w || scIdx}`,
+            title: fallbackTitle,
+            isMain: false,
+            rootIds: [sc.h, sc.w].filter(Boolean),
+            memberSet: extraCollector
+          });
+          ownerSet = extraCollector;
+        }
         spouseStartX += Math.max(scSubtreeW, 220) + SECTOR_GAP;
       }
 
@@ -529,12 +584,14 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
         unplacedKids.forEach(kId => {
           pos[kId] = { x: curX, y: kidRowY };
           placedCards.push({ id: kId, x: curX, y: kidRowY });
+          if (ownerSet) ownerSet.add(kId);
           curX += CARD_W + SIBLING_GAP;
         });
       }
     });
 
     // Universal generation-aware fallback for any individual still unplaced
+    let otherMemberIds = new Set();
     people.forEach(p => {
       if (!pos[p.id]) {
         let targetDepth = 0;
@@ -562,6 +619,13 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
         let x = maxRowX + CARD_W + SIBLING_GAP;
         pos[p.id] = { x, y: rowY };
         placedCards.push({ id: p.id, x, y: rowY });
+
+        let ownerSet = findOwnerMemberSet([...pars, spouse[p.id], ...kidsOf(p.id), ...sibsOf(p.id)]);
+        if (ownerSet) {
+          ownerSet.add(p.id);
+        } else {
+          otherMemberIds.add(p.id);
+        }
       }
     });
 
@@ -800,6 +864,71 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       guideLines += `M${LEFT_PAD - 40} ${rowY - 20}H${maxW + 40} `;
     }
 
+    function computeBoundingBox(memberIds) {
+      let valid = memberIds.filter(id => pos[id]);
+      if (!valid.length) return { x: 0, y: 0, w: 0, h: 0 };
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      valid.forEach(id => {
+        let p = pos[id];
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x + CARD_W > maxX) maxX = p.x + CARD_W;
+        if (p.y + cardHeight > maxY) maxY = p.y + cardHeight;
+      });
+      return {
+        x: minX,
+        y: minY,
+        w: maxX - minX,
+        h: maxY - minY
+      };
+    }
+
+    let subTrees = [];
+    if (mainMemberIds.size > 0) {
+      let mainRoots = [];
+      mainTopCouples.forEach(c => {
+        if (c.h && !mainRoots.includes(c.h)) mainRoots.push(c.h);
+        if (c.w && !mainRoots.includes(c.w)) mainRoots.push(c.w);
+      });
+      if (!mainRoots.length && mainPatriarchId) mainRoots.push(mainPatriarchId);
+      let mainList = Array.from(mainMemberIds).filter(id => pos[id]);
+      subTrees.push({
+        id: 'main',
+        title: mainBranchLabelText.replace(/^[★✦]\s*/, ''),
+        isMain: true,
+        rootIds: mainRoots,
+        memberIds: mainList,
+        boundingBox: computeBoundingBox(mainList)
+      });
+    }
+
+    inLawSubTreeRecords.forEach(rec => {
+      let memberList = Array.from(rec.memberSet).filter(id => pos[id]);
+      if (!memberList.length) return;
+      subTrees.push({
+        id: rec.id,
+        title: rec.title,
+        isMain: false,
+        rootIds: rec.rootIds,
+        memberIds: memberList,
+        boundingBox: computeBoundingBox(memberList)
+      });
+    });
+
+    if (otherMemberIds.size > 0) {
+      let otherList = Array.from(otherMemberIds).filter(id => pos[id]);
+      if (otherList.length) {
+        subTrees.push({
+          id: 'other',
+          title: lang === 'hi' ? 'अन्य सदस्य' : 'Extended / Other',
+          isMain: false,
+          rootIds: [otherList[0]],
+          memberIds: otherList,
+          boundingBox: computeBoundingBox(otherList)
+        });
+      }
+    }
+
     return {
       pos,
       W: Math.max(maxW + 80, 800),
@@ -811,7 +940,8 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       guideLines,
       genLabels,
       branchLabels,
-      mainMidX: (mainTreeMinX + mainTreeMaxX) / 2
+      mainMidX: (mainTreeMinX + mainTreeMaxX) / 2,
+      subTrees
     };
   }
 
@@ -1303,7 +1433,8 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       bridgePath,
       guideLines: "",
       genLabels: [],
-      branchLabels
+      branchLabels,
+      subTrees: []
     };
   }
 };

@@ -103,10 +103,49 @@ export function hasMatchingShareCode(treeMeta) {
   return false;
 }
 
+const SHARE_TOKEN_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+/**
+ * Generates a cryptographically random uppercase share token using crypto.getRandomValues.
+ */
+export function generatePrivateShareToken(length = 12) {
+  const len = Math.max(8, Math.min(32, Number(length) || 12));
+  const bytes = new Uint8Array(len);
+  if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < len; i += 1) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  let token = '';
+  for (let i = 0; i < len; i += 1) {
+    token += SHARE_TOKEN_ALPHABET[bytes[i] % SHARE_TOKEN_ALPHABET.length];
+  }
+  return token;
+}
+
+/**
+ * Builds a shareable URL (?view=tree&tree=<id>&code=<token>) for a private or public tree.
+ */
+export function buildPrivateShareUrl(treeId, shareCode = '') {
+  const cleanId = String(treeId || '').trim();
+  const cleanCode = String(shareCode || '').trim().toUpperCase();
+  const params = new URLSearchParams();
+  params.set('view', 'tree');
+  if (cleanId) params.set('tree', cleanId);
+  if (cleanCode) params.set('code', cleanCode);
+  const queryStr = `?${params.toString()}`;
+  if (typeof window !== 'undefined' && window.location) {
+    return `${window.location.origin}${window.location.pathname}${queryStr}`;
+  }
+  return queryStr;
+}
+
 export function canUserEditTree(treeMeta, user) {
   if (!treeMeta) return false;
   if (user?.uid) {
-    if (treeMeta.ownerUid === user.uid) return true;
+    if (treeMeta.ownerUid === user.uid || treeMeta.ownerId === user.uid) return true;
     if (Array.isArray(treeMeta.collaboratorUids) && treeMeta.collaboratorUids.includes(user.uid)) {
       return true;
     }
@@ -281,11 +320,20 @@ export function setTreeIdInUrl(treeId) {
 /**
  * Subscribes to a specific tree by ID (from Firestore if configured, otherwise local registry).
  * Ignores snapshots triggered by local pending writes to prevent infinite update loops.
+ * Enforces access control via canUserViewTree without leaking nodes on unauthorized access.
  */
-export function subscribeToTree(treeId, onUpdate, onError) {
+export function subscribeToTree(treeId, onUpdate, onError, options = {}) {
   if (!treeId) return () => {};
 
-  const { db } = getFirebaseClients();
+  const { db, auth } = getFirebaseClients();
+  const resolvedUser = options?.user !== undefined ? options.user : (auth?.currentUser ?? null);
+
+  const emitAccessDenied = () => {
+    const accessErr = new Error('Access denied');
+    accessErr.code = 'ACCESS_DENIED';
+    onError?.(accessErr);
+  };
+
   if (db && isFirebaseConfigured()) {
     const ref = doc(db, 'trees', treeId);
     return onSnapshot(
@@ -295,20 +343,34 @@ export function subscribeToTree(treeId, onUpdate, onError) {
           return;
         }
         if (snap.exists()) {
-          onUpdate({ id: snap.id, ...snap.data() });
+          const docData = { id: snap.id, ...snap.data() };
+          if (!canUserViewTree(docData, resolvedUser)) {
+            emitAccessDenied();
+            return;
+          }
+          onUpdate(docData);
         } else {
           onError?.(new Error('Tree not found'));
         }
       },
       err => {
-        onError?.(err);
+        if (err?.code === 'permission-denied') {
+          emitAccessDenied();
+        } else {
+          onError?.(err);
+        }
       }
     );
   }
 
   const localMap = readLocalTrees();
   if (localMap[treeId]) {
-    onUpdate({ id: treeId, ...localMap[treeId] });
+    const docData = { id: treeId, ...localMap[treeId] };
+    if (!canUserViewTree(docData, resolvedUser)) {
+      emitAccessDenied();
+      return () => {};
+    }
+    onUpdate(docData);
   } else {
     onError?.(new Error('Tree not found'));
   }
@@ -381,7 +443,10 @@ export async function listAvailableTrees(user) {
           try {
             const snap = await getDoc(doc(db, 'trees', unlockedTreeId));
             if (snap.exists()) {
-              results.set(snap.id, { id: snap.id, ...snap.data() });
+              const docData = { id: snap.id, ...snap.data() };
+              if (canUserViewTree(docData, user)) {
+                results.set(snap.id, docData);
+              }
             }
           } catch {}
         }
@@ -391,7 +456,7 @@ export async function listAvailableTrees(user) {
     }
   }
 
-  return Array.from(results.values());
+  return Array.from(results.values()).filter(t => canUserViewTree(t, user));
 }
 
 /**
