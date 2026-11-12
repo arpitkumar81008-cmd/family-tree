@@ -11,9 +11,15 @@ export function Toolbar({
   t,
   lang,
   onOpenAddModal,
+  onOpenRelationSolver,
   canEdit = true,
   familyIndex
 }) {
+  const tr = (key, fallback) => {
+    if (typeof t !== 'function') return fallback;
+    const res = t(key);
+    return !res || res === key ? fallback : res;
+  };
   return (
     <div className="bar" role="region" aria-label={t("controlsAria")}>
       {/* Perspective dropdown & Reset Button */}
@@ -59,6 +65,18 @@ export function Toolbar({
           <kbd className="kbd-hint">/</kbd>
         </div>
       </div>
+
+      {/* Find Relation Solver Button */}
+      {onOpenRelationSolver && (
+        <button
+          type="button"
+          className="btn ghost toolbar-relation-btn"
+          style={{ height: "38px" }}
+          onClick={onOpenRelationSolver}
+        >
+          🔗 {tr('findRelationBtn', lang === 'hi' ? 'रिश्ता खोजें' : 'Find Relation')}
+        </button>
+      )}
 
       {/* Add Member Button (only shown when user can edit this tree) */}
       {canEdit && (

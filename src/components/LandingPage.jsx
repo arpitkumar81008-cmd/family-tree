@@ -3,12 +3,20 @@ import { animate, stagger } from 'motion';
 
 export function LandingPage({
   t,
+  lang = 'en',
+  hasPrivateTree = false,
   memberCount,
   generationCount,
   branchCount,
   onExplore,
-  onCreate
+  onCreate,
+  onNavigateMyTree
 }) {
+  const tr = (key, fallback) => {
+    if (typeof t !== 'function') return fallback;
+    const res = t(key);
+    return !res || res === key ? fallback : res;
+  };
   const rootRef = useRef(null);
 
   useEffect(() => {
@@ -87,12 +95,24 @@ export function LandingPage({
         <h1 className="hero-title">{t('landTitle')}</h1>
         <p className="hero-lede hover-explanation">{t('landLede')}</p>
         <div className="hero-cta">
-          <button type="button" className="btn btn-lg land-cta-primary" onClick={onExplore}>
-            {t('landCtaExplore')}
-          </button>
-          <button type="button" className="btn ghost btn-lg" onClick={onCreate}>
-            {t('landCtaCreate')}
-          </button>
+          {hasPrivateTree ? (
+            <button
+              type="button"
+              className="btn btn-lg land-cta-primary"
+              onClick={onNavigateMyTree || onCreate}
+            >
+              🌳 {tr('navMyTree', lang === 'hi' ? 'मेरा निजी वृक्ष' : 'My Private Tree')} →
+            </button>
+          ) : (
+            <>
+              <button type="button" className="btn btn-lg land-cta-primary" onClick={onExplore}>
+                {t('landCtaExplore')}
+              </button>
+              <button type="button" className="btn ghost btn-lg land-cta-create" onClick={onCreate}>
+                ✨ {tr('navCreatePrivateCta', lang === 'hi' ? 'अपना निजी वृक्ष बनाएं' : 'Create Your Private Tree')}
+              </button>
+            </>
+          )}
         </div>
       </section>
 
@@ -135,8 +155,8 @@ export function LandingPage({
           <p className="eyebrow">{t('spotlightEyebrow')}</p>
           <h2 className="section-title">{t('spotlightTitle')}</h2>
           <p className="hover-explanation">{t('spotlightBody')}</p>
-          <button type="button" className="btn ghost" onClick={onExplore}>
-            {t('spotlightCta')}
+          <button type="button" className="btn ghost" onClick={hasPrivateTree ? (onNavigateMyTree || onCreate) : onExplore}>
+            {hasPrivateTree ? tr('navMyTree', lang === 'hi' ? 'मेरा निजी वृक्ष' : 'My Private Tree') : t('spotlightCta')}
           </button>
         </div>
       </section>

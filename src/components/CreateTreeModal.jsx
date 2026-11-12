@@ -12,6 +12,7 @@ export function CreateTreeModal({
   t,
   user,
   activeTreeId,
+  hasPrivateTree = false,
   close,
   onOpenAuth,
   onSelectTree,
@@ -192,26 +193,28 @@ export function CreateTreeModal({
           <h3>{t('browsePublicTitle')}</h3>
           <p className="muted hover-explanation">{t('browsePublicBody')}</p>
           <ul className="tree-directory" ref={directoryListRef}>
-            <li>
-              <div>
-                <strong>{t('canonicalTreeName')}</strong>
-                <span className="muted"> · {t('readOnlyBadge')}</span>
-              </div>
-              <button
-                ref={!user ? firstRef : null}
-                type="button"
-                className="chip"
-                onClick={() => {
-                  onSelectTree?.('');
-                  close();
-                }}
-              >
-                {activeTreeId === '' ? '✓ ' : ''}
-                {t('openTreeBtn')}
-              </button>
-            </li>
+            {!hasPrivateTree && (
+              <li>
+                <div>
+                  <strong>{t('canonicalTreeName')}</strong>
+                  <span className="muted"> · {t('readOnlyBadge')}</span>
+                </div>
+                <button
+                  ref={!user ? firstRef : null}
+                  type="button"
+                  className="chip"
+                  onClick={() => {
+                    onSelectTree?.('');
+                    close();
+                  }}
+                >
+                  {activeTreeId === '' ? '✓ ' : ''}
+                  {t('openTreeBtn')}
+                </button>
+              </li>
+            )}
             {publicTrees
-              .filter(tr => tr.id !== 'tree_demo_sharma')
+              .filter(tr => tr.id !== 'tree_demo_sharma' && (!hasPrivateTree || tr.id !== 'tree_demo_kapoor'))
               .map(tr => {
                 const isUserOwner = Boolean(user && tr.ownerUid === user.uid);
                 const isUserEditor = !isUserOwner && canUserEditTree(tr, user);

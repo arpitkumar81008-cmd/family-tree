@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   updateTreeSharingSettings,
-  findTreeByShareCode
+  findTreeByShareCode,
+  generatePrivateShareToken,
+  buildPrivateShareUrl
 } from '../services/treeSync.js';
 
 export function ShareTreeModal({
@@ -81,13 +83,7 @@ export function ShareTreeModal({
   };
 
   const handleGenerateCode = () => {
-    const prefix = (activeTreeMeta?.title || 'FAMILY')
-      .replace(/[^a-zA-Z]/g, '')
-      .toUpperCase()
-      .slice(0, 6) || 'FAMILY';
-    const year = new Date().getFullYear();
-    const generated = `${prefix}-${year}`;
-    setShareCode(generated);
+    setShareCode(generatePrivateShareToken());
   };
 
   const handleSaveCode = async e => {
@@ -103,16 +99,17 @@ export function ShareTreeModal({
 
   const handleCopyInviteLink = async () => {
     try {
-      const url = new URL(window.location.origin + window.location.pathname);
-      url.searchParams.set('view', 'tree');
-      if (activeTreeId) {
-        url.searchParams.set('tree', activeTreeId);
+      let cleanCode = shareCode.trim().toUpperCase();
+      if (!cleanCode && isOwner && activeTreeId) {
+        cleanCode = generatePrivateShareToken();
+        setShareCode(cleanCode);
+        await applySharingPatch({
+          shareCode: cleanCode,
+          shareCodeRole
+        });
       }
-      const cleanCode = shareCode.trim().toUpperCase();
-      if (cleanCode) {
-        url.searchParams.set('code', cleanCode);
-      }
-      await navigator.clipboard.writeText(url.toString());
+      const shareUrl = buildPrivateShareUrl(activeTreeId, cleanCode);
+      await navigator.clipboard.writeText(shareUrl);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
     } catch {}

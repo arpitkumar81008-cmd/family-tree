@@ -1,62 +1,76 @@
 /**
- * Public Demo Family Tree - Fictional "Sharma Family Lineage" (22 members across 4 generations)
+ * Public Demo Family Tree - "The Kapoor Family Lineage" (31 members across 5 generations)
  * Used as the default public demonstration dataset so no personal/private family data is shipped in the public bundle.
  */
 
-const createPerson = (id, name, hi, g, late = false) => ({
+const createPerson = (id, name, hi, g, { late = false, dob = '' } = {}) => ({
   id,
   name,
   hi,
   g,
+  ...(dob ? { dob } : {}),
   ...(late ? { late: true } : {})
 });
 
 export const INITIAL_DATA = {
   people: [
     // Generation 0 — Founding Ancestors
-    createPerson("raghunath", "Raghunath Sharma", "रघुनाथ शर्मा", "M", true),
-    createPerson("kalyani", "Kalyani Devi", "कल्याणी देवी", "F", true),
+    createPerson('prithviraj', 'Prithviraj Kapoor', 'पृथ्वीराज कपूर', 'M', { late: true, dob: '1906-11-03' }),
+    createPerson('ramsarni', 'Ramsarni Mehra', 'रामसरनी मेहरा', 'F', { late: true }),
 
-    // Generation 1 — Grandparents
-    createPerson("mahendra", "Mahendra Sharma", "महेंद्र शर्मा", "M", true),
-    createPerson("saraswati", "Saraswati Devi", "सरस्वती देवी", "F", true),
-    createPerson("surendra", "Surendra Sharma", "सुरेंद्र शर्मा", "M"),
-    createPerson("vimla", "Vimla Devi", "विमला देवी", "F"),
+    // Generation 1 — Sons & Spouses
+    createPerson('raj', 'Raj Kapoor', 'राज कपूर', 'M', { late: true, dob: '1924-12-14' }),
+    createPerson('krishna', 'Krishna Malhotra', 'कृष्णा मल्होत्रा', 'F', { late: true, dob: '1930-05-12' }),
+    createPerson('shammi', 'Shammi Kapoor', 'शम्मी कपूर', 'M', { late: true, dob: '1931-10-21' }),
+    createPerson('geeta', 'Geeta Bali', 'गीता बाली', 'F', { late: true, dob: '1930-11-30' }),
+    createPerson('shashi', 'Shashi Kapoor', 'शशी कपूर', 'M', { late: true, dob: '1938-03-18' }),
+    createPerson('jennifer', 'Jennifer Kendal', 'जेनिफर केंडल', 'F', { late: true, dob: '1933-02-28' }),
 
-    // Generation 2 — Parents + Aunts/Uncles + In-Law Root
-    createPerson("rajesh", "Rajesh Sharma", "राजेश शर्मा", "M"),
-    createPerson("sunita", "Sunita Sharma", "सुनीता शर्मा", "F"),
-    createPerson("dinesh", "Dinesh Sharma", "दिनेश शर्मा", "M"),
-    createPerson("meena", "Meena Sharma", "मीना शर्मा", "F"),
-    createPerson("kavita", "Kavita Verma", "कविता वर्मा", "F"),
-    createPerson("sanjay", "Sanjay Verma", "संजय वर्मा", "M"),
-    createPerson("vikram", "Vikram Mishra", "विक्रम मिश्रा", "M"),
-    createPerson("asha", "Asha Mishra", "आशा मिश्रा", "F"),
+    // Generation 2 — Children of Raj, Shammi, Shashi + Spouses + In-Law Branches
+    createPerson('randhir', 'Randhir Kapoor', 'रणधीर कपूर', 'M', { dob: '1947-02-15' }),
+    createPerson('babita', 'Babita Shivdasani', 'बबीता शिवदासानी', 'F', { dob: '1947-04-20' }),
+    createPerson('ritu', 'Ritu Nanda', 'ऋतु नंदा', 'F', { late: true, dob: '1948-10-30' }),
+    createPerson('rajan', 'Rajan Nanda', 'राजन नंदा', 'M', { late: true, dob: '1942-05-24' }),
+    createPerson('rishi', 'Rishi Kapoor', 'ऋषि कपूर', 'M', { late: true, dob: '1952-09-04' }),
+    createPerson('neetu', 'Neetu Singh', 'नीतू सिंह', 'F', { dob: '1958-07-08' }),
+    createPerson('rajiv', 'Rajiv Kapoor', 'राजीव कपूर', 'M', { late: true, dob: '1962-08-25' }),
+    createPerson('aditya', 'Aditya Raj Kapoor', 'आदित्य राज कपूर', 'M', { dob: '1956-07-01' }),
+    createPerson('kunal', 'Kunal Kapoor', 'कुणाल कपूर', 'M', { dob: '1959-09-29' }),
+    createPerson('sanjana', 'Sanjana Kapoor', 'संजना कपूर', 'F', { dob: '1967-11-27' }),
 
-    // Generation 3 — Focal Generation & Cousins & In-Law Siblings
-    createPerson("rohan", "Rohan Sharma", "रोहन शर्मा", "M"),
-    createPerson("ananya", "Ananya Sharma", "अनन्या शर्मा", "F"),
-    createPerson("sidharth", "Sidharth Sharma", "सिद्धार्थ शर्मा", "M"),
-    createPerson("pooja", "Pooja Sharma", "पूजा शर्मा", "F"),
-    createPerson("nikhil", "Nikhil Sharma", "निखिल शर्मा", "M"),
-    createPerson("kriti", "Kriti Mishra", "कृति मिश्रा", "F"),
-    createPerson("dev", "Dev Mishra", "देव मिश्रा", "M"),
+    // In-law Branch: Neetu Singh's Parents
+    createPerson('darshan', 'Darshan Singh', 'दर्शन सिंह', 'M', { late: true }),
+    createPerson('raji', 'Rajee Kaur', 'राजी कौर', 'F', { late: true }),
 
-    // Generation 4 — Grandchildren
-    createPerson("aarav", "Aarav Sharma", "आरव शर्मा", "M"),
-    createPerson("diya", "Diya Sharma", "दिया शर्मा", "F"),
-    createPerson("vihaan", "Vihaan Sharma", "विहान शर्मा", "M")
+    // In-law Branch: Alia Bhatt's Parents
+    createPerson('mahesh', 'Mahesh Bhatt', 'महेश भट्ट', 'M', { dob: '1948-09-20' }),
+    createPerson('soni', 'Soni Razdan', 'सोनी राजदान', 'F', { dob: '1956-10-25' }),
+
+    // Generation 3 — Grandchildren & Spouses
+    createPerson('karisma', 'Karisma Kapoor', 'करिश्मा कपूर', 'F', { dob: '1974-06-25' }),
+    createPerson('kareena', 'Kareena Kapoor', 'करीना कपूर', 'F', { dob: '1980-09-21' }),
+    createPerson('saif', 'Saif Ali Khan', 'सैफ अली खान', 'M', { dob: '1970-08-16' }),
+    createPerson('riddhima', 'Riddhima Kapoor Sahni', 'रिद्धिमा कपूर साहनी', 'F', { dob: '1980-09-15' }),
+    createPerson('ranbir', 'Ranbir Kapoor', 'रणबीर कपूर', 'M', { dob: '1982-09-28' }),
+    createPerson('alia', 'Alia Bhatt', 'आलिया भट्ट', 'F', { dob: '1993-03-15' }),
+
+    // Generation 4 — Great-Grandchildren
+    createPerson('taimur', 'Taimur Ali Khan', 'तैमूर अली खान', 'M', { dob: '2016-12-20' }),
+    createPerson('jeh', 'Jehangir Ali Khan', 'जेहंगीर अली खान', 'M', { dob: '2021-02-21' }),
+    createPerson('raha', 'Raha Kapoor', 'राहा कपूर', 'F', { dob: '2022-11-06' })
   ],
   couples: [
-    { h: "raghunath", w: "kalyani", kids: ["mahendra", "surendra"] },
-    { h: "mahendra", w: "saraswati", kids: ["rajesh", "dinesh", "kavita"] },
-    { h: "surendra", w: "vimla", kids: ["nikhil"] },
-    { h: "rajesh", w: "sunita", kids: ["rohan", "sidharth"] },
-    { h: "dinesh", w: "meena", kids: [] },
-    { h: "sanjay", w: "kavita", kids: [] },
-    { h: "rohan", w: "ananya", kids: ["aarav", "diya"] },
-    { h: "sidharth", w: "pooja", kids: ["vihaan"] },
-    { h: "vikram", w: "asha", kids: ["ananya", "kriti", "dev"] }
+    { h: 'prithviraj', w: 'ramsarni', kids: ['raj', 'shammi', 'shashi'] },
+    { h: 'raj', w: 'krishna', kids: ['randhir', 'ritu', 'rishi', 'rajiv'] },
+    { h: 'shammi', w: 'geeta', kids: ['aditya'] },
+    { h: 'shashi', w: 'jennifer', kids: ['kunal', 'sanjana'] },
+    { h: 'randhir', w: 'babita', kids: ['karisma', 'kareena'] },
+    { h: 'rajan', w: 'ritu', kids: [] },
+    { h: 'rishi', w: 'neetu', kids: ['riddhima', 'ranbir'] },
+    { h: 'darshan', w: 'raji', kids: ['neetu'] },
+    { h: 'saif', w: 'kareena', kids: ['taimur', 'jeh'] },
+    { h: 'ranbir', w: 'alia', kids: ['raha'] },
+    { h: 'mahesh', w: 'soni', kids: ['alia'] }
   ]
 };
 
@@ -99,7 +113,7 @@ export function buildFamilyIndex(data) {
     kidsOf: id => children[id] || [],
     parOf: id => parents[id] || [],
     sibsOf: id => (cok[id] ? cok[id].kids.filter(k => k !== id) : []),
-    male: id => byId[id]?.g === "M",
+    male: id => byId[id]?.g === 'M',
     elder: (a, b) => {
       const kids = cok[a]?.kids;
       return kids ? kids.indexOf(a) < kids.indexOf(b) : false;
@@ -110,11 +124,11 @@ export function buildFamilyIndex(data) {
 /**
  * Extracts 1-2 letter initials from a person's display name.
  */
-export function getInitials(name = "") {
+export function getInitials(name = '') {
   return name
-    .split(" ")
-    .filter(w => w && !["Gupta", "Sharma", "Shri", "गुप्ता", "शर्मा", "श्री"].includes(w))
+    .split(' ')
+    .filter(w => w && !['Gupta', 'Sharma', 'Shri', 'गुप्ता', 'शर्मा', 'श्री'].includes(w))
     .slice(0, 2)
     .map(w => Array.from(w)[0])
-    .join("");
+    .join('');
 }
