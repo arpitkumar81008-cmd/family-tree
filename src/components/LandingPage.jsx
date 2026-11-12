@@ -422,6 +422,16 @@ export function LandingPage({
             loading="lazy"
             decoding="async"
           />
+          <div className="spotlight-media-overlay">
+            <span className="spotlight-overlay-badge">
+              {lang === 'hi' ? 'स्थानिक इंजन' : 'SPATIAL ENGINE'}
+            </span>
+            <p className="spotlight-overlay-caption">
+              {lang === 'hi'
+                ? 'द्वि-अक्षीय वंशावली और व्यक्ति-केंद्रित फ़्लोचार्ट'
+                : 'Vertical Lineage · Person-Centric Flowchart'}
+            </p>
+          </div>
         </div>
         <div className="spotlight-text">
           <p className="eyebrow">{t('spotlightEyebrow')}</p>

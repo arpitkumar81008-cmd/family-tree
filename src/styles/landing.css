@@ -1537,12 +1537,14 @@
 }
 
 .spotlight-desktop-media {
-  width: 100%;
+  position: relative;
+  width: clamp(280px, 32vw, 390px);
   aspect-ratio: 16 / 10;
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--line);
   background: var(--bg);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
 }
 
 .spotlight-desktop-media img {
@@ -1550,6 +1552,38 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.spotlight-media-overlay {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 28px 16px 14px;
+  background: linear-gradient(180deg, rgba(24, 20, 17, 0) 0%, rgba(24, 20, 17, 0.84) 100%);
+  color: #fffcf6;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spotlight-overlay-badge {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fffcf6;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.spotlight-overlay-caption {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #fffcf6;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
 }
 
 :root[data-viewport="mobile"] .hero-cta {
