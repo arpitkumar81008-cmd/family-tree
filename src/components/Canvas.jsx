@@ -69,7 +69,11 @@ export function Canvas({
       : Boolean(collapsedSubTrees?.[id]);
   }, [collapsedSubTrees]);
 
+  const lastToggledIdRef = useRef(null);
+  const prevCollapsedKeyRef = useRef(null);
+
   const handleToggleSubTree = useCallback((subTreeId) => {
+    lastToggledIdRef.current = subTreeId;
     if (onToggleSubTreeProp) {
       onToggleSubTreeProp(subTreeId);
     }
@@ -186,31 +190,78 @@ export function Canvas({
     };
   }, [layout, subTrees, hiddenMemberIds, isSubTreeCollapsed]);
 
+  const focusBoundingBox = useCallback((bb) => {
+    const el = containerRef.current;
+    if (!el || !bb || bb.w <= 0 || bb.h <= 0) return;
+    const pad = 64;
+    const fitZoom = Math.min(
+      1.1,
+      Math.max(0.45, Math.min(el.clientWidth / (bb.w + pad * 2), el.clientHeight / (bb.h + pad * 2)))
+    );
+    const nextZoom = Number(fitZoom.toFixed(2));
+    setZoom?.(nextZoom);
+    saveCanvasZoom(nextZoom);
+    requestAnimationFrame(() => {
+      const targetLeft = Math.max(0, (bb.x + bb.w / 2) * nextZoom - el.clientWidth / 2);
+      const targetTop = Math.max(0, (bb.y + bb.h / 2) * nextZoom - el.clientHeight / 2);
+      el.scrollTo({ left: targetLeft, top: targetTop, behavior: 'smooth' });
+      saveCanvasPan({ scrollLeft: targetLeft, scrollTop: targetTop });
+    });
+  }, [setZoom]);
+
   const handleFocusSubTree = useCallback((subTree) => {
     if (!subTree) return;
     if (isSubTreeCollapsed(subTree.id)) {
       handleToggleSubTree(subTree.id);
     }
-    const el = containerRef.current;
-    const bb = subTree.boundingBox;
-    if (el && bb && bb.w > 0 && bb.h > 0) {
-      const pad = 64;
-      const fitZoom = Math.min(
-        1.1,
-        Math.max(0.45, Math.min(el.clientWidth / (bb.w + pad * 2), el.clientHeight / (bb.h + pad * 2)))
-      );
-      const nextZoom = Number(fitZoom.toFixed(2));
-      setZoom?.(nextZoom);
-      saveCanvasZoom(nextZoom);
+    focusBoundingBox(subTree.boundingBox);
+    setIsSidebarOpen(false);
+  }, [isSubTreeCollapsed, handleToggleSubTree, focusBoundingBox]);
+
+  const collapsedKey = useMemo(
+    () => subTrees.map(st => `${st.id}:${isSubTreeCollapsed(st.id) ? 1 : 0}`).join('|'),
+    [subTrees, isSubTreeCollapsed]
+  );
+
+  useEffect(() => {
+    if (prevCollapsedKeyRef.current === null) {
+      prevCollapsedKeyRef.current = collapsedKey;
+      return;
+    }
+    if (prevCollapsedKeyRef.current === collapsedKey) return;
+    prevCollapsedKeyRef.current = collapsedKey;
+
+    if (!subTrees.length) return;
+    const toggledId = lastToggledIdRef.current;
+    lastToggledIdRef.current = null;
+    const toggledTree = toggledId ? subTrees.find(st => st.id === toggledId) : null;
+    const mainSubTree = subTrees.find(st => st.isMain || st.id === 'main');
+    const openSubTrees = subTrees.filter(st => !isSubTreeCollapsed(st.id));
+    const isMainOpen = mainSubTree ? !isSubTreeCollapsed(mainSubTree.id) : false;
+
+    if (toggledTree && !isSubTreeCollapsed(toggledTree.id)) {
+      focusBoundingBox(toggledTree.boundingBox);
+      return;
+    }
+
+    if (isMainOpen && mainSubTree) {
+      focusBoundingBox(mainSubTree.boundingBox);
+    } else if (openSubTrees.length > 0) {
+      focusBoundingBox(openSubTrees[0].boundingBox);
+    } else {
+      setZoom?.(1);
+      saveCanvasZoom(1);
       requestAnimationFrame(() => {
-        const targetLeft = Math.max(0, (bb.x + bb.w / 2) * nextZoom - el.clientWidth / 2);
-        const targetTop = Math.max(0, (bb.y + bb.h / 2) * nextZoom - el.clientHeight / 2);
-        el.scrollTo({ left: targetLeft, top: targetTop, behavior: 'smooth' });
-        saveCanvasPan({ scrollLeft: targetLeft, scrollTop: targetTop });
+        if (containerRef.current) {
+          containerRef.current.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+        }
+        saveCanvasPan({ scrollLeft: 0, scrollTop: 0 });
+        if (typeof window !== 'undefined' && window.scrollTo) {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
       });
     }
-    setIsSidebarOpen(false);
-  }, [isSubTreeCollapsed, handleToggleSubTree, setZoom]);
+  }, [collapsedKey, subTrees, isSubTreeCollapsed, focusBoundingBox, setZoom]);
 
   const handleFocusMember = useCallback((personId) => {
     if (!personId) return;
@@ -716,8 +767,38 @@ export function Canvas({
   };
 
   const isSearchActive = !!searchQuery.trim();
-  const layoutW = layout?.W || layout?.totalWidth || 0;
-  const layoutH = layout?.H || layout?.totalHeight || 0;
+  const rawLayoutW = layout?.W || layout?.totalWidth || 0;
+  const rawLayoutH = layout?.H || layout?.totalHeight || 0;
+  const openSubTreesList = useMemo(
+    () => subTrees.filter(st => !isSubTreeCollapsed(st.id)),
+    [subTrees, isSubTreeCollapsed]
+  );
+  const collapsedSubTreesList = useMemo(
+    () => subTrees.filter(st => isSubTreeCollapsed(st.id)),
+    [subTrees, isSubTreeCollapsed]
+  );
+  const allSubTreesCollapsed = subTrees.length > 0 && openSubTreesList.length === 0;
+  const layoutW = allSubTreesCollapsed ? Math.min(rawLayoutW || 720, 720) : rawLayoutW;
+  const layoutH = allSubTreesCollapsed ? 240 : rawLayoutH;
+  const collapsedDockPos = useMemo(() => {
+    if (!openSubTreesList.length) return { left: 16, top: 62 };
+    const anchor = openSubTreesList.find(st => st.isMain || st.id === 'main') || openSubTreesList[0];
+    const bb = anchor?.boundingBox || { x: 16, y: 62 };
+    return {
+      left: Math.max(16, bb.x - 16),
+      top: Math.max(12, bb.y - 84)
+    };
+  }, [openSubTreesList]);
+  const visibleGenLabels = useMemo(() => {
+    const labels = layout?.genLabels || [];
+    if (!subTrees.length) return labels;
+    if (allSubTreesCollapsed) return [];
+    const ys = openSubTreesList.map(st => st.boundingBox).filter(Boolean);
+    if (!ys.length) return labels;
+    const minY = Math.min(...ys.map(b => b.y)) - 60;
+    const maxY = Math.max(...ys.map(b => b.y + b.h)) + 60;
+    return labels.filter(g => g.labelY >= minY && g.labelY <= maxY);
+  }, [layout, subTrees, openSubTreesList, allSubTreesCollapsed]);
   const subTreesLabel = (() => {
     const val = typeof t === 'function' ? t('subTreesTitle') : 'subTreesTitle';
     if (val && val !== 'subTreesTitle') return val;
@@ -808,34 +889,33 @@ export function Canvas({
                 )}
               </svg>
 
-              {/* Collapsible Sub-Tree Containers (Header-on-top, synced with SubTreesSidebar) */}
-              {subTrees.map((st) => {
-                const collapsed = isSubTreeCollapsed(st.id);
+              {/* Open Sub-Tree Containers (Header-on-top, synced with SubTreesSidebar) */}
+              {openSubTreesList.map((st) => {
                 const bb = st.boundingBox || { x: 0, y: 0, w: 0, h: 0 };
                 return (
                   <div
                     key={st.id}
-                    className={`canvas-subtree-box${st.isMain ? ' is-main' : ''}${collapsed ? ' is-collapsed' : ''}`}
+                    className={`canvas-subtree-box${st.isMain ? ' is-main' : ''}`}
                     style={{
                       left: `${Math.max(12, bb.x - 16)}px`,
                       top: `${Math.max(8, bb.y - 44)}px`,
-                      width: collapsed ? 'auto' : `${Math.max(bb.w + 32, 240)}px`,
-                      height: collapsed ? 'auto' : `${bb.h + 60}px`
+                      width: `${Math.max(bb.w + 32, 240)}px`,
+                      height: `${bb.h + 60}px`
                     }}
                   >
                     <div className="canvas-subtree-header">
                       <button
                         type="button"
                         className="canvas-subtree-toggle"
-                        aria-expanded={!collapsed}
-                        aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${st.title}`}
+                        aria-expanded={true}
+                        aria-label={`Collapse ${st.title}`}
                         onMouseDown={e => e.stopPropagation()}
                         onClick={e => {
                           e.stopPropagation();
                           handleToggleSubTree(st.id);
                         }}
                       >
-                        <span aria-hidden="true">{collapsed ? '▸' : '▾'}</span>
+                        <span aria-hidden="true">▾</span>
                       </button>
                       <span className="canvas-subtree-title">
                         <span aria-hidden="true">{st.isMain ? '★' : '✦'}</span> {st.title}
@@ -845,6 +925,44 @@ export function Canvas({
                   </div>
                 );
               })}
+
+              {/* Collapsed Sub-Tree Pills (compacted at top/anchor so no blank space remains) */}
+              {collapsedSubTreesList.length > 0 && (
+                <div
+                  className={`canvas-collapsed-dock${allSubTreesCollapsed ? ' is-all-collapsed' : ''}`}
+                  style={{
+                    left: `${collapsedDockPos.left}px`,
+                    top: `${collapsedDockPos.top}px`
+                  }}
+                >
+                  {collapsedSubTreesList.map((st) => (
+                    <div
+                      key={st.id}
+                      className={`canvas-subtree-box${st.isMain ? ' is-main' : ''} is-collapsed`}
+                    >
+                      <div className="canvas-subtree-header">
+                        <button
+                          type="button"
+                          className="canvas-subtree-toggle"
+                          aria-expanded={false}
+                          aria-label={`Expand ${st.title}`}
+                          onMouseDown={e => e.stopPropagation()}
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleToggleSubTree(st.id);
+                          }}
+                        >
+                          <span aria-hidden="true">▸</span>
+                        </button>
+                        <span className="canvas-subtree-title">
+                          <span aria-hidden="true">{st.isMain ? '★' : '✦'}</span> {st.title}
+                        </span>
+                        <span className="canvas-subtree-count">{st.memberIds?.length || 0}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Branch Header Pills (Mode 2 / fallback when subTrees metadata is empty) */}
               {!subTrees.length && (layout?.branchLabels || []).map((b, idx) => (
@@ -858,7 +976,7 @@ export function Canvas({
               ))}
 
               {/* Generation Rail & Pills */}
-              {(layout?.genLabels || []).map(g => (
+              {visibleGenLabels.map(g => (
                 <div
                   key={g.g}
                   className="gen-rail"

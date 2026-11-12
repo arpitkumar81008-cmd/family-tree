@@ -747,6 +747,23 @@
   border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
 }
 
+.canvas-collapsed-dock {
+  position: absolute;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 32px);
+  z-index: 6;
+  pointer-events: auto;
+}
+
+.canvas-collapsed-dock .canvas-subtree-box.is-collapsed {
+  position: relative;
+  left: auto;
+  top: auto;
+}
+
 .canvas-subtree-box.is-collapsed {
   border-style: solid;
   border-radius: 999px;
