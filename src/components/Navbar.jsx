@@ -240,6 +240,7 @@ export function Navbar({
   const isHome = currentView === 'home';
   const isDemo = currentView === 'tree' && (!activeTreeId || activeTreeId === '');
   const isMyTree = currentView === 'tree' && Boolean(activeTreeId && activeTreeId.trim() !== '');
+  const isPrivateTreePage = currentView === 'tree' && Boolean(activeTreeId && activeTreeId.trim() !== '');
 
   const handleHomeClick = () => {
     if (isHome) return;
@@ -456,7 +457,7 @@ export function Navbar({
           </span>
         )}
 
-        {(!activeTreeId || cloudConfigured || isPrivate) && (
+        {isPrivateTreePage && (
           <button
             type="button"
             className="zbtn nav-action-btn"
