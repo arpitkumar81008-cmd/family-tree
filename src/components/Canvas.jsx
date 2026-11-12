@@ -807,6 +807,30 @@ export function Canvas({
 
   return (
     <div ref={hostRef} className={`treewrap-host${isFullscreen ? ' is-fullscreen' : ''}`}>
+      <div className="canvas-topbar">
+        {/* Sub-Trees Drawer Toggle Button (mobile/tablet & fullscreen) */}
+        <button
+          type="button"
+          className="subtrees-drawer-toggle"
+          aria-expanded={isSidebarOpen}
+          aria-label={subTreesLabel}
+          onClick={() => setIsSidebarOpen(prev => !prev)}
+        >
+          <span aria-hidden="true">🌿</span>
+          <span>{subTreesLabel}</span>
+        </button>
+        {/* Full-Screen Toggle Button */}
+        <button
+          type="button"
+          className="canvas-fullscreen-toggle"
+          aria-label={isFullscreen ? t('fullscreenExit') : t('fullscreenEnter')}
+          title={isFullscreen ? t('fullscreenExit') : t('fullscreenEnter')}
+          onClick={handleToggleFullscreen}
+        >
+          <span aria-hidden="true">{isFullscreen ? '✕' : '⛶'}</span>
+          <span>{isFullscreen ? t('fullscreenExitShort') : t('fullscreenEnterShort')}</span>
+        </button>
+      </div>
       <div className="canvas-layout">
         {isSidebarOpen && (
           <div
@@ -1026,28 +1050,6 @@ export function Canvas({
           </div>
         </div>
       </div>
-      {/* Mobile Sub-Trees Drawer Toggle Button */}
-      <button
-        type="button"
-        className="subtrees-drawer-toggle"
-        aria-expanded={isSidebarOpen}
-        aria-label={subTreesLabel}
-        onClick={() => setIsSidebarOpen(prev => !prev)}
-      >
-        <span aria-hidden="true">🌿</span>
-        <span>{subTreesLabel}</span>
-      </button>
-      {/* Floating Full-Screen Toggle Button */}
-      <button
-        type="button"
-        className="canvas-fullscreen-toggle"
-        aria-label={isFullscreen ? t('fullscreenExit') : t('fullscreenEnter')}
-        title={isFullscreen ? t('fullscreenExit') : t('fullscreenEnter')}
-        onClick={handleToggleFullscreen}
-      >
-        <span aria-hidden="true">{isFullscreen ? '✕' : '⛶'}</span>
-        <span>{isFullscreen ? t('fullscreenExitShort') : t('fullscreenEnterShort')}</span>
-      </button>
       <CanvasDock
         zoom={zoom}
         onZoomIn={() => onZoom(0.1)}

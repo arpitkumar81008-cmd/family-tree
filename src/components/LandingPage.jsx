@@ -229,130 +229,45 @@ export function LandingPage({
   const features = [
     {
       num: '01',
-      accent: 'lineage',
-      tag: lang === 'hi' ? 'द्वि-अक्षीय लेआउट' : 'Dual-Axis Layout',
+      image: '/images/features/feat-lineage.jpg',
+      alt: lang === 'hi' ? 'द्वि-अक्षीय वंशावली वृक्ष चित्रण' : 'Dual-axis Indian family lineage diagram illustration',
+      tag: lang === 'hi' ? 'द्वि-अक्षीय दृश्य' : 'Dual-Axis Layout',
       title: t('feat1Title'),
       body: lang === 'hi'
         ? 'पूरे वंश का ऊपर से नीचे का दृश्य, या किसी भी व्यक्ति के केंद्र से दिशात्मक फ़्लोचार्ट — बिना एक भी रेखा टकराए।'
-        : 'Switch seamlessly between a top-down lineage overview and a person-centric directional flowchart with zero overlapping lines.',
-      chips: lang === 'hi'
-        ? ['शीर्ष-नीचे', 'व्यक्ति-केंद्रित', 'शून्य ओवरलैप']
-        : ['Top-Down', 'Person-Centric', 'Zero Overlap']
+        : 'Switch seamlessly between a top-down lineage overview and a person-centric directional flowchart with zero overlapping lines.'
     },
     {
       num: '02',
-      accent: 'kinship',
+      image: '/images/features/feat-kinship.jpg',
+      alt: lang === 'hi' ? 'भारतीय रिश्ते और पारिवारिक जुड़ाव चित्रण' : 'Indian kinship bond medallions illustration',
       tag: lang === 'hi' ? 'भारतीय रिश्ते इंजन' : 'Indian Kinship AI',
       title: t('feat2Title'),
       body: lang === 'hi'
         ? 'ताऊजी, चाचाजी, बुआजी, मौसीजी, मामाजी और जेठानी जैसे 40+ प्रामाणिक रिश्ते किन्हीं भी दो सदस्यों के बीच स्वतः गणना।'
-        : 'Automatically resolves 40+ authentic paternal, maternal, and in-law relations—Tauji, Bua, Mama, Mausi, Jethani—between any two people.',
-      chips: lang === 'hi'
-        ? ['40+ रिश्ते', 'मातृ एवं पितृ', 'ससुराल पक्ष']
-        : ['40+ Relations', 'Maternal & Paternal', 'In-Law Aware']
+        : 'Automatically resolves 40+ authentic paternal, maternal, and in-law relations—Tauji, Bua, Mama, Mausi, Jethani—between any two people.'
     },
     {
       num: '03',
-      accent: 'script',
+      image: '/images/features/feat-bilingual.jpg',
+      alt: lang === 'hi' ? 'अंग्रेज़ी और देवनागरी द्विभाषी लेखन चित्रण' : 'Bilingual English and Devanagari calligraphy illustration',
       tag: lang === 'hi' ? 'द्विभाषी संग्रह' : 'Bilingual Archive',
       title: t('feat3Title'),
       body: lang === 'hi'
         ? 'अंग्रेज़ी में नाम टाइप करते ही देवनागरी वर्तनी तुरंत तैयार — ऑनलाइन हो या पूरी तरह ऑफ़लाइन।'
-        : 'Type any name in English and generate accurate Devanagari script instantaneously—working smoothly online or completely offline.',
-      chips: lang === 'hi'
-        ? ['देवनागरी', 'ऑफ़लाइन सक्षम', 'तुरंत रूपांतरण']
-        : ['Devanagari', 'Offline Ready', 'Instant Sync']
+        : 'Type any name in English and generate accurate Devanagari script instantaneously—working smoothly online or completely offline.'
     },
     {
       num: '04',
-      accent: 'archive',
+      image: '/images/features/feat-vault.jpg',
+      alt: lang === 'hi' ? 'निजी और सुरक्षित पारिवारिक तिजोरी चित्रण' : 'Private heirloom family archive vault illustration',
       tag: lang === 'hi' ? 'निजी तिजोरी' : 'Private Vault',
       title: t('feat4Title'),
       body: lang === 'hi'
         ? 'ब्राउज़र में निजी रखें या टोकन-सुरक्षित क्लाउड लिंक साझा करें। एक क्लिक में पूरा JSON बैकअप डाउनलोड करें।'
-        : 'Keep your family tree private in-browser or share via a token-protected link. Export a portable JSON backup anytime.',
-      chips: lang === 'hi'
-        ? ['12-अक्षर टोकन', 'JSON बैकअप', 'लोकल-फर्स्ट']
-        : ['12-Char Token', 'JSON Backup', 'Local-First']
+        : 'Keep your family tree private in-browser or share via a token-protected link. Export a portable JSON backup anytime.'
     }
   ];
-
-  const renderFeatureVisual = accent => {
-    if (accent === 'lineage') {
-      return (
-        <div className="fsc-stage fsc-stage--lineage" aria-hidden="true">
-          <div className="fsc-mini-switch">
-            <span className="is-on">{lang === 'hi' ? 'वंश वृक्ष' : 'Vertical'}</span>
-            <span>{lang === 'hi' ? 'फ़्लोचार्ट' : 'Flowchart'}</span>
-          </div>
-          <div className="fsc-lineage-tree">
-            <div className="fsc-node-pair">
-              <span className="fsc-node fsc-node--root">{lang === 'hi' ? 'मूल' : 'Gen 1'}</span>
-              <span className="fsc-link-h" />
-              <span className="fsc-node">{lang === 'hi' ? 'जीवनसाथी' : 'Spouse'}</span>
-            </div>
-            <div className="fsc-stem" />
-            <div className="fsc-branch-bar" />
-            <div className="fsc-node-pair fsc-node-pair--children">
-              <span className="fsc-node fsc-node--leaf">{lang === 'hi' ? 'शाखा अ' : 'Branch A'}</span>
-              <span className="fsc-node fsc-node--leaf">{lang === 'hi' ? 'शाखा ब' : 'Branch B'}</span>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (accent === 'kinship') {
-      return (
-        <div className="fsc-stage fsc-stage--kinship" aria-hidden="true">
-          <div className="fsc-kinship-pair">
-            <span className="fsc-person-pill">{lang === 'hi' ? 'आरव' : 'Aarav'}</span>
-            <span className="fsc-kinship-arrow">→</span>
-            <span className="fsc-person-pill">{lang === 'hi' ? 'प्रिया' : 'Priya'}</span>
-          </div>
-          <div className="fsc-kinship-result">
-            <span className="fsc-kinship-hi">मामा</span>
-            <span className="fsc-kinship-dot">·</span>
-            <span className="fsc-kinship-en">Maternal Uncle</span>
-          </div>
-          <div className="fsc-kinship-samples">
-            <span>{lang === 'hi' ? 'ताऊजी' : 'Tauji'}</span>
-            <span>{lang === 'hi' ? 'बुआजी' : 'Bua'}</span>
-            <span>{lang === 'hi' ? 'मौसीजी' : 'Mausi'}</span>
-          </div>
-        </div>
-      );
-    }
-
-    if (accent === 'script') {
-      return (
-        <div className="fsc-stage fsc-stage--script" aria-hidden="true">
-          <div className="fsc-script-toggle">
-            <span className="fsc-script-badge">EN ↔ हिं</span>
-            <span className="fsc-script-mode">{lang === 'hi' ? 'फ़ोनेटिक' : 'Phonetic'}</span>
-          </div>
-          <div className="fsc-script-card">
-            <span className="fsc-script-en">Raghavendra</span>
-            <span className="fsc-script-arrow">↳</span>
-            <span className="fsc-script-hi">राघवेन्द्र</span>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="fsc-stage fsc-stage--archive" aria-hidden="true">
-        <div className="fsc-vault-badge">
-          <span aria-hidden="true">🔒</span>
-          <span>{lang === 'hi' ? 'निजी · टोकन-सुरक्षित' : 'Private · Token-Protected'}</span>
-        </div>
-        <div className="fsc-vault-meta">
-          <code className="fsc-vault-code">?code=VX9K…</code>
-          <span className="fsc-vault-json">JSON ↓</span>
-        </div>
-      </div>
-    );
-  };
   const tutorials = [
     ['tut1Step', 'tut1Title', 'tut1Body'],
     ['tut2Step', 'tut2Title', 'tut2Body'],
@@ -444,55 +359,44 @@ export function LandingPage({
           onFocus={featuresCarousel.pause}
           onBlur={featuresCarousel.resumeDelayed}
         >
-          {features.map(({ num, accent, tag, title, body, chips }) => (
+          {features.map(({ num, image, alt, tag, title, body }) => (
             <article
-              className={`feature-card feature-showcase-card feature-showcase-card--${accent} mobile-carousel-slide reveal-parent reveal-on-scroll`}
+              className="feature-card feature-art-card mobile-carousel-slide reveal-parent reveal-on-scroll"
               key={num}
               tabIndex={0}
             >
-              <header className="fsc-head">
-                <span className="fsc-index feature-num" aria-hidden="true">{num}</span>
-                <span className="fsc-tag">{tag}</span>
-              </header>
-              {renderFeatureVisual(accent)}
-              <div className="fsc-body">
-                <h3>{title}</h3>
-                <p className="fsc-desc">{body}</p>
+              <div className="fac-media">
+                <img src={image} alt={alt} loading="lazy" decoding="async" />
+                <span className="fac-index feature-num" aria-hidden="true">{num}</span>
+                <span className="fac-tag">{tag}</span>
               </div>
-              <footer className="fsc-chips" aria-label="Highlights">
-                {chips.map(chip => (
-                  <span className="fsc-chip" key={chip}>{chip}</span>
-                ))}
-              </footer>
+              <div className="fac-body">
+                <h3>{title}</h3>
+                <p className="fac-desc">{body}</p>
+              </div>
             </article>
           ))}
           <article
-            className="feature-card feature-showcase-card feature-showcase-card--spatial mobile-carousel-slide spotlight-mobile-slide reveal-parent reveal-on-scroll"
+            className="feature-card feature-art-card mobile-carousel-slide spotlight-mobile-slide reveal-parent reveal-on-scroll"
             tabIndex={0}
           >
-            <header className="fsc-head">
-              <span className="fsc-index feature-num" aria-hidden="true">05</span>
-              <span className="fsc-tag">{lang === 'hi' ? 'स्थानिक नेविगेटर' : 'Spatial Navigator'}</span>
-            </header>
-            <div className="fsc-stage fsc-stage--spatial">
-              {renderSpotlightDiagram()}
+            <div className="fac-media">
+              <img
+                src="/images/features/feat-spatial.jpg"
+                alt={lang === 'hi' ? 'स्थानिक वंशावली कैनवास चित्रण' : 'Interactive spatial family tree canvas illustration'}
+                loading="lazy"
+                decoding="async"
+              />
+              <span className="fac-index feature-num" aria-hidden="true">05</span>
+              <span className="fac-tag">{lang === 'hi' ? 'स्थानिक नेविगेटर' : 'Spatial Navigator'}</span>
             </div>
-            <div className="fsc-body spotlight-text">
-              <p className="eyebrow">{t('spotlightEyebrow')}</p>
+            <div className="fac-body spotlight-text">
               <h3>{t('spotlightTitle')}</h3>
-              <p className="fsc-desc">{t('spotlightBody')}</p>
-              <button type="button" className="btn ghost btn-sm" onClick={spotlightCtaAction}>
+              <p className="fac-desc">{t('spotlightBody')}</p>
+              <button type="button" className="btn ghost btn-sm fac-cta" onClick={spotlightCtaAction}>
                 {spotlightCtaLabel}
               </button>
             </div>
-            <footer className="fsc-chips" aria-label="Highlights">
-              {(lang === 'hi'
-                ? ['पैन एवं पिंच', 'शाखा फ़ोकस', 'बहु-पीढ़ी']
-                : ['Pan & Pinch', 'Branch Focus', 'Multi-Gen']
-              ).map(chip => (
-                <span className="fsc-chip" key={chip}>{chip}</span>
-              ))}
-            </footer>
           </article>
         </div>
         <div className="carousel-dots" role="tablist" aria-label={t('featuresTitle')}>

@@ -297,11 +297,36 @@
   flex: 1;
 }
 
-/* Floating Full-Screen Toggle Button */
+/* Canvas Topbar: sits outside above the tree in normal view, floats inside in fullscreen */
+.canvas-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.canvas-topbar .canvas-fullscreen-toggle {
+  margin-left: auto;
+}
+
+.treewrap-host.is-fullscreen .canvas-topbar {
+  position: fixed;
+  top: calc(14px + env(safe-area-inset-top, 0px));
+  left: calc(14px + env(safe-area-inset-left, 0px));
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  margin-bottom: 0;
+  z-index: 25;
+  pointer-events: none;
+}
+
+.treewrap-host.is-fullscreen .canvas-topbar > button {
+  pointer-events: auto;
+}
+
+/* Full-Screen Toggle Button */
 .canvas-fullscreen-toggle {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+  position: static;
   z-index: 25;
   min-width: 38px;
   height: 38px;
@@ -387,6 +412,45 @@
     height: clamp(360px, 56vh, 520px);
     min-height: 360px;
   }
+
+  /* Fix non-fullscreen mobile CanvasDock clipping ("Full lineage" & "+" hidden) */
+  :root:not([data-viewport="laptop"]) .treewrap-host:not(.is-fullscreen) .canvas-dock {
+    right: 8px;
+    bottom: 8px;
+    max-width: calc(100% - 16px);
+  }
+
+  :root:not([data-viewport="laptop"]) .treewrap-host:not(.is-fullscreen) .canvas-dock.collapsible-dock.is-expanded .dock-controls-tray,
+  :root:not([data-viewport="laptop"]) .treewrap-host:not(.is-fullscreen) .canvas-dock.collapsible-dock:hover .dock-controls-tray,
+  :root:not([data-viewport="laptop"]) .treewrap-host:not(.is-fullscreen) .canvas-dock.collapsible-dock:focus-within .dock-controls-tray {
+    max-width: calc(100vw - 88px);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+    overflow: visible;
+  }
+
+  :root:not([data-viewport="laptop"]) .treewrap-host:not(.is-fullscreen) .dock-pan-group,
+  :root:not([data-viewport="laptop"]) .treewrap-host:not(.is-fullscreen) .dock-pan-group + .dock-sep {
+    display: none;
+  }
+
+  :root:not([data-viewport="laptop"]) .treewrap-host:not(.is-fullscreen) .dock-btn {
+    min-width: 30px;
+    height: 30px;
+    padding: 0 7px;
+  }
+
+  :root:not([data-viewport="laptop"]) .treewrap-host:not(.is-fullscreen) .dock-btn.text {
+    white-space: nowrap;
+    font-size: 11.5px;
+    padding: 0 8px;
+  }
+
+  :root:not([data-viewport="laptop"]) .treewrap-host:not(.is-fullscreen) .dock-zoom {
+    min-width: 34px;
+    font-size: 11.5px;
+  }
 }
 
 :root[data-viewport="mobile"] .canvas-fullscreen-toggle,
@@ -403,6 +467,44 @@
 :root[data-viewport="mobile"] .canvas-layout .treewrap {
   height: clamp(360px, 56vh, 520px);
   min-height: 360px;
+}
+
+:root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .canvas-dock {
+  right: 8px;
+  bottom: 8px;
+  max-width: calc(100% - 16px);
+}
+
+:root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .canvas-dock.collapsible-dock.is-expanded .dock-controls-tray,
+:root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .canvas-dock.collapsible-dock:hover .dock-controls-tray,
+:root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .canvas-dock.collapsible-dock:focus-within .dock-controls-tray {
+  max-width: calc(100vw - 88px);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  overflow: visible;
+}
+
+:root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .dock-pan-group,
+:root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .dock-pan-group + .dock-sep {
+  display: none;
+}
+
+:root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .dock-btn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 7px;
+}
+
+:root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .dock-btn.text {
+  white-space: nowrap;
+  font-size: 11.5px;
+  padding: 0 8px;
+}
+
+:root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .dock-zoom {
+  min-width: 34px;
+  font-size: 11.5px;
 }
 
 /* Reduced Motion Compliance (F14) */
@@ -437,9 +539,7 @@
 }
 
 .subtrees-drawer-toggle {
-  position: absolute;
-  top: 12px;
-  left: 12px;
+  position: static;
   z-index: 25;
   display: none;
   align-items: center;
