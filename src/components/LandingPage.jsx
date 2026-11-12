@@ -1,5 +1,132 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { animate, stagger } from 'motion';
+
+function isMobileCarouselActive() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+  const vp = document.documentElement.getAttribute('data-viewport');
+  if (vp === 'mobile') return true;
+  if (vp === 'laptop') return false;
+  return window.innerWidth <= 768;
+}
+
+function isMotionReduced() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return true;
+  return (
+    document.documentElement.getAttribute('data-motion') === 'reduce' ||
+    Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)
+  );
+}
+
+function useMobileCarousel(slideCount, dotCount = 4) {
+  const trackRef = useRef(null);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const pausedRef = useRef(false);
+  const resumeTimerRef = useRef(null);
+
+  const activeDot =
+    slideCount <= 1
+      ? 0
+      : Math.min(dotCount - 1, Math.round((activeSlide / (slideCount - 1)) * (dotCount - 1)));
+
+  const scrollToSlide = useCallback(
+    index => {
+      const track = trackRef.current;
+      if (!track) return;
+      const clamped = Math.max(0, Math.min(slideCount - 1, index));
+      const slides = track.children;
+      const target = slides[clamped];
+      if (!target) return;
+      const left = target.offsetLeft - track.offsetLeft;
+      if (typeof track.scrollTo === 'function') {
+        track.scrollTo({ left, behavior: isMotionReduced() ? 'auto' : 'smooth' });
+      } else {
+        track.scrollLeft = left;
+      }
+      setActiveSlide(clamped);
+    },
+    [slideCount]
+  );
+
+  const handleDotClick = useCallback(
+    dotIndex => {
+      pausedRef.current = true;
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+      const targetSlide =
+        slideCount <= dotCount
+          ? dotIndex
+          : Math.round((dotIndex / (dotCount - 1)) * (slideCount - 1));
+      scrollToSlide(targetSlide);
+      resumeTimerRef.current = setTimeout(() => {
+        pausedRef.current = false;
+      }, 5000);
+    },
+    [dotCount, scrollToSlide, slideCount]
+  );
+
+  const handleScroll = useCallback(() => {
+    const track = trackRef.current;
+    if (!track || !track.children.length) return;
+    const scrollLeft = track.scrollLeft;
+    let closestIdx = 0;
+    let minDist = Infinity;
+    for (let i = 0; i < track.children.length; i++) {
+      const child = track.children[i];
+      if (child.offsetParent === null) continue;
+      const dist = Math.abs(child.offsetLeft - track.offsetLeft - scrollLeft);
+      if (dist < minDist) {
+        minDist = dist;
+        closestIdx = i;
+      }
+    }
+    setActiveSlide(closestIdx);
+  }, []);
+
+  const pause = useCallback(() => {
+    pausedRef.current = true;
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+  }, []);
+
+  const resumeDelayed = useCallback(() => {
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    resumeTimerRef.current = setTimeout(() => {
+      pausedRef.current = false;
+    }, 4000);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const timer = setInterval(() => {
+      if (pausedRef.current || !isMobileCarouselActive() || isMotionReduced()) return;
+      setActiveSlide(prev => {
+        const next = (prev + 1) % slideCount;
+        const track = trackRef.current;
+        if (track && track.children[next]) {
+          const left = track.children[next].offsetLeft - track.offsetLeft;
+          if (typeof track.scrollTo === 'function') {
+            track.scrollTo({ left, behavior: 'smooth' });
+          } else {
+            track.scrollLeft = left;
+          }
+        }
+        return next;
+      });
+    }, 3800);
+
+    return () => {
+      clearInterval(timer);
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    };
+  }, [slideCount]);
+
+  return {
+    trackRef,
+    activeDot,
+    handleDotClick,
+    handleScroll,
+    pause,
+    resumeDelayed
+  };
+}
 
 export function LandingPage({
   t,
@@ -18,6 +145,28 @@ export function LandingPage({
     return !res || res === key ? fallback : res;
   };
   const rootRef = useRef(null);
+  const featuresCarousel = useMobileCarousel(5, 4);
+  const tutorialsCarousel = useMobileCarousel(4, 4);
+
+  const renderSpotlightDiagram = () => (
+    <div className="spotlight-diagram" aria-hidden="true">
+      <div className="spot-row">
+        <span className="spot-node">Gen 1</span>
+        <span className="spot-link" />
+        <span className="spot-node">Spouse</span>
+      </div>
+      <div className="spot-drop" />
+      <div className="spot-row">
+        <span className="spot-node sub">Branch A</span>
+        <span className="spot-node sub">Branch B</span>
+      </div>
+    </div>
+  );
+
+  const spotlightCtaAction = hasPrivateTree ? (onNavigateMyTree || onCreate) : onExplore;
+  const spotlightCtaLabel = hasPrivateTree
+    ? tr('navMyTree', lang === 'hi' ? 'मेरा निजी वृक्ष' : 'My Private Tree')
+    : t('spotlightCta');
 
   useEffect(() => {
     const el = rootRef.current;
@@ -127,36 +276,61 @@ export function LandingPage({
 
       <section className="features">
         <h2 className="section-title">{t('featuresTitle')}</h2>
-        <div className="feature-grid">
+        <div
+          className="feature-grid mobile-carousel-track"
+          ref={featuresCarousel.trackRef}
+          onScroll={featuresCarousel.handleScroll}
+          onTouchStart={featuresCarousel.pause}
+          onTouchEnd={featuresCarousel.resumeDelayed}
+          onPointerDown={featuresCarousel.pause}
+          onPointerUp={featuresCarousel.resumeDelayed}
+          onMouseEnter={featuresCarousel.pause}
+          onMouseLeave={featuresCarousel.resumeDelayed}
+          onFocus={featuresCarousel.pause}
+          onBlur={featuresCarousel.resumeDelayed}
+        >
           {features.map(([num, title, body]) => (
-            <article className="feature-card reveal-parent reveal-on-scroll" key={num} tabIndex={0}>
+            <article className="feature-card mobile-carousel-slide reveal-parent reveal-on-scroll" key={num} tabIndex={0}>
               <span className="feature-num" aria-hidden="true">{num}</span>
               <h3>{t(title)}</h3>
               <p className="hover-explanation">{t(body)}</p>
             </article>
           ))}
+          <article className="feature-card mobile-carousel-slide spotlight-mobile-slide reveal-parent reveal-on-scroll" tabIndex={0}>
+            {renderSpotlightDiagram()}
+            <div className="spotlight-text">
+              <p className="eyebrow">{t('spotlightEyebrow')}</p>
+              <h3>{t('spotlightTitle')}</h3>
+              <p className="hover-explanation">{t('spotlightBody')}</p>
+              <button type="button" className="btn ghost btn-sm" onClick={spotlightCtaAction}>
+                {spotlightCtaLabel}
+              </button>
+            </div>
+          </article>
+        </div>
+        <div className="carousel-dots" role="tablist" aria-label={t('featuresTitle')}>
+          {[0, 1, 2, 3].map(dotIdx => (
+            <button
+              key={dotIdx}
+              type="button"
+              role="tab"
+              aria-selected={featuresCarousel.activeDot === dotIdx}
+              aria-label={`Slide ${dotIdx + 1}`}
+              className={`carousel-dot${featuresCarousel.activeDot === dotIdx ? ' is-active' : ''}`}
+              onClick={() => featuresCarousel.handleDotClick(dotIdx)}
+            />
+          ))}
         </div>
       </section>
 
-      <section className="spotlight reveal-parent reveal-on-scroll" tabIndex={0}>
-        <div className="spotlight-diagram" aria-hidden="true">
-          <div className="spot-row">
-            <span className="spot-node">Gen 1</span>
-            <span className="spot-link" />
-            <span className="spot-node">Spouse</span>
-          </div>
-          <div className="spot-drop" />
-          <div className="spot-row">
-            <span className="spot-node sub">Branch A</span>
-            <span className="spot-node sub">Branch B</span>
-          </div>
-        </div>
+      <section className="spotlight spotlight-desktop reveal-parent reveal-on-scroll" tabIndex={0}>
+        {renderSpotlightDiagram()}
         <div className="spotlight-text">
           <p className="eyebrow">{t('spotlightEyebrow')}</p>
           <h2 className="section-title">{t('spotlightTitle')}</h2>
           <p className="hover-explanation">{t('spotlightBody')}</p>
-          <button type="button" className="btn ghost" onClick={hasPrivateTree ? (onNavigateMyTree || onCreate) : onExplore}>
-            {hasPrivateTree ? tr('navMyTree', lang === 'hi' ? 'मेरा निजी वृक्ष' : 'My Private Tree') : t('spotlightCta')}
+          <button type="button" className="btn ghost" onClick={spotlightCtaAction}>
+            {spotlightCtaLabel}
           </button>
         </div>
       </section>
@@ -164,13 +338,38 @@ export function LandingPage({
       {/* Quick Start Tutorials Section */}
       <section className="tutorials-section">
         <h2 className="section-title">{t('tutorialsTitle')}</h2>
-        <div className="feature-grid">
+        <div
+          className="feature-grid mobile-carousel-track"
+          ref={tutorialsCarousel.trackRef}
+          onScroll={tutorialsCarousel.handleScroll}
+          onTouchStart={tutorialsCarousel.pause}
+          onTouchEnd={tutorialsCarousel.resumeDelayed}
+          onPointerDown={tutorialsCarousel.pause}
+          onPointerUp={tutorialsCarousel.resumeDelayed}
+          onMouseEnter={tutorialsCarousel.pause}
+          onMouseLeave={tutorialsCarousel.resumeDelayed}
+          onFocus={tutorialsCarousel.pause}
+          onBlur={tutorialsCarousel.resumeDelayed}
+        >
           {tutorials.map(([stepKey, titleKey, bodyKey]) => (
-            <article className="feature-card reveal-parent reveal-on-scroll" key={stepKey} tabIndex={0}>
+            <article className="feature-card mobile-carousel-slide reveal-parent reveal-on-scroll" key={stepKey} tabIndex={0}>
               <span className="feature-num" aria-hidden="true">{t(stepKey)}</span>
               <h3>{t(titleKey)}</h3>
               <p className="hover-explanation">{t(bodyKey)}</p>
             </article>
+          ))}
+        </div>
+        <div className="carousel-dots" role="tablist" aria-label={t('tutorialsTitle')}>
+          {[0, 1, 2, 3].map(dotIdx => (
+            <button
+              key={dotIdx}
+              type="button"
+              role="tab"
+              aria-selected={tutorialsCarousel.activeDot === dotIdx}
+              aria-label={`Tutorial ${dotIdx + 1}`}
+              className={`carousel-dot${tutorialsCarousel.activeDot === dotIdx ? ' is-active' : ''}`}
+              onClick={() => tutorialsCarousel.handleDotClick(dotIdx)}
+            />
           ))}
         </div>
       </section>

@@ -91,6 +91,101 @@ export function Canvas({
     return hidden;
   }, [subTrees, isSubTreeCollapsed]);
 
+  const { visibleMainPath, visibleOtherPath, visibleBridgePath } = useMemo(() => {
+    const mainRaw = layout?.mainPath || '';
+    const otherRaw = layout?.otherPath || '';
+    const bridgeRaw = layout?.bridgePath || '';
+
+    if (!subTrees.length || hiddenMemberIds.size === 0) {
+      return { visibleMainPath: mainRaw, visibleOtherPath: otherRaw, visibleBridgePath: bridgeRaw };
+    }
+
+    const mainSubTree = subTrees.find(st => st.isMain || st.id === 'main');
+    const isMainCollapsed = mainSubTree ? isSubTreeCollapsed(mainSubTree.id) : false;
+
+    const collapsedNonMainBoxes = subTrees
+      .filter(st => !st.isMain && st.id !== 'main' && isSubTreeCollapsed(st.id) && st.boundingBox)
+      .map(st => st.boundingBox);
+
+    const pointInBox = (x, y, bb, padX = 24, padTop = 24, padBot = 24) =>
+      x >= bb.x - padX &&
+      x <= bb.x + bb.w + padX &&
+      y >= bb.y - padTop &&
+      y <= bb.y + bb.h + padBot;
+
+    const parseSeg = (cmd) => {
+      const m = cmd.trim().match(/^M\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*([HV])\s*(-?\d+(?:\.\d+)?)/i);
+      if (!m) return null;
+      const x1 = parseFloat(m[1]);
+      const y1 = parseFloat(m[2]);
+      const op = m[3].toUpperCase();
+      const val = parseFloat(m[4]);
+      const x2 = op === 'H' ? val : x1;
+      const y2 = op === 'V' ? val : y1;
+      return { cmd: cmd.trim(), x1, y1, op, x2, y2 };
+    };
+
+    const nextMainPath = isMainCollapsed ? '' : mainRaw;
+
+    let nextOtherPath = otherRaw;
+    if (otherRaw && collapsedNonMainBoxes.length > 0) {
+      const segs = otherRaw.match(/M[^M]+/g) || [];
+      nextOtherPath = segs
+        .filter((raw) => {
+          const s = parseSeg(raw);
+          if (!s) return true;
+          return !collapsedNonMainBoxes.some(
+            bb => pointInBox(s.x1, s.y1, bb) || pointInBox(s.x2, s.y2, bb)
+          );
+        })
+        .join(' ');
+    }
+
+    let nextBridgePath = '';
+    if (!isMainCollapsed && bridgeRaw) {
+      if (collapsedNonMainBoxes.length === 0) {
+        nextBridgePath = bridgeRaw;
+      } else {
+        const segs = (bridgeRaw.match(/M[^M]+/g) || []).map(parseSeg).filter(Boolean);
+        const kept = [];
+        for (let i = 0; i < segs.length; i++) {
+          const cur = segs[i];
+          if (cur.op === 'H') {
+            // Group [optional preceding V, this H, optional following V]
+            const group = [];
+            if (i > 0 && segs[i - 1].op === 'V' && Math.abs(segs[i - 1].x1 - cur.x1) < 0.5 && Math.abs(segs[i - 1].y2 - cur.y1) < 0.5) {
+              // Remove preceding V from kept if it was pushed
+              if (kept.length && kept[kept.length - 1] === segs[i - 1].cmd) {
+                kept.pop();
+              }
+              group.push(segs[i - 1]);
+            }
+            group.push(cur);
+            if (i + 1 < segs.length && segs[i + 1].op === 'V' && Math.abs(segs[i + 1].x1 - cur.x2) < 0.5 && Math.abs(segs[i + 1].y1 - cur.y1) < 0.5) {
+              group.push(segs[i + 1]);
+              i++;
+            }
+            const sourceCollapsed = collapsedNonMainBoxes.some(bb =>
+              pointInBox(cur.x1, cur.y1, bb, 24, 24, 140)
+            );
+            if (!sourceCollapsed) {
+              group.forEach(g => kept.push(g.cmd));
+            }
+          } else {
+            kept.push(cur.cmd);
+          }
+        }
+        nextBridgePath = kept.join(' ');
+      }
+    }
+
+    return {
+      visibleMainPath: nextMainPath,
+      visibleOtherPath: nextOtherPath,
+      visibleBridgePath: nextBridgePath
+    };
+  }, [layout, subTrees, hiddenMemberIds, isSubTreeCollapsed]);
+
   const handleFocusSubTree = useCallback((subTree) => {
     if (!subTree) return;
     if (isSubTreeCollapsed(subTree.id)) {
@@ -699,14 +794,14 @@ export function Canvas({
                 {layout?.guideLines && (
                   <path className="guide-line" d={layout.guideLines} />
                 )}
-                {layout?.otherPath && (
-                  <path className="other-branch-line" d={layout.otherPath} />
+                {visibleOtherPath && (
+                  <path className="other-branch-line" d={visibleOtherPath} />
                 )}
-                {layout?.bridgePath && (
-                  <path className="bridge-line" d={layout.bridgePath} />
+                {visibleBridgePath && (
+                  <path className="bridge-line" d={visibleBridgePath} />
                 )}
-                {layout?.mainPath && (
-                  <path className="main-branch-line" d={layout.mainPath} />
+                {visibleMainPath && (
+                  <path className="main-branch-line" d={visibleMainPath} />
                 )}
                 {!layout?.mainPath && !layout?.otherPath && layout?.path && (
                   <path className="main-branch-line" d={layout.path} />
