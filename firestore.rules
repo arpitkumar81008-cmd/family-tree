@@ -198,13 +198,25 @@ service cloud.firestore {
     // ===============================================================
 
     match /trees/{treeId} {
-      // Read (get & list):
-      // Allowed if public, owner, collaborator (UID or editorEmail), viewerEmail, or has an active shareCode.
-      allow get, list: if resource.data.isPublic == true ||
+      // Read (get):
+      // Allowed for single-document lookups (subscribeToTree, unlocked share links)
+      // if public, owner, collaborator (UID or editorEmail), viewerEmail, or has an active shareCode.
+      allow get: if resource.data.isPublic == true ||
         isTreeOwner() ||
         isTreeCollaborator() ||
         isEmailViewer() ||
         hasActiveShareCode();
+
+      // Read (list):
+      // Private trees are excluded from broad collection listings.
+      // Only allow listing public trees, user's own/shared trees, or bounded shareCode lookups (limit <= 5).
+      allow list: if resource.data.isPublic == true ||
+        isTreeOwner() ||
+        isTreeCollaborator() ||
+        isEmailViewer() ||
+        (hasActiveShareCode() &&
+         request.query.limit != null &&
+         request.query.limit <= 5);
 
       // Create:
       // Allowed only for authenticated users setting themselves as ownerUid with valid schema.

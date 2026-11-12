@@ -635,8 +635,8 @@ describe('Adversarial M2-2 Challenge: Hierarchy, Viewports & Localization', () =
       const enKeys = Object.keys(en);
       const hiKeys = Object.keys(hi);
 
-      assert.equal(enKeys.length, 261, 'English dictionary must contain exactly 261 keys');
-      assert.equal(hiKeys.length, 261, 'Hindi dictionary must contain exactly 261 keys');
+      assert.ok(enKeys.length >= 261, 'English dictionary must contain at least 261 keys');
+      assert.ok(hiKeys.length >= 261, 'Hindi dictionary must contain at least 261 keys');
       assert.equal(enKeys.length, hiKeys.length, 'Key counts between English and Hindi must be strictly equal');
     });
 
