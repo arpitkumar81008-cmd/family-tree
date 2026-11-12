@@ -337,17 +337,19 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 300px;
-  max-width: calc(100vw - 32px);
+  width: min(352px, calc(100vw - 24px));
+  max-height: calc(100dvh - 88px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--surface);
   border: 1px solid var(--ink);
   border-radius: var(--radius-md);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  padding: 14px 16px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.16);
+  padding: 16px;
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 13px;
+  gap: 14px;
 }
 
 .settings-head {
@@ -355,8 +357,19 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--line);
-  padding-bottom: 8px;
-  margin-bottom: 2px;
+  padding-bottom: 10px;
+}
+
+.settings-head-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-head-icon {
+  font-size: 14px;
+  color: var(--accent);
+  line-height: 1;
 }
 
 .settings-head h3 {
@@ -369,16 +382,42 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 .settings-close {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   color: var(--muted);
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 0;
 }
 
 .settings-close:hover {
+  color: var(--ink);
+  background: var(--bg);
+  border-color: var(--line);
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--bg) 55%, var(--surface));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.settings-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--ink);
 }
 
@@ -388,28 +427,78 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   gap: 5px;
 }
 
+.settings-a11y-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .settings-group .lbl {
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   color: var(--muted);
 }
 
 .settings-seg {
   display: flex;
-  gap: 4px;
+  gap: 3px;
+  padding: 3px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
 }
 
 .settings-seg .zbtn {
   flex: 1;
+  min-width: 0;
   height: 34px;
   font-size: 12px;
+  font-weight: 600;
   padding: 0 6px;
+  border-radius: var(--radius-xs);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
   text-align: center;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.settings-seg .zbtn[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--ink);
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.settings-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+
+.settings-reset-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.settings-reset-btn:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--bg);
 }
 
 /* Modals & Slide-out Sheet */
