@@ -415,7 +415,14 @@ export function LandingPage({
       </section>
 
       <section className="spotlight spotlight-desktop reveal-parent reveal-on-scroll" tabIndex={0}>
-        {renderSpotlightDiagram()}
+        <div className="spotlight-desktop-media">
+          <img
+            src="/images/features/feat-spatial.jpg"
+            alt={lang === 'hi' ? 'स्थानिक वंशावली कैनवास चित्रण' : 'Interactive spatial family tree canvas illustration'}
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
         <div className="spotlight-text">
           <p className="eyebrow">{t('spotlightEyebrow')}</p>
           <h2 className="section-title">{t('spotlightTitle')}</h2>

@@ -1536,6 +1536,38 @@
   align-self: flex-start;
 }
 
+.spotlight-desktop-media {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.spotlight-desktop-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+:root[data-viewport="mobile"] .hero-cta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+:root[data-viewport="mobile"] .hero-cta .btn-lg {
+  width: 100%;
+  padding: 11px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-content: center;
+}
+
 :root[data-viewport="mobile"] .spotlight-desktop {
   display: none;
 }
@@ -1586,6 +1618,22 @@
 }
 
 @media (max-width: 768px) {
+  :root:not([data-viewport="laptop"]) .hero-cta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  :root:not([data-viewport="laptop"]) .hero-cta .btn-lg {
+    width: 100%;
+    padding: 11px 10px;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    justify-content: center;
+  }
+
   :root:not([data-viewport="laptop"]) .spotlight-desktop {
     display: none;
   }
