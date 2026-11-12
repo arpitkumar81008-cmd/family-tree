@@ -168,6 +168,14 @@ export function LandingPage({
     ? tr('navMyTree', lang === 'hi' ? 'मेरा निजी वृक्ष' : 'My Private Tree')
     : t('spotlightCta');
 
+  const handleScrollToTutorials = useCallback(e => {
+    if (e) e.preventDefault();
+    const target = document.getElementById('quick-start-tutorials');
+    if (target && typeof target.scrollIntoView === 'function') {
+      target.scrollIntoView({ behavior: isMotionReduced() ? 'auto' : 'smooth', block: 'start' });
+    }
+  }, []);
+
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
@@ -221,39 +229,130 @@ export function LandingPage({
   const features = [
     {
       num: '01',
-      title: 'feat1Title',
-      body: 'feat1Body',
       accent: 'lineage',
-      image: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/Banyan_tree_2024.jpg/960px-Banyan_tree_2024.jpg',
-      fallbackLabel: lang === 'hi' ? 'वंश वृक्ष' : 'Lineage Views'
+      tag: lang === 'hi' ? 'द्वि-अक्षीय लेआउट' : 'Dual-Axis Layout',
+      title: t('feat1Title'),
+      body: lang === 'hi'
+        ? 'पूरे वंश का ऊपर से नीचे का दृश्य, या किसी भी व्यक्ति के केंद्र से दिशात्मक फ़्लोचार्ट — बिना एक भी रेखा टकराए।'
+        : 'Switch seamlessly between a top-down lineage overview and a person-centric directional flowchart with zero overlapping lines.',
+      chips: lang === 'hi'
+        ? ['शीर्ष-नीचे', 'व्यक्ति-केंद्रित', 'शून्य ओवरलैप']
+        : ['Top-Down', 'Person-Centric', 'Zero Overlap']
     },
     {
       num: '02',
-      title: 'feat2Title',
-      body: 'feat2Body',
       accent: 'kinship',
-      image: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0e/Decoration_of_oil_lamp_%28Matti%27r_Saki%29_during_Diwali.jpg/960px-Decoration_of_oil_lamp_%28Matti%27r_Saki%29_during_Diwali.jpg',
-      fallbackLabel: lang === 'hi' ? 'रिश्ते' : 'Indian Kinship'
+      tag: lang === 'hi' ? 'भारतीय रिश्ते इंजन' : 'Indian Kinship AI',
+      title: t('feat2Title'),
+      body: lang === 'hi'
+        ? 'ताऊजी, चाचाजी, बुआजी, मौसीजी, मामाजी और जेठानी जैसे 40+ प्रामाणिक रिश्ते किन्हीं भी दो सदस्यों के बीच स्वतः गणना।'
+        : 'Automatically resolves 40+ authentic paternal, maternal, and in-law relations—Tauji, Bua, Mama, Mausi, Jethani—between any two people.',
+      chips: lang === 'hi'
+        ? ['40+ रिश्ते', 'मातृ एवं पितृ', 'ससुराल पक्ष']
+        : ['40+ Relations', 'Maternal & Paternal', 'In-Law Aware']
     },
     {
       num: '03',
-      title: 'feat3Title',
-      body: 'feat3Body',
       accent: 'script',
-      image: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/1674_CE_Prayag_Snana_Vidhi%2C_Puranas_manuscript%2C_Sanskrit%2C_Devanagari_sample_i.jpg/960px-1674_CE_Prayag_Snana_Vidhi%2C_Puranas_manuscript%2C_Sanskrit%2C_Devanagari_sample_i.jpg',
-      fallbackLabel: lang === 'hi' ? 'देवनागरी' : 'EN → हिं'
+      tag: lang === 'hi' ? 'द्विभाषी संग्रह' : 'Bilingual Archive',
+      title: t('feat3Title'),
+      body: lang === 'hi'
+        ? 'अंग्रेज़ी में नाम टाइप करते ही देवनागरी वर्तनी तुरंत तैयार — ऑनलाइन हो या पूरी तरह ऑफ़लाइन।'
+        : 'Type any name in English and generate accurate Devanagari script instantaneously—working smoothly online or completely offline.',
+      chips: lang === 'hi'
+        ? ['देवनागरी', 'ऑफ़लाइन सक्षम', 'तुरंत रूपांतरण']
+        : ['Devanagari', 'Offline Ready', 'Instant Sync']
     },
     {
       num: '04',
-      title: 'feat4Title',
-      body: 'feat4Body',
       accent: 'archive',
-      image: 'https://upload.wikimedia.org/wikipedia/commons/2/2b/Group_vintage_photograph_of_a_Brahmin_family_in_India_%28c._1880%29.jpg',
-      fallbackLabel: lang === 'hi' ? 'निजी संग्रह' : 'Private Archive'
+      tag: lang === 'hi' ? 'निजी तिजोरी' : 'Private Vault',
+      title: t('feat4Title'),
+      body: lang === 'hi'
+        ? 'ब्राउज़र में निजी रखें या टोकन-सुरक्षित क्लाउड लिंक साझा करें। एक क्लिक में पूरा JSON बैकअप डाउनलोड करें।'
+        : 'Keep your family tree private in-browser or share via a token-protected link. Export a portable JSON backup anytime.',
+      chips: lang === 'hi'
+        ? ['12-अक्षर टोकन', 'JSON बैकअप', 'लोकल-फर्स्ट']
+        : ['12-Char Token', 'JSON Backup', 'Local-First']
     }
   ];
-  const spotlightFeatureImage =
-    'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/de/Family_Tree_of_the_Dahis_and_Ghabra_leaders.jpg/960px-Family_Tree_of_the_Dahis_and_Ghabra_leaders.jpg';
+
+  const renderFeatureVisual = accent => {
+    if (accent === 'lineage') {
+      return (
+        <div className="fsc-stage fsc-stage--lineage" aria-hidden="true">
+          <div className="fsc-mini-switch">
+            <span className="is-on">{lang === 'hi' ? 'वंश वृक्ष' : 'Vertical'}</span>
+            <span>{lang === 'hi' ? 'फ़्लोचार्ट' : 'Flowchart'}</span>
+          </div>
+          <div className="fsc-lineage-tree">
+            <div className="fsc-node-pair">
+              <span className="fsc-node fsc-node--root">{lang === 'hi' ? 'मूल' : 'Gen 1'}</span>
+              <span className="fsc-link-h" />
+              <span className="fsc-node">{lang === 'hi' ? 'जीवनसाथी' : 'Spouse'}</span>
+            </div>
+            <div className="fsc-stem" />
+            <div className="fsc-branch-bar" />
+            <div className="fsc-node-pair fsc-node-pair--children">
+              <span className="fsc-node fsc-node--leaf">{lang === 'hi' ? 'शाखा अ' : 'Branch A'}</span>
+              <span className="fsc-node fsc-node--leaf">{lang === 'hi' ? 'शाखा ब' : 'Branch B'}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (accent === 'kinship') {
+      return (
+        <div className="fsc-stage fsc-stage--kinship" aria-hidden="true">
+          <div className="fsc-kinship-pair">
+            <span className="fsc-person-pill">{lang === 'hi' ? 'आरव' : 'Aarav'}</span>
+            <span className="fsc-kinship-arrow">→</span>
+            <span className="fsc-person-pill">{lang === 'hi' ? 'प्रिया' : 'Priya'}</span>
+          </div>
+          <div className="fsc-kinship-result">
+            <span className="fsc-kinship-hi">मामा</span>
+            <span className="fsc-kinship-dot">·</span>
+            <span className="fsc-kinship-en">Maternal Uncle</span>
+          </div>
+          <div className="fsc-kinship-samples">
+            <span>{lang === 'hi' ? 'ताऊजी' : 'Tauji'}</span>
+            <span>{lang === 'hi' ? 'बुआजी' : 'Bua'}</span>
+            <span>{lang === 'hi' ? 'मौसीजी' : 'Mausi'}</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (accent === 'script') {
+      return (
+        <div className="fsc-stage fsc-stage--script" aria-hidden="true">
+          <div className="fsc-script-toggle">
+            <span className="fsc-script-badge">EN ↔ हिं</span>
+            <span className="fsc-script-mode">{lang === 'hi' ? 'फ़ोनेटिक' : 'Phonetic'}</span>
+          </div>
+          <div className="fsc-script-card">
+            <span className="fsc-script-en">Raghavendra</span>
+            <span className="fsc-script-arrow">↳</span>
+            <span className="fsc-script-hi">राघवेन्द्र</span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="fsc-stage fsc-stage--archive" aria-hidden="true">
+        <div className="fsc-vault-badge">
+          <span aria-hidden="true">🔒</span>
+          <span>{lang === 'hi' ? 'निजी · टोकन-सुरक्षित' : 'Private · Token-Protected'}</span>
+        </div>
+        <div className="fsc-vault-meta">
+          <code className="fsc-vault-code">?code=VX9K…</code>
+          <span className="fsc-vault-json">JSON ↓</span>
+        </div>
+      </div>
+    );
+  };
   const tutorials = [
     ['tut1Step', 'tut1Title', 'tut1Body'],
     ['tut2Step', 'tut2Title', 'tut2Body'],
@@ -275,13 +374,22 @@ export function LandingPage({
         <p className="hero-lede hover-explanation">{t('landLede')}</p>
         <div className="hero-cta">
           {hasPrivateTree ? (
-            <button
-              type="button"
-              className="btn btn-lg land-cta-primary"
-              onClick={onNavigateMyTree || onCreate}
-            >
-              🌳 {tr('navMyTree', lang === 'hi' ? 'मेरा निजी वृक्ष' : 'My Private Tree')} →
-            </button>
+            <>
+              <button
+                type="button"
+                className="btn btn-lg land-cta-primary"
+                onClick={onNavigateMyTree || onCreate}
+              >
+                🌳 {tr('navMyTree', lang === 'hi' ? 'मेरा निजी वृक्ष' : 'My Private Tree')} →
+              </button>
+              <a
+                href="#quick-start-tutorials"
+                className="btn ghost btn-lg land-cta-tutorial"
+                onClick={handleScrollToTutorials}
+              >
+                📖 {tr('quickStartCta', lang === 'hi' ? 'त्वरित उपयोग गाइड' : 'Quick Start Tutorial')} ↓
+              </a>
+            </>
           ) : (
             <>
               <button type="button" className="btn btn-lg land-cta-primary" onClick={onExplore}>
@@ -290,6 +398,13 @@ export function LandingPage({
               <button type="button" className="btn ghost btn-lg land-cta-create" onClick={onCreate}>
                 ✨ {tr('navCreatePrivateCta', lang === 'hi' ? 'अपना निजी वृक्ष बनाएं' : 'Create Your Private Tree')}
               </button>
+              <a
+                href="#quick-start-tutorials"
+                className="btn ghost btn-lg land-cta-tutorial"
+                onClick={handleScrollToTutorials}
+              >
+                📖 {tr('quickStartCta', lang === 'hi' ? 'त्वरित उपयोग गाइड' : 'Quick Start Tutorial')} ↓
+              </a>
             </>
           )}
         </div>
@@ -305,7 +420,17 @@ export function LandingPage({
       </section>
 
       <section className="features">
-        <h2 className="section-title">{t('featuresTitle')}</h2>
+        <div className="features-header">
+          <p className="eyebrow">
+            {lang === 'hi' ? 'मंच की विशिष्टता' : 'WHY VANSHVRIKSHA'}
+          </p>
+          <h2 className="section-title">{t('featuresTitle')}</h2>
+          <p className="features-subtitle">
+            {lang === 'hi'
+              ? 'भारतीय पारिवारिक संरचना, द्विभाषी नामकरण और पूर्ण गोपनीयता के लिए निर्मित आधुनिक वंशावली अनुभव।'
+              : 'Purpose-built for Indian lineages—combining dual-axis diagrams, authentic kinship logic, and private-by-default ownership.'}
+          </p>
+        </div>
         <div
           className="feature-grid mobile-carousel-track"
           ref={featuresCarousel.trackRef}
@@ -319,75 +444,55 @@ export function LandingPage({
           onFocus={featuresCarousel.pause}
           onBlur={featuresCarousel.resumeDelayed}
         >
-          {features.map(({ num, title, body, accent, image, fallbackLabel }) => (
-            <article className={`feature-card feature-card--visual feature-card--${accent} mobile-carousel-slide reveal-parent reveal-on-scroll`} key={num} tabIndex={0}>
-              <div className="feature-media">
-                <div className="feature-media-fallback" aria-hidden="true">
-                  <svg viewBox="0 0 120 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M60 10C44 10 34 22 34 38V62H86V38C86 22 76 10 60 10Z" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.45"/>
-                    <circle cx="60" cy="28" r="7" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.6"/>
-                    <path d="M40 54C46 44 74 44 80 54" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.45"/>
-                  </svg>
-                  <span>{fallbackLabel}</span>
-                </div>
-                <img
-                  className="feature-media-img"
-                  src={image}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  referrerPolicy="no-referrer"
-                  onError={e => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-                <div className="feature-media-scrim" aria-hidden="true" />
-                <span className="feature-num" aria-hidden="true">{num}</span>
-                <span className="feature-media-tag" aria-hidden="true">{fallbackLabel}</span>
+          {features.map(({ num, accent, tag, title, body, chips }) => (
+            <article
+              className={`feature-card feature-showcase-card feature-showcase-card--${accent} mobile-carousel-slide reveal-parent reveal-on-scroll`}
+              key={num}
+              tabIndex={0}
+            >
+              <header className="fsc-head">
+                <span className="fsc-index feature-num" aria-hidden="true">{num}</span>
+                <span className="fsc-tag">{tag}</span>
+              </header>
+              {renderFeatureVisual(accent)}
+              <div className="fsc-body">
+                <h3>{title}</h3>
+                <p className="fsc-desc">{body}</p>
               </div>
-              <div className="feature-body">
-                <h3>{t(title)}</h3>
-                <p className="hover-explanation">{t(body)}</p>
-              </div>
+              <footer className="fsc-chips" aria-label="Highlights">
+                {chips.map(chip => (
+                  <span className="fsc-chip" key={chip}>{chip}</span>
+                ))}
+              </footer>
             </article>
           ))}
-          <article className="feature-card feature-card--visual feature-card--spatial mobile-carousel-slide spotlight-mobile-slide reveal-parent reveal-on-scroll" tabIndex={0}>
-            <div className="feature-media">
-              <div className="feature-media-fallback" aria-hidden="true">
-                <svg viewBox="0 0 120 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="44" y="10" width="32" height="14" rx="4" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.6"/>
-                  <path d="M60 24V38M60 38H34V48M60 38H86V48" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.5"/>
-                  <rect x="20" y="48" width="28" height="14" rx="4" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.6"/>
-                  <rect x="72" y="48" width="28" height="14" rx="4" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.6"/>
-                </svg>
-                <span>{lang === 'hi' ? 'द्वि-मोड इंजन' : 'Spatial Engine'}</span>
-              </div>
-              <img
-                className="feature-media-img"
-                src={spotlightFeatureImage}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                referrerPolicy="no-referrer"
-                onError={e => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-              <div className="feature-media-scrim" aria-hidden="true" />
-              <span className="feature-num" aria-hidden="true">05</span>
-              <span className="feature-media-tag" aria-hidden="true">{lang === 'hi' ? 'द्वि-मोड इंजन' : 'Spatial Engine'}</span>
-            </div>
-            <div className="feature-body">
+          <article
+            className="feature-card feature-showcase-card feature-showcase-card--spatial mobile-carousel-slide spotlight-mobile-slide reveal-parent reveal-on-scroll"
+            tabIndex={0}
+          >
+            <header className="fsc-head">
+              <span className="fsc-index feature-num" aria-hidden="true">05</span>
+              <span className="fsc-tag">{lang === 'hi' ? 'स्थानिक नेविगेटर' : 'Spatial Navigator'}</span>
+            </header>
+            <div className="fsc-stage fsc-stage--spatial">
               {renderSpotlightDiagram()}
-              <div className="spotlight-text">
-                <p className="eyebrow">{t('spotlightEyebrow')}</p>
-                <h3>{t('spotlightTitle')}</h3>
-                <p className="hover-explanation">{t('spotlightBody')}</p>
-                <button type="button" className="btn ghost btn-sm" onClick={spotlightCtaAction}>
-                  {spotlightCtaLabel}
-                </button>
-              </div>
             </div>
+            <div className="fsc-body spotlight-text">
+              <p className="eyebrow">{t('spotlightEyebrow')}</p>
+              <h3>{t('spotlightTitle')}</h3>
+              <p className="fsc-desc">{t('spotlightBody')}</p>
+              <button type="button" className="btn ghost btn-sm" onClick={spotlightCtaAction}>
+                {spotlightCtaLabel}
+              </button>
+            </div>
+            <footer className="fsc-chips" aria-label="Highlights">
+              {(lang === 'hi'
+                ? ['पैन एवं पिंच', 'शाखा फ़ोकस', 'बहु-पीढ़ी']
+                : ['Pan & Pinch', 'Branch Focus', 'Multi-Gen']
+              ).map(chip => (
+                <span className="fsc-chip" key={chip}>{chip}</span>
+              ))}
+            </footer>
           </article>
         </div>
         <div className="carousel-dots" role="tablist" aria-label={t('featuresTitle')}>
@@ -418,7 +523,7 @@ export function LandingPage({
       </section>
 
       {/* Quick Start Tutorials Section */}
-      <section className="tutorials-section">
+      <section className="tutorials-section" id="quick-start-tutorials">
         <h2 className="section-title">{t('tutorialsTitle')}</h2>
         <div
           className="feature-grid mobile-carousel-track"

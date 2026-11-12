@@ -47,6 +47,7 @@ export function SubTreesSidebar({
     <aside
       className={`subtrees-sidebar${isOpen ? ' is-open' : ''}`}
       aria-label={tr('subTreesTitle', 'Sub-Trees', 'उप-वंश')}
+      onWheel={(e) => e.stopPropagation()}
     >
       <div className="subtrees-sidebar-head">
         <div className="subtrees-sidebar-title-wrap">

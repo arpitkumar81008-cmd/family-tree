@@ -249,8 +249,20 @@
 .hero-cta {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
   margin-top: 32px;
+}
+
+.land-cta-tutorial {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#quick-start-tutorials {
+  scroll-margin-top: 84px;
 }
 
 .btn-lg {
@@ -426,6 +438,26 @@
   }
 }
 
+.features-header {
+  max-width: 680px;
+  margin-bottom: 28px;
+}
+
+.features-header .eyebrow {
+  margin: 0 0 8px;
+}
+
+.features-header .section-title {
+  margin-bottom: 10px;
+}
+
+.features-subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15.5px;
+  line-height: 1.55;
+}
+
 .feature-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -443,145 +475,377 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   padding: 24px;
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .feature-card:hover {
   border-color: var(--ink);
 }
 
-.feature-card--visual {
-  padding: 0;
-  overflow: hidden;
+.feature-showcase-card {
+  padding: 18px;
   display: flex;
   flex-direction: column;
-}
-
-.feature-media {
+  gap: 14px;
   position: relative;
-  height: 156px;
-  width: 100%;
   overflow: hidden;
-  border-bottom: 1px solid var(--line);
-  background: linear-gradient(135deg, #2a1816 0%, #5b201f 52%, #b07a45 100%);
-  flex-shrink: 0;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
 }
 
-.feature-card--lineage .feature-media {
-  background: linear-gradient(135deg, #1b2f26 0%, #2f5542 55%, #8a9b68 100%);
+.feature-showcase-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
 }
 
-.feature-card--kinship .feature-media {
-  background: linear-gradient(135deg, #4b1218 0%, #9b2226 54%, #d9822b 100%);
+:root[data-theme="dark"] .feature-showcase-card:hover {
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.36);
 }
 
-.feature-card--script .feature-media {
-  background: linear-gradient(135deg, #3c2a1e 0%, #7f5539 54%, #c69c6d 100%);
-}
-
-.feature-card--archive .feature-media {
-  background: linear-gradient(135deg, #222629 0%, #4b4237 54%, #9c8870 100%);
-}
-
-.feature-card--spatial .feature-media {
-  background: linear-gradient(135deg, #1d263b 0%, #415a77 54%, #b56576 100%);
-}
-
-.feature-media-fallback {
-  position: absolute;
-  inset: 0;
+.fsc-head {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.fsc-head .fsc-index.feature-num {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  color: rgba(255, 248, 238, 0.86);
-  font-family: var(--display);
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  pointer-events: none;
-}
-
-.feature-media-fallback svg {
-  width: 84px;
-  height: 50px;
-}
-
-.feature-media-img {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.feature-card--visual:hover .feature-media-img {
-  transform: scale(1.04);
-}
-
-.feature-media-scrim {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  background: linear-gradient(
-    to bottom,
-    rgba(10, 15, 13, 0.14) 0%,
-    rgba(10, 15, 13, 0.08) 45%,
-    rgba(10, 15, 13, 0.56) 100%
-  );
-  pointer-events: none;
-}
-
-.feature-card--visual .feature-num {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 3;
   margin-bottom: 0;
-  padding: 4px 10px;
+  padding: 3px 10px;
   border-radius: 999px;
-  background: rgba(248, 249, 246, 0.92);
+  background: var(--bg);
+  border: 1px solid var(--line);
   color: var(--accent);
+  font-family: var(--display);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+  font-variant-numeric: tabular-nums;
 }
 
-:root[data-theme="dark"] .feature-card--visual .feature-num {
-  background: rgba(18, 24, 22, 0.9);
-}
-
-.feature-media-tag {
-  position: absolute;
-  bottom: 10px;
-  right: 12px;
-  z-index: 3;
+.fsc-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
   padding: 3px 9px;
   border-radius: 999px;
-  background: rgba(10, 15, 13, 0.62);
-  color: #f8f9f6;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  backdrop-filter: blur(4px);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  white-space: nowrap;
 }
 
-.feature-body {
-  padding: 20px 22px 24px;
+.fsc-stage {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  padding: 14px;
+  min-height: 124px;
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+}
+
+.fsc-stage--lineage {
+  background: radial-gradient(circle at top right, rgba(47, 85, 66, 0.14), transparent 65%), var(--bg);
+}
+
+.fsc-stage--kinship {
+  background: radial-gradient(circle at top right, rgba(155, 34, 38, 0.13), transparent 65%), var(--bg);
+}
+
+.fsc-stage--script {
+  background: radial-gradient(circle at top right, rgba(176, 122, 69, 0.16), transparent 65%), var(--bg);
+}
+
+.fsc-stage--archive {
+  background: radial-gradient(circle at top right, rgba(75, 66, 55, 0.15), transparent 65%), var(--bg);
+}
+
+.fsc-stage--spatial {
+  background: radial-gradient(circle at top right, rgba(65, 90, 119, 0.16), transparent 65%), var(--bg);
+  padding: 10px;
+}
+
+/* Card 01: Mini Dual-Axis Lineage Diagram */
+.fsc-mini-switch {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.fsc-mini-switch span {
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--muted);
+}
+
+.fsc-mini-switch span.is-on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.fsc-lineage-tree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.fsc-node-pair {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fsc-node-pair--children {
+  gap: 14px;
+}
+
+.fsc-node {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.fsc-node--root {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.fsc-node--leaf {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.fsc-link-h {
+  width: 14px;
+  height: 1.5px;
+  background: var(--line);
+}
+
+.fsc-stem {
+  width: 1.5px;
+  height: 10px;
+  background: var(--line);
+}
+
+.fsc-branch-bar {
+  width: 68px;
+  height: 1.5px;
+  background: var(--line);
+  margin-bottom: 6px;
+}
+
+/* Card 02: Live Kinship Preview */
+.fsc-kinship-pair {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.fsc-person-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.fsc-kinship-arrow {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.fsc-kinship-result {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.fsc-kinship-hi {
+  font-family: var(--deva);
+}
+
+.fsc-kinship-samples {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.fsc-kinship-samples span {
+  font-family: var(--deva);
+  font-size: 10.5px;
+  color: var(--muted);
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+/* Card 03: Bilingual Script Preview */
+.fsc-script-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fsc-script-badge {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.fsc-script-mode {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.fsc-script-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.fsc-script-en {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.fsc-script-arrow {
+  font-size: 11px;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.fsc-script-hi {
+  font-family: var(--deva);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+/* Card 04: Private Vault Preview */
+.fsc-vault-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.fsc-vault-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fsc-vault-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  color: var(--accent);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px dashed var(--line);
+}
+
+.fsc-vault-json {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+/* Card Body & Bottom Chips */
+.fsc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   flex: 1;
 }
 
-.spotlight-mobile-slide.feature-card--visual .feature-media {
-  height: 124px;
+.fsc-body h3 {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 1.25;
+  margin: 0;
+  color: var(--ink);
 }
 
-.spotlight-mobile-slide.feature-card--visual .feature-body {
-  padding: 14px 18px 18px;
+.fsc-desc {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.fsc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.fsc-chip {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--line);
 }
 
 .feature-num {
@@ -1492,9 +1756,10 @@
 
 /* Compact Spatial Tree Slide inside Carousel */
 .spotlight-mobile-slide .spotlight-diagram {
-  padding: 10px 12px;
-  margin-bottom: 10px;
-  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-bottom: 0;
+  border: none;
+  background: transparent;
 }
 
 .spotlight-mobile-slide .spot-row {
