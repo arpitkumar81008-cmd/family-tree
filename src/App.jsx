@@ -53,6 +53,7 @@ import {
   getMyJoinRequest
 } from './services/treeSync.js';
 import { sendOwnerJoinRequestEmail } from './services/joinNotifications.js';
+import { compactPhotosMap } from './utils/photoCompress.js';
 import Toolbar from './components/Toolbar.jsx';
 import HelpModal from './components/HelpModal.jsx';
 import Tabs from './components/Tabs.jsx';
@@ -867,16 +868,23 @@ export function App() {
     });
   };
 
-  const handleSetPhoto = (id, dataUrl) => {
+  const handleSetPhoto = async (id, dataUrl) => {
     if (!canEdit) return false;
-    const updatedPhotos = { ...treeState.photos };
+    let updatedPhotos = { ...treeState.photos };
     if (dataUrl) {
       updatedPhotos[id] = dataUrl;
     } else {
       delete updatedPhotos[id];
     }
-    if (Object.keys(updatedPhotos).length > 100 || !isPhotosPayloadWithinLimit(updatedPhotos)) {
+    if (Object.keys(updatedPhotos).length > 100) {
       return false;
+    }
+    if (!isPhotosPayloadWithinLimit(updatedPhotos)) {
+      const compacted = await compactPhotosMap(updatedPhotos, { targetBytes: 8192 });
+      updatedPhotos = compacted.photos;
+      if (!isPhotosPayloadWithinLimit(updatedPhotos)) {
+        return false;
+      }
     }
     isLocalMutationRef.current = true;
     setTreeState(prev => ({ ...prev, photos: updatedPhotos }));

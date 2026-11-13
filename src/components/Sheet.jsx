@@ -90,7 +90,7 @@ export function Sheet({
     setPhotoMsg(t("photoProcessing"));
     try {
       const dataUrl = await compressPhotoFile(file, { targetBytes: 8192 });
-      const ok = setPhoto(person.id, dataUrl);
+      const ok = await setPhoto(person.id, dataUrl);
       setPhotoMsg(ok ? t("added") : t("noSpace"));
     } catch {
       setPhotoMsg(t("badImg"));

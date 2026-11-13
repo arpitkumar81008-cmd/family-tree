@@ -72,8 +72,14 @@ export async function compressPhotoFile(file, { targetBytes = 8192 } = {}) {
   }
 
   const rawDataUrl = await readBlobAsDataUrl(sourceBlob);
-  const img = await loadImage(rawDataUrl);
+  return compressDataUrl(rawDataUrl, { targetBytes });
+}
 
+export async function compressDataUrl(rawDataUrl, { targetBytes = 8192 } = {}) {
+  if (!rawDataUrl || typeof rawDataUrl !== 'string') return rawDataUrl;
+  if (rawDataUrl.length <= targetBytes) return rawDataUrl;
+
+  const img = await loadImage(rawDataUrl);
   const steps = [
     [160, 0.72],
     [160, 0.56],
@@ -81,7 +87,7 @@ export async function compressPhotoFile(file, { targetBytes = 8192 } = {}) {
     [96, 0.45]
   ];
 
-  let best = '';
+  let best = rawDataUrl;
   for (const [maxDim, quality] of steps) {
     const candidate = renderCompressedDataUrl(img, maxDim, quality);
     best = candidate;
@@ -90,4 +96,24 @@ export async function compressPhotoFile(file, { targetBytes = 8192 } = {}) {
     }
   }
   return best;
+}
+
+export async function compactPhotosMap(photosMap, { targetBytes = 8192 } = {}) {
+  if (!photosMap || typeof photosMap !== 'object') return { photos: {}, changed: false };
+  const next = { ...photosMap };
+  let changed = false;
+  for (const [id, val] of Object.entries(photosMap)) {
+    if (typeof val === 'string' && val.startsWith('data:image/') && val.length > targetBytes) {
+      try {
+        const compressed = await compressDataUrl(val, { targetBytes });
+        if (compressed && compressed.length < val.length) {
+          next[id] = compressed;
+          changed = true;
+        }
+      } catch {
+        // Keep original if an existing photo fails to re-decode
+      }
+    }
+  }
+  return { photos: next, changed };
 }
