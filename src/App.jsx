@@ -1383,19 +1383,6 @@ export function App() {
                       >
                         ✉ {t("notifyOwnerEmailBtn")}
                       </a>
-                      <button
-                        type="button"
-                        className="btn"
-                        style={{ fontSize: 12 }}
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(requestNotifyLinks.approvalUrl);
-                            setRequestMsg(t("copiedApprovalLinkMsg"));
-                          } catch {}
-                        }}
-                      >
-                        {t("copyApprovalLinkBtn")}
-                      </button>
                     </div>
                   )}
                 </form>

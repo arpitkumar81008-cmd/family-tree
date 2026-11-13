@@ -1,17 +1,21 @@
 /**
  * Client-side owner email notification helper (Firebase Spark / free-plan compatible).
- * - Uses EmailJS REST API when VITE_EMAILJS_* env vars are configured.
- * - Falls back to a pre-filled mailto: link and 1-click in-app approval URL.
+ * - Security: Never sends or embeds dynamic/client-controlled approval URLs in emails
+ *   to prevent phishing/link-substitution attacks. Owners always open the trusted
+ *   app origin directly (https://vanshvriksha.web.app) to review Pending Access Requests.
  */
 
-export function buildOwnerApprovalUrl(treeId, requesterUid) {
-  if (typeof window === 'undefined' || !treeId || !requesterUid) return '';
-  const url = new URL(window.location.href);
-  url.search = '';
-  url.hash = '';
-  url.searchParams.set('tree', treeId);
-  url.searchParams.set('approve', requesterUid);
-  return url.toString();
+const TRUSTED_APP_ORIGIN = 'https://vanshvriksha.web.app';
+
+function sanitizeId(value) {
+  return String(value || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 128);
+}
+
+function sanitizeText(value, maxLen = 120) {
+  return String(value || '')
+    .replace(/[\r\n]+/g, ' ')
+    .trim()
+    .slice(0, maxLen);
 }
 
 export function buildJoinRequestMailtoUrl({
@@ -20,24 +24,25 @@ export function buildJoinRequestMailtoUrl({
   treeTitle = '',
   requesterName = '',
   requesterEmail = '',
-  requestedRole = 'viewer',
-  approvalUrl = ''
+  requestedRole = 'viewer'
 }) {
-  const safeTitle = treeTitle || `Family Tree (${treeId})`;
-  const safeRequester = requesterName || requesterEmail || 'A family member';
+  const safeTreeId = sanitizeId(treeId);
+  const safeTitle = sanitizeText(treeTitle, 120) || `Family Tree (${safeTreeId})`;
+  const safeRequester =
+    sanitizeText(requesterName, 80) || sanitizeText(requesterEmail, 120) || 'A family member';
+  const safeEmail = sanitizeText(requesterEmail, 120);
   const roleLabel = requestedRole === 'editor' ? 'Editor (can add/edit)' : 'Viewer (read-only)';
   const subject = `VanshVriksha: Access Request for ${safeTitle}`;
   const bodyLines = [
-    `Hello,`,
+    'Hello,',
     '',
-    `${safeRequester}${requesterEmail ? ` (${requesterEmail})` : ''} has requested ${roleLabel} access to "${safeTitle}".`,
+    `${safeRequester}${safeEmail ? ` (${safeEmail})` : ''} has requested ${roleLabel} access to "${safeTitle}".`,
     '',
-    `Click this link to review and approve in VanshVriksha:`,
-    approvalUrl,
+    `To review and approve safely, open ${TRUSTED_APP_ORIGIN} directly (or your saved bookmark), sign in as owner, and open "Share & Family Access" -> "Pending Access Requests".`,
     '',
-    `Tree ID: ${treeId}`
+    `Tree ID: ${safeTreeId}`
   ];
-  const toPart = ownerEmail ? encodeURIComponent(ownerEmail.trim()) : '';
+  const toPart = ownerEmail ? encodeURIComponent(sanitizeText(ownerEmail, 160)) : '';
   return `mailto:${toPart}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines.join('\n'))}`;
 }
 
@@ -58,22 +63,21 @@ export async function sendOwnerJoinRequestEmail({
   requestedRole = 'viewer',
   ownerEmail = ''
 }) {
-  const approvalUrl = buildOwnerApprovalUrl(treeId, requesterUid);
+  const safeTreeId = sanitizeId(treeId);
+  const safeRequesterUid = sanitizeId(requesterUid);
   const mailtoUrl = buildJoinRequestMailtoUrl({
     ownerEmail,
-    treeId,
+    treeId: safeTreeId,
     treeTitle,
     requesterName,
     requesterEmail,
-    requestedRole,
-    approvalUrl
+    requestedRole
   });
 
   if (!isEmailJsConfigured() || typeof fetch !== 'function') {
     return {
       sent: false,
       method: 'mailto',
-      approvalUrl,
       mailtoUrl
     };
   }
@@ -87,13 +91,16 @@ export async function sendOwnerJoinRequestEmail({
         template_id: import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
         user_id: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
         template_params: {
-          to_email: ownerEmail || import.meta.env.VITE_OWNER_NOTIFICATION_EMAIL || '',
-          tree_id: treeId,
-          tree_title: treeTitle || treeId,
-          requester_name: requesterName || 'Family Member',
-          requester_email: requesterEmail || 'Not provided',
-          requested_role: requestedRole === 'editor' ? 'Editor' : 'Viewer',
-          approval_url: approvalUrl
+          to_email: sanitizeText(
+            ownerEmail || import.meta.env.VITE_OWNER_NOTIFICATION_EMAIL || '',
+            160
+          ),
+          tree_id: safeTreeId,
+          tree_title: sanitizeText(treeTitle, 120) || safeTreeId,
+          requester_uid: safeRequesterUid,
+          requester_name: sanitizeText(requesterName, 80) || 'Family Member',
+          requester_email: sanitizeText(requesterEmail, 120) || 'Not provided',
+          requested_role: requestedRole === 'editor' ? 'Editor' : 'Viewer'
         }
       })
     });
@@ -102,7 +109,6 @@ export async function sendOwnerJoinRequestEmail({
       return {
         sent: true,
         method: 'emailjs',
-        approvalUrl,
         mailtoUrl
       };
     }
@@ -113,7 +119,6 @@ export async function sendOwnerJoinRequestEmail({
   return {
     sent: false,
     method: 'mailto',
-    approvalUrl,
     mailtoUrl
   };
 }

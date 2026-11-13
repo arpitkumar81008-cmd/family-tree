@@ -312,19 +312,6 @@ export function ShareTreeModal({
               >
                 ✉ {t('notifyOwnerEmailBtn')}
               </a>
-              <button
-                type="button"
-                className="btn"
-                style={{ fontSize: '12px' }}
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(joinNotifyLinks.approvalUrl);
-                    setJoinMsg(t('copiedApprovalLinkMsg'));
-                  } catch {}
-                }}
-              >
-                {t('copyApprovalLinkBtn')}
-              </button>
             </div>
           )}
         </form>
