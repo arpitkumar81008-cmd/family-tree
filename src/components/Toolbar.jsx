@@ -1,5 +1,4 @@
-import React from 'react';
-import { calculateKinship } from '../utils/kinship.js';
+import React, { useState, useEffect, useRef } from 'react';
 
 export function Toolbar({
   viewer = "",
@@ -13,7 +12,6 @@ export function Toolbar({
   onOpenAddModal,
   onOpenRelationSolver,
   canEdit = true,
-  familyIndex,
   canUndo = false,
   canRedo = false,
   onUndo,
@@ -25,192 +23,280 @@ export function Toolbar({
   onExportPng,
   onPrintPoster,
 }) {
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const toolsRef = useRef(null);
+
+  useEffect(() => {
+    if (!isToolsOpen) return;
+    const handleOutside = e => {
+      if (toolsRef.current && !toolsRef.current.contains(e.target)) {
+        setIsToolsOpen(false);
+      }
+    };
+    const handleKey = e => {
+      if (e.key === 'Escape') setIsToolsOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [isToolsOpen]);
+
   const tr = (key, fallback) => {
     if (typeof t !== 'function') return fallback;
     const res = t(key);
     return !res || res === key ? fallback : res;
   };
+
   const showSearchMatches = Boolean(searchQuery) && searchMatchCount > 0;
   const clampedMatchIndex = showSearchMatches
     ? Math.min(Math.max(0, activeSearchIndex), searchMatchCount - 1)
     : 0;
-  const hasActions = Boolean(
+  const hasSecondaryActions = Boolean(
     onOpenRelationSolver || canEdit || onOpenMilestones || onExportPng || onPrintPoster
   );
+
+  const moreLabel = lang === 'hi' ? 'टूल और फ़िल्टर' : 'Tools & filters';
+
   return (
-    <div className="bar" role="region" aria-label={t("controlsAria")}>
-      {/* Perspective dropdown & Reset Button */}
-      <div className="field">
-        <label htmlFor="viewer-select">{t("viewerLabel")}</label>
-        <div className="viewer-wrap">
-          <select
-            id="viewer-select"
-            value={viewer}
-            onChange={e => setViewer(e.target.value)}
-          >
-            <option value="">{t("none")}</option>
-            {people.map(p => (
-              <option key={p.id} value={p.id}>
-                {displayName(p.id)}
-              </option>
-            ))}
-          </select>
-          {viewer && (
-            <button
-              type="button"
-              className="reset-btn"
-              title={lang === "hi" ? "मूल वंश वृक्ष पर लौटें" : "Reset to full family tree"}
-              onClick={() => setViewer("")}
+    <div className="bar bar-compact" role="region" aria-label={t("controlsAria")} ref={toolsRef}>
+      {/* Primary Single-Row Controls: Search + Add Member + Tools Drawer Toggle */}
+      <div className="bar-primary-row">
+        {/* Perspective dropdown (inline on desktop, inside drawer on mobile) */}
+        <div className="field bar-perspective-desktop">
+          <label htmlFor="viewer-select">{t("viewerLabel")}</label>
+          <div className="viewer-wrap">
+            <select
+              id="viewer-select"
+              value={viewer}
+              onChange={e => setViewer(e.target.value)}
             >
-              ✕ {lang === "hi" ? "मूल वृक्ष" : "Full Tree"}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Quick Search */}
-      <div className="field grow">
-        <label htmlFor="search-input">{t("searchLabel")}</label>
-        <div className="search-controls" style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%' }}>
-          <div className="search-wrap" style={{ flex: '1 1 auto' }}>
-            <input
-              id="search-input"
-              type="search"
-              placeholder={t("searchPh")}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && onStepSearchMatch && searchMatchCount > 0) {
-                  e.preventDefault();
-                  onStepSearchMatch(e.shiftKey ? -1 : 1);
-                }
-              }}
-            />
-            <kbd className="kbd-hint">/</kbd>
+              <option value="">{t("none")}</option>
+              {people.map(p => (
+                <option key={p.id} value={p.id}>
+                  {displayName(p.id)}
+                </option>
+              ))}
+            </select>
+            {viewer && (
+              <button
+                type="button"
+                className="reset-btn"
+                title={lang === "hi" ? "मूल वंश वृक्ष पर लौटें" : "Reset to full family tree"}
+                aria-label={lang === "hi" ? "मूल वंश वृक्ष पर लौटें" : "Reset to full family tree"}
+                onClick={() => setViewer("")}
+              >
+                ✕ {lang === "hi" ? "मूल वृक्ष" : "Full Tree"}
+              </button>
+            )}
           </div>
-          {showSearchMatches && (
-            <div
-              className="search-match-nav"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
-            >
-              <span className="search-match-count" style={{ fontSize: '12px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-                {`${clampedMatchIndex + 1}/${searchMatchCount}`}
-              </span>
-              <button
-                type="button"
-                className="btn ghost toolbar-search-prev-btn"
-                style={{ height: '32px', padding: '0 8px', minWidth: 'auto' }}
-                title={lang === 'hi' ? 'पिछला परिणाम' : 'Previous match'}
-                aria-label={lang === 'hi' ? 'पिछला परिणाम' : 'Previous match'}
-                disabled={!onStepSearchMatch}
-                onClick={() => onStepSearchMatch?.(-1)}
-              >
-                ↑
-              </button>
-              <button
-                type="button"
-                className="btn ghost toolbar-search-next-btn"
-                style={{ height: '32px', padding: '0 8px', minWidth: 'auto' }}
-                title={lang === 'hi' ? 'अगला परिणाम' : 'Next match'}
-                aria-label={lang === 'hi' ? 'अगला परिणाम' : 'Next match'}
-                disabled={!onStepSearchMatch}
-                onClick={() => onStepSearchMatch?.(1)}
-              >
-                ↓
-              </button>
-            </div>
-          )}
         </div>
-      </div>
 
-      {/* Action Buttons */}
-      {hasActions && (
-        <div className="bar-actions">
-          {/* Undo / Redo Buttons (when editing is enabled) */}
-          {canEdit && (
-            <>
-              <button
-                type="button"
-                className="btn ghost toolbar-undo-btn"
-                style={{ padding: '0 10px', minWidth: 'auto' }}
-                disabled={!canUndo}
-                onClick={() => onUndo?.()}
-                title={tr('undoBtn', lang === 'hi' ? 'पूर्ववत करें' : 'Undo')}
-                aria-label={tr('undoBtn', lang === 'hi' ? 'पूर्ववत करें' : 'Undo')}
-              >
-                ↶
-              </button>
-              <button
-                type="button"
-                className="btn ghost toolbar-redo-btn"
-                style={{ padding: '0 10px', minWidth: 'auto' }}
-                disabled={!canRedo}
-                onClick={() => onRedo?.()}
-                title={tr('redoBtn', lang === 'hi' ? 'फिर से करें' : 'Redo')}
-                aria-label={tr('redoBtn', lang === 'hi' ? 'फिर से करें' : 'Redo')}
-              >
-                ↷
-              </button>
-            </>
-          )}
+        {/* Quick Search */}
+        <div className="field grow bar-search-field">
+          <label htmlFor="search-input" className="bar-search-label">{t("searchLabel")}</label>
+          <div className="search-controls">
+            <div className="search-wrap">
+              <input
+                id="search-input"
+                type="search"
+                aria-label={t("searchLabel")}
+                placeholder={t("searchPh")}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && onStepSearchMatch && searchMatchCount > 0) {
+                    e.preventDefault();
+                    onStepSearchMatch(e.shiftKey ? -1 : 1);
+                  }
+                }}
+              />
+              <kbd className="kbd-hint" aria-hidden="true">/</kbd>
+            </div>
+            {showSearchMatches && (
+              <div className="search-match-nav">
+                <span className="search-match-count" aria-live="polite">
+                  {`${clampedMatchIndex + 1}/${searchMatchCount}`}
+                </span>
+                <button
+                  type="button"
+                  className="btn ghost toolbar-search-prev-btn"
+                  title={lang === 'hi' ? 'पिछला परिणाम' : 'Previous match'}
+                  aria-label={lang === 'hi' ? 'पिछला परिणाम' : 'Previous match'}
+                  disabled={!onStepSearchMatch}
+                  onClick={() => onStepSearchMatch?.(-1)}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost toolbar-search-next-btn"
+                  title={lang === 'hi' ? 'अगला परिणाम' : 'Next match'}
+                  aria-label={lang === 'hi' ? 'अगला परिणाम' : 'Next match'}
+                  disabled={!onStepSearchMatch}
+                  onClick={() => onStepSearchMatch?.(1)}
+                >
+                  ↓
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
 
-          {/* Milestones Button */}
-          {onOpenMilestones && (
-            <button
-              type="button"
-              className="btn ghost toolbar-milestones-btn"
-              onClick={onOpenMilestones}
-              title={tr('milestonesBtn', lang === 'hi' ? 'मील के पत्थर' : 'Milestones')}
-            >
-              🎂 {tr('milestonesBtn', lang === 'hi' ? 'मील के पत्थर' : 'Milestones')}
-            </button>
-          )}
-
-          {/* Export PNG Button */}
-          {onExportPng && (
-            <button
-              type="button"
-              className="btn ghost toolbar-png-btn"
-              onClick={onExportPng}
-              title={tr('exportPngBtn', lang === 'hi' ? 'PNG निर्यात' : 'Export PNG')}
-            >
-              PNG
-            </button>
-          )}
-
-          {/* Print / PDF Poster Button */}
-          {onPrintPoster && (
-            <button
-              type="button"
-              className="btn ghost toolbar-print-btn"
-              onClick={onPrintPoster}
-              title={tr('printPosterBtn', lang === 'hi' ? 'PDF/प्रिंट' : 'PDF/Print')}
-            >
-              {tr('printPosterBtn', lang === 'hi' ? 'PDF/प्रिंट' : 'PDF/Print')}
-            </button>
-          )}
-
-          {/* Find Relation Solver Button */}
-          {onOpenRelationSolver && (
-            <button
-              type="button"
-              className="btn ghost toolbar-relation-btn"
-              onClick={onOpenRelationSolver}
-            >
-              🔗 {tr('findRelationBtn', lang === 'hi' ? 'रिश्ता खोजें' : 'Find Relation')}
-            </button>
-          )}
-
-          {/* Add Member Button (only shown when user can edit this tree) */}
+        {/* Primary Quick Actions: + Add Member + Tools Toggle */}
+        <div className="bar-quick-actions">
           {canEdit && (
             <button
               type="button"
               className="btn toolbar-add-btn"
               onClick={onOpenAddModal}
+              aria-label={t("addMember")}
             >
-              + {t("addMember")}
+              + <span className="btn-label-full">{t("addMember")}</span>
+              <span className="btn-label-short">{lang === 'hi' ? 'जोड़ें' : 'Add'}</span>
             </button>
           )}
+
+          {hasSecondaryActions && (
+            <button
+              type="button"
+              className={`btn ghost toolbar-more-btn${isToolsOpen ? ' is-open' : ''}${viewer ? ' has-active-filter' : ''}`}
+              aria-expanded={isToolsOpen}
+              aria-controls="toolbar-more-drawer"
+              aria-label={moreLabel}
+              title={moreLabel}
+              onClick={() => setIsToolsOpen(prev => !prev)}
+            >
+              <span aria-hidden="true">⚙</span>
+              <span className="toolbar-more-text">{lang === 'hi' ? 'टूल' : 'Tools'}</span>
+              {viewer && <span className="toolbar-filter-dot" aria-hidden="true" />}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Collapsible Secondary Tools Drawer (keeps tree visible by default!) */}
+      {hasSecondaryActions && (
+        <div
+          id="toolbar-more-drawer"
+          className={`toolbar-more-drawer${isToolsOpen ? ' is-open' : ''}`}
+          role="region"
+          aria-label={moreLabel}
+        >
+          {/* Mobile Perspective Selector */}
+          <div className="field bar-perspective-mobile">
+            <label htmlFor="viewer-select-mobile">{t("viewerLabel")}</label>
+            <div className="viewer-wrap">
+              <select
+                id="viewer-select-mobile"
+                value={viewer}
+                onChange={e => setViewer(e.target.value)}
+              >
+                <option value="">{t("none")}</option>
+                {people.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {displayName(p.id)}
+                  </option>
+                ))}
+              </select>
+              {viewer && (
+                <button
+                  type="button"
+                  className="reset-btn"
+                  title={lang === "hi" ? "मूल वंश वृक्ष पर लौटें" : "Reset to full family tree"}
+                  onClick={() => setViewer("")}
+                >
+                  ✕ {lang === "hi" ? "मूल वृक्ष" : "Full Tree"}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="bar-actions">
+            {canEdit && (
+              <div className="toolbar-undo-group" role="group" aria-label={lang === 'hi' ? 'इतिहास' : 'History'}>
+                <button
+                  type="button"
+                  className="btn ghost toolbar-undo-btn"
+                  disabled={!canUndo}
+                  onClick={() => onUndo?.()}
+                  title={tr('undoBtn', lang === 'hi' ? 'पूर्ववत करें' : 'Undo')}
+                  aria-label={tr('undoBtn', lang === 'hi' ? 'पूर्ववत करें' : 'Undo')}
+                >
+                  ↶ {lang === 'hi' ? 'पूर्ववत' : 'Undo'}
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost toolbar-redo-btn"
+                  disabled={!canRedo}
+                  onClick={() => onRedo?.()}
+                  title={tr('redoBtn', lang === 'hi' ? 'फिर से करें' : 'Redo')}
+                  aria-label={tr('redoBtn', lang === 'hi' ? 'फिर से करें' : 'Redo')}
+                >
+                  ↷ {lang === 'hi' ? 'पुनः' : 'Redo'}
+                </button>
+              </div>
+            )}
+
+            {onOpenRelationSolver && (
+              <button
+                type="button"
+                className="btn ghost toolbar-relation-btn"
+                onClick={() => {
+                  setIsToolsOpen(false);
+                  onOpenRelationSolver();
+                }}
+              >
+                🔗 {tr('findRelationBtn', lang === 'hi' ? 'रिश्ता खोजें' : 'Find Relation')}
+              </button>
+            )}
+
+            {onOpenMilestones && (
+              <button
+                type="button"
+                className="btn ghost toolbar-milestones-btn"
+                onClick={() => {
+                  setIsToolsOpen(false);
+                  onOpenMilestones();
+                }}
+                title={tr('milestonesBtn', lang === 'hi' ? 'मील के पत्थर' : 'Milestones')}
+              >
+                🎂 {tr('milestonesBtn', lang === 'hi' ? 'मील के पत्थर' : 'Milestones')}
+              </button>
+            )}
+
+            {onExportPng && (
+              <button
+                type="button"
+                className="btn ghost toolbar-png-btn"
+                onClick={() => {
+                  setIsToolsOpen(false);
+                  onExportPng();
+                }}
+                title={tr('exportPngBtn', lang === 'hi' ? 'PNG निर्यात' : 'Export PNG')}
+                aria-label={tr('exportPngBtn', lang === 'hi' ? 'PNG निर्यात' : 'Export PNG')}
+              >
+                🖼️ PNG
+              </button>
+            )}
+
+            {onPrintPoster && (
+              <button
+                type="button"
+                className="btn ghost toolbar-print-btn"
+                onClick={() => {
+                  setIsToolsOpen(false);
+                  onPrintPoster();
+                }}
+                title={tr('printPosterBtn', lang === 'hi' ? 'PDF/प्रिंट' : 'PDF/Print')}
+                aria-label={tr('printPosterBtn', lang === 'hi' ? 'PDF/प्रिंट' : 'PDF/Print')}
+              >
+                🖨️ {tr('printPosterBtn', lang === 'hi' ? 'PDF/प्रिंट' : 'PDF/Print')}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

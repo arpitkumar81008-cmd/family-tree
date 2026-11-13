@@ -243,12 +243,18 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #e00030;
+  color: #92400e;
   margin-top: 3px;
-  padding: 1px 5px;
-  background: rgba(224, 0, 48, 0.1);
-  border: 1px solid rgba(224, 0, 48, 0.3);
+  padding: 1px 6px;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
   border-radius: var(--radius-xs);
+}
+
+:root[data-theme="dark"] .card .tag {
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.22);
+  border-color: rgba(245, 158, 11, 0.5);
 }
 
 .card.is-compact {

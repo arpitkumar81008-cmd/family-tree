@@ -1541,18 +1541,178 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 /* =========================================================================
-   Tree Page Mobile Ergonomics (Toolbar & Tabs Panel)
+   Tree Page Compact Toolbar & Mobile Ergonomics (Tree-First Priority)
    ========================================================================= */
-:root[data-viewport="mobile"] .bar {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) !important;
-  gap: 12px !important;
+.bar.bar-compact {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 10px !important;
+  margin-top: 14px;
 }
 
-:root[data-viewport="mobile"] .bar .field,
-:root[data-viewport="mobile"] .bar .field.grow {
+.bar-primary-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
   width: 100%;
   min-width: 0;
+}
+
+.bar-search-field {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.search-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.search-controls .search-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.search-match-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.search-match-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  padding: 0 2px;
+}
+
+.toolbar-search-prev-btn,
+.toolbar-search-next-btn {
+  height: 36px;
+  min-width: 36px;
+  padding: 0 8px;
+}
+
+.bar-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.bar-quick-actions .btn {
+  height: 40px;
+  white-space: nowrap;
+}
+
+.btn-label-short {
+  display: none;
+}
+
+.toolbar-more-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+}
+
+.toolbar-more-btn.is-open {
+  background: var(--bg);
+  border-color: var(--ink);
+}
+
+.toolbar-filter-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.toolbar-more-drawer {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.toolbar-more-drawer.is-open {
+  display: flex;
+}
+
+.bar-perspective-mobile {
+  display: none;
+}
+
+.toolbar-undo-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-more-drawer .bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.toolbar-more-drawer .bar-actions .btn {
+  height: 36px;
+  font-size: 13px;
+}
+
+:root[data-viewport="mobile"] .bar.bar-compact {
+  margin-top: 8px !important;
+  gap: 8px !important;
+}
+
+:root[data-viewport="mobile"] .bar-primary-row {
+  align-items: center;
+  gap: 8px;
+}
+
+:root[data-viewport="mobile"] .bar-perspective-desktop,
+:root[data-viewport="mobile"] .bar-search-label,
+:root[data-viewport="mobile"] .btn-label-full,
+:root[data-viewport="mobile"] .search-wrap .kbd-hint {
+  display: none !important;
+}
+
+:root[data-viewport="mobile"] .btn-label-short {
+  display: inline;
+}
+
+:root[data-viewport="mobile"] .bar .search-wrap input {
+  height: 44px;
+  padding-right: 12px !important;
+}
+
+:root[data-viewport="mobile"] .bar-quick-actions .btn {
+  height: 44px !important;
+  min-width: 44px;
+  padding: 0 12px;
+}
+
+:root[data-viewport="mobile"] .toolbar-more-text {
+  display: none;
+}
+
+:root[data-viewport="mobile"] .bar-perspective-mobile {
+  display: flex;
+  width: 100%;
 }
 
 :root[data-viewport="mobile"] .viewer-wrap {
@@ -1560,36 +1720,36 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   min-width: 0;
 }
 
-:root[data-viewport="mobile"] .viewer-wrap select,
-:root[data-viewport="mobile"] .bar .search-wrap input {
-  height: 42px;
+:root[data-viewport="mobile"] .viewer-wrap select {
+  height: 44px;
 }
 
 :root[data-viewport="mobile"] .bar .reset-btn {
-  height: 42px !important;
+  height: 44px !important;
   flex-shrink: 0;
 }
 
-:root[data-viewport="mobile"] .bar-actions {
+:root[data-viewport="mobile"] .toolbar-more-drawer .bar-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  width: 100%;
+  gap: 8px;
 }
 
-:root[data-viewport="mobile"] .bar-actions > .btn {
+:root[data-viewport="mobile"] .toolbar-more-drawer .toolbar-undo-group {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+:root[data-viewport="mobile"] .toolbar-more-drawer .btn {
   width: 100%;
-  height: 42px !important;
-  padding: 0 12px;
+  height: 44px !important;
   justify-content: center;
 }
 
-:root[data-viewport="mobile"] .bar-actions > .btn:only-child {
-  grid-column: 1 / -1;
-}
-
 :root[data-viewport="mobile"] .tools {
-  margin-top: 24px;
+  margin-top: 8px;
 }
 
 :root[data-viewport="mobile"] .tabs {
@@ -1612,16 +1772,45 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 @media (max-width: 768px) {
-  :root:not([data-viewport="laptop"]) .bar {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) !important;
-    gap: 12px !important;
+  :root:not([data-viewport="laptop"]) .bar.bar-compact {
+    margin-top: 8px !important;
+    gap: 8px !important;
   }
 
-  :root:not([data-viewport="laptop"]) .bar .field,
-  :root:not([data-viewport="laptop"]) .bar .field.grow {
+  :root:not([data-viewport="laptop"]) .bar-primary-row {
+    align-items: center;
+    gap: 8px;
+  }
+
+  :root:not([data-viewport="laptop"]) .bar-perspective-desktop,
+  :root:not([data-viewport="laptop"]) .bar-search-label,
+  :root:not([data-viewport="laptop"]) .btn-label-full,
+  :root:not([data-viewport="laptop"]) .search-wrap .kbd-hint {
+    display: none !important;
+  }
+
+  :root:not([data-viewport="laptop"]) .btn-label-short {
+    display: inline;
+  }
+
+  :root:not([data-viewport="laptop"]) .bar .search-wrap input {
+    height: 44px;
+    padding-right: 12px !important;
+  }
+
+  :root:not([data-viewport="laptop"]) .bar-quick-actions .btn {
+    height: 44px !important;
+    min-width: 44px;
+    padding: 0 12px;
+  }
+
+  :root:not([data-viewport="laptop"]) .toolbar-more-text {
+    display: none;
+  }
+
+  :root:not([data-viewport="laptop"]) .bar-perspective-mobile {
+    display: flex;
     width: 100%;
-    min-width: 0;
   }
 
   :root:not([data-viewport="laptop"]) .viewer-wrap {
@@ -1629,36 +1818,36 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
     min-width: 0;
   }
 
-  :root:not([data-viewport="laptop"]) .viewer-wrap select,
-  :root:not([data-viewport="laptop"]) .bar .search-wrap input {
-    height: 42px;
+  :root:not([data-viewport="laptop"]) .viewer-wrap select {
+    height: 44px;
   }
 
   :root:not([data-viewport="laptop"]) .bar .reset-btn {
-    height: 42px !important;
+    height: 44px !important;
     flex-shrink: 0;
   }
 
-  :root:not([data-viewport="laptop"]) .bar-actions {
+  :root:not([data-viewport="laptop"]) .toolbar-more-drawer .bar-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    width: 100%;
+    gap: 8px;
   }
 
-  :root:not([data-viewport="laptop"]) .bar-actions > .btn {
+  :root:not([data-viewport="laptop"]) .toolbar-more-drawer .toolbar-undo-group {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  :root:not([data-viewport="laptop"]) .toolbar-more-drawer .btn {
     width: 100%;
-    height: 42px !important;
-    padding: 0 12px;
+    height: 44px !important;
     justify-content: center;
   }
 
-  :root:not([data-viewport="laptop"]) .bar-actions > .btn:only-child {
-    grid-column: 1 / -1;
-  }
-
   :root:not([data-viewport="laptop"]) .tools {
-    margin-top: 24px;
+    margin-top: 8px;
   }
 
   :root:not([data-viewport="laptop"]) .tabs {
