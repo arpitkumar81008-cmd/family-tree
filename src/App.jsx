@@ -46,8 +46,13 @@ import {
   recordUnlockedShareCode,
   generatePrivateShareToken,
   updateTreeSharingSettings,
-  buildPrivateShareUrl
+  buildPrivateShareUrl,
+  getApproveRequesterFromUrl,
+  getShareCodeFromUrl,
+  submitJoinRequest,
+  getMyJoinRequest
 } from './services/treeSync.js';
+import { sendOwnerJoinRequestEmail } from './services/joinNotifications.js';
 import Toolbar from './components/Toolbar.jsx';
 import HelpModal from './components/HelpModal.jsx';
 import Tabs from './components/Tabs.jsx';
@@ -128,6 +133,13 @@ export function App() {
   const [saveError, setSaveError] = useState(false);
   const [lockedCodeInput, setLockedCodeInput] = useState("");
   const [lockedCodeError, setLockedCodeError] = useState("");
+  const [approveRequesterUid, setApproveRequesterUid] = useState(() => getApproveRequesterFromUrl());
+  const [myJoinRequest, setMyJoinRequest] = useState(null);
+  const [requestRole, setRequestRole] = useState("viewer");
+  const [requestNote, setRequestNote] = useState("");
+  const [requestBusy, setRequestBusy] = useState(false);
+  const [requestMsg, setRequestMsg] = useState("");
+  const [requestNotifyLinks, setRequestNotifyLinks] = useState(null);
 
   // Search & Navigation
   const [searchQuery, setSearchQuery] = useState("");
@@ -636,6 +648,29 @@ export function App() {
   const isOwner = Boolean(
     user && Boolean(activeTreeId) && canUserEditTree(activeTreeMeta, user)
   );
+  const isStrictOwner = Boolean(
+    user?.uid && activeTreeId && activeTreeMeta && activeTreeMeta.ownerUid === user.uid
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!treeAccessDenied || !activeTreeId || !user?.uid) {
+      setMyJoinRequest(null);
+      return undefined;
+    }
+    getMyJoinRequest(activeTreeId, user).then(req => {
+      if (!cancelled) setMyJoinRequest(req);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [treeAccessDenied, activeTreeId, user]);
+
+  useEffect(() => {
+    if (approveRequesterUid && isStrictOwner && activeTreeId) {
+      setIsShareOpen(true);
+    }
+  }, [approveRequesterUid, isStrictOwner, activeTreeId]);
   // Guests can freely explore/edit their local browser copy of the canonical Gupta tree (!activeTreeId),
   // whereas shared trees (?tree=<id>) are strictly editable only by their owner or collaborators.
   const canEdit = !activeTreeId || canUserEditTree(activeTreeMeta, user);
@@ -1080,7 +1115,7 @@ export function App() {
     const code = lockedCodeInput.trim();
     if (!code) return;
     try {
-      const found = await findTreeByShareCode(code);
+      const found = await findTreeByShareCode(code, activeTreeId);
       if (!found) {
         setLockedCodeError(t("joinByCodeNotFound"));
         return;
@@ -1089,8 +1124,53 @@ export function App() {
       setLockedCodeInput("");
       setTreeAccessDenied(false);
       handleSelectTree(found.id, found);
-    } catch {
-      setLockedCodeError(t("joinByCodeNotFound"));
+    } catch (err) {
+      if (err?.code === 'AUTH_REQUIRED') {
+        setIsAuthOpen(true);
+      } else if (err?.code === 'APPROVAL_REQUIRED') {
+        await handleRequestTreeAccess(null, code);
+      } else {
+        setLockedCodeError(t("joinByCodeNotFound"));
+      }
+    }
+  };
+
+  const handleRequestTreeAccess = async (e, explicitCode = "") => {
+    e?.preventDefault?.();
+    if (!activeTreeId) return;
+    if (!user?.uid) {
+      setIsAuthOpen(true);
+      return;
+    }
+    setRequestBusy(true);
+    setRequestMsg("");
+    setRequestNotifyLinks(null);
+    try {
+      const codeToSend = explicitCode || lockedCodeInput.trim() || getShareCodeFromUrl();
+      const submitted = await submitJoinRequest(activeTreeId, {
+        requestedRole: requestRole,
+        shareCode: codeToSend,
+        note: requestNote,
+        user
+      });
+      setMyJoinRequest(submitted);
+      const notifyRes = await sendOwnerJoinRequestEmail({
+        treeId: activeTreeId,
+        requesterUid: user.uid,
+        requesterName: user.displayName || "",
+        requesterEmail: user.email || "",
+        requestedRole: requestRole
+      });
+      setRequestNotifyLinks(notifyRes);
+      setRequestMsg(
+        notifyRes.sent
+          ? `${t("requestAccessSuccess")} ${t("ownerEmailSentAuto")}`
+          : t("requestAccessSuccess")
+      );
+    } catch (err) {
+      setRequestMsg(err?.message || "Could not submit access request.");
+    } finally {
+      setRequestBusy(false);
     }
   };
 
@@ -1234,6 +1314,91 @@ export function App() {
                 <p className="msg" role="alert" style={{ marginTop: 10 }}>
                   {lockedCodeError}
                 </p>
+              )}
+              {activeTreeId && user?.uid && (
+                <form
+                  onSubmit={handleRequestTreeAccess}
+                  style={{
+                    marginTop: 18,
+                    paddingTop: 16,
+                    borderTop: "1px solid var(--border, #d4d4d8)",
+                    textAlign: "left",
+                    display: "grid",
+                    gap: 10
+                  }}
+                >
+                  <strong style={{ fontSize: 14 }}>{t("requestAccessTitle")}</strong>
+                  <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+                    {t("requestAccessBody")}
+                  </p>
+                  {myJoinRequest?.status === "pending" && (
+                    <p className="msg" style={{ margin: 0 }}>
+                      ⏳ {t("requestAccessPending")}
+                    </p>
+                  )}
+                  {myJoinRequest?.status === "rejected" && (
+                    <p className="msg" style={{ margin: 0 }}>
+                      {t("requestAccessRejected")}
+                    </p>
+                  )}
+                  <div className="seg" role="group" aria-label={t("requestAccessRoleLabel")}>
+                    <button
+                      type="button"
+                      className="zbtn"
+                      aria-pressed={requestRole === "viewer"}
+                      onClick={() => setRequestRole("viewer")}
+                    >
+                      {t("shareRoleViewer")}
+                    </button>
+                    <button
+                      type="button"
+                      className="zbtn"
+                      aria-pressed={requestRole === "editor"}
+                      onClick={() => setRequestRole("editor")}
+                    >
+                      {t("shareRoleEditor")}
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={requestNote}
+                    onChange={e => setRequestNote(e.target.value)}
+                    placeholder={t("requestAccessNotePh")}
+                    maxLength={300}
+                  />
+                  <button type="submit" className="btn primary" disabled={requestBusy}>
+                    {requestBusy ? t("requestAccessSending") : t("requestAccessBtn")}
+                  </button>
+                  {requestMsg && (
+                    <p className="msg" style={{ margin: 0 }}>
+                      {requestMsg}
+                    </p>
+                  )}
+                  {requestNotifyLinks && (
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <a
+                        href={requestNotifyLinks.mailtoUrl}
+                        className="btn primary"
+                        style={{ fontSize: 12, textDecoration: "none" }}
+                      >
+                        ✉ {t("notifyOwnerEmailBtn")}
+                      </a>
+                      <button
+                        type="button"
+                        className="btn"
+                        style={{ fontSize: 12 }}
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(requestNotifyLinks.approvalUrl);
+                            setRequestMsg(t("copiedApprovalLinkMsg"));
+                          } catch {}
+                        }}
+                      >
+                        {t("copyApprovalLinkBtn")}
+                      </button>
+                    </div>
+                  )}
+                </form>
               )}
             </div>
           </section>
@@ -1498,12 +1663,16 @@ export function App() {
             user={user}
             activeTreeId={activeTreeId}
             activeTreeMeta={activeTreeMeta}
+            highlightRequesterUid={approveRequesterUid}
             onUpdateTreeMeta={patch =>
               setActiveTreeMeta(prev => (prev ? { ...prev, ...patch } : prev))
             }
             onSelectTree={handleSelectTree}
             onOpenAuth={() => setIsAuthOpen(true)}
-            close={() => setIsShareOpen(false)}
+            close={() => {
+              setIsShareOpen(false);
+              if (approveRequesterUid) setApproveRequesterUid("");
+            }}
           />
         </Suspense>
       )}

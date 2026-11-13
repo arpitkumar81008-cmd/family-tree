@@ -4,14 +4,19 @@ import {
   updateTreeSharingSettings,
   findTreeByShareCode,
   generatePrivateShareToken,
-  buildPrivateShareUrl
+  buildPrivateShareUrl,
+  submitJoinRequest,
+  subscribePendingJoinRequests,
+  respondToJoinRequest
 } from '../services/treeSync.js';
+import { sendOwnerJoinRequestEmail } from '../services/joinNotifications.js';
 
 export function ShareTreeModal({
   t,
   user,
   activeTreeId,
   activeTreeMeta,
+  highlightRequesterUid = '',
   onUpdateTreeMeta,
   onSelectTree,
   onOpenAuth,
@@ -38,6 +43,9 @@ export function ShareTreeModal({
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [msg, setMsg] = useState('');
   const [joinMsg, setJoinMsg] = useState('');
+  const [joinNotifyLinks, setJoinNotifyLinks] = useState(null);
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [requestActionMsg, setRequestActionMsg] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -63,8 +71,12 @@ export function ShareTreeModal({
       setViewerEmails(Array.isArray(settings.viewerEmails) ? settings.viewerEmails : []);
       setEditorEmails(Array.isArray(settings.editorEmails) ? settings.editorEmails : []);
     });
+    const unsubRequests = subscribePendingJoinRequests(activeTreeId, list => {
+      if (!cancelled) setPendingRequests(list);
+    });
     return () => {
       cancelled = true;
+      unsubRequests?.();
     };
   }, [isOwner, activeTreeId]);
 
@@ -180,14 +192,30 @@ export function ShareTreeModal({
     });
   };
 
+  const handleRespondRequest = async (reqItem, approve, role = 'viewer') => {
+    if (!isOwner || !activeTreeId || !reqItem?.requesterUid) return;
+    setBusy(true);
+    setRequestActionMsg('');
+    try {
+      await respondToJoinRequest(activeTreeId, reqItem.requesterUid, { approve, role }, user);
+      setPendingRequests(prev => prev.filter(r => r.requesterUid !== reqItem.requesterUid));
+      setRequestActionMsg(approve ? t('requestApprovedMsg') : t('requestDeclinedMsg'));
+    } catch (err) {
+      setRequestActionMsg(err?.message || 'Could not update request.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleJoinByCode = async e => {
     e.preventDefault();
-    const clean = joinCodeInput.trim().toUpperCase();
-    if (!clean) return;
+    const raw = joinCodeInput.trim();
+    if (!raw) return;
     setBusy(true);
     setJoinMsg('');
+    setJoinNotifyLinks(null);
     try {
-      const found = await findTreeByShareCode(clean);
+      const found = await findTreeByShareCode(raw);
       if (found) {
         onSelectTree?.(found.id, found);
         close();
@@ -196,7 +224,30 @@ export function ShareTreeModal({
       }
     } catch (err) {
       if (err?.code === 'AUTH_REQUIRED') {
-        setJoinMsg('Please sign in first to redeem a Family Access Code.');
+        setJoinMsg('Please sign in first to request access or open a shared tree.');
+      } else if (err?.code === 'APPROVAL_REQUIRED' && err?.treeId) {
+        try {
+          await submitJoinRequest(err.treeId, {
+            requestedRole: 'viewer',
+            shareCode: err.shareCode || '',
+            user
+          });
+          const notifyRes = await sendOwnerJoinRequestEmail({
+            treeId: err.treeId,
+            requesterUid: user.uid,
+            requesterName: user.displayName || '',
+            requesterEmail: user.email || '',
+            requestedRole: 'viewer'
+          });
+          setJoinNotifyLinks(notifyRes);
+          setJoinMsg(
+            notifyRes.sent
+              ? `${t('requestAccessSuccess')} ${t('ownerEmailSentAuto')}`
+              : t('requestAccessSuccess')
+          );
+        } catch (reqErr) {
+          setJoinMsg(reqErr?.message || t('joinByCodeNotFound'));
+        }
       } else if (err?.code === 'functions/resource-exhausted') {
         setJoinMsg('Too many attempts. Please wait a few minutes and try again.');
       } else {
@@ -252,11 +303,114 @@ export function ShareTreeModal({
             </button>
           </div>
           {joinMsg && <p className="msg">{joinMsg}</p>}
+          {joinNotifyLinks && (
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+              <a
+                href={joinNotifyLinks.mailtoUrl}
+                className="btn primary"
+                style={{ fontSize: '12px', textDecoration: 'none' }}
+              >
+                ✉ {t('notifyOwnerEmailBtn')}
+              </a>
+              <button
+                type="button"
+                className="btn"
+                style={{ fontSize: '12px' }}
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(joinNotifyLinks.approvalUrl);
+                    setJoinMsg(t('copiedApprovalLinkMsg'));
+                  } catch {}
+                }}
+              >
+                {t('copyApprovalLinkBtn')}
+              </button>
+            </div>
+          )}
         </form>
 
         {/* Owner Sharing Controls */}
         {isOwner ? (
           <>
+            {/* Pending Access Requests (Spark-plan owner approval) */}
+            {(pendingRequests.length > 0 || highlightRequesterUid || requestActionMsg) && (
+              <div className="create-option" style={{ borderColor: 'var(--accent, #2563eb)' }}>
+                <h3>
+                  {t('pendingRequestsTitle')} ({pendingRequests.length})
+                </h3>
+                <p className="muted" style={{ fontSize: '13px', marginBottom: '10px' }}>
+                  {t('pendingRequestsSub')}
+                </p>
+                {pendingRequests.length === 0 ? (
+                  <p className="muted" style={{ fontSize: '13px' }}>
+                    {t('pendingRequestsEmpty')}
+                  </p>
+                ) : (
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {pendingRequests.map(reqItem => {
+                      const isHighlighted =
+                        highlightRequesterUid && reqItem.requesterUid === highlightRequesterUid;
+                      return (
+                        <div
+                          key={reqItem.requesterUid}
+                          style={{
+                            padding: '10px',
+                            borderRadius: '8px',
+                            border: isHighlighted
+                              ? '2px solid var(--accent, #2563eb)'
+                              : '1px solid var(--border, #d4d4d8)',
+                            display: 'grid',
+                            gap: '6px'
+                          }}
+                        >
+                          <div style={{ fontSize: '13px', fontWeight: 600 }}>
+                            {reqItem.requesterName || reqItem.requesterEmail || reqItem.requesterUid}
+                            {reqItem.requesterEmail && reqItem.requesterName
+                              ? ` (${reqItem.requesterEmail})`
+                              : ''}
+                          </div>
+                          {reqItem.note && (
+                            <div className="muted" style={{ fontSize: '12px' }}>
+                              “{reqItem.note}”
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              className="btn"
+                              style={{ fontSize: '12px' }}
+                              disabled={busy}
+                              onClick={() => handleRespondRequest(reqItem, true, 'viewer')}
+                            >
+                              {t('approveViewerBtn')}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn primary"
+                              style={{ fontSize: '12px' }}
+                              disabled={busy}
+                              onClick={() => handleRespondRequest(reqItem, true, 'editor')}
+                            >
+                              {t('approveEditorBtn')}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn"
+                              style={{ fontSize: '12px' }}
+                              disabled={busy}
+                              onClick={() => handleRespondRequest(reqItem, false)}
+                            >
+                              {t('declineRequestBtn')}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {requestActionMsg && <p className="msg">{requestActionMsg}</p>}
+              </div>
+            )}
             {/* 1. Tree Visibility Toggle */}
             <div className="create-option">
               <h3>{t('shareVisSectionTitle')}</h3>

@@ -32,6 +32,21 @@ rules_version = '2';
 //   - editorEmails: list of strings (optional, max 50 items) - email addresses of invited family editors/collaborators
 //   - shareCode: string (optional, 0..32 chars) - optional Family Access Code for server-side redemption
 //   - shareCodeRole: string (optional, enum: ['viewer', 'editor', '']) - role granted by shareCode
+//   - ownerNotificationEmail: string (optional, 0..160 chars) - optional email for owner join-request notifications
+//   - updatedAt: timestamp | number | string (optional) - last modification timestamp
+//
+// Subcollection: trees/{treeId}/joinRequests
+// Document ID: {requesterUid} (UID of the authenticated user requesting access)
+// Fields:
+//   - requesterUid: string (required, must match document ID, immutable) - UID of the requester
+//   - requesterName: string (optional, 0..120 chars) - display name of the requester
+//   - requesterEmail: string (optional, 0..160 chars) - email of the requester
+//   - requestedRole: string (required, enum: ['viewer', 'editor']) - requested access role
+//   - approvedRole: string (optional, nullable, enum: ['viewer', 'editor']) - role granted upon approval
+//   - shareCode: string (optional, 0..32 chars) - Family Access Code submitted with the request
+//   - note: string (optional, 0..300 chars) - optional message from the requester
+//   - status: string (required, enum: ['pending', 'approved', 'rejected']) - request status
+//   - createdAt: timestamp | number | string (optional) - creation timestamp
 //   - updatedAt: timestamp | number | string (optional) - last modification timestamp
 //
 // ===============================================================
@@ -209,6 +224,7 @@ service cloud.firestore {
           'editorEmails',
           'shareCode',
           'shareCodeRole',
+          'ownerNotificationEmail',
           'updatedAt'
         ]) &&
         (!('viewerEmails' in doc) ||
@@ -219,6 +235,38 @@ service cloud.firestore {
         (!('shareCodeRole' in doc) ||
           doc.shareCodeRole == null ||
           (doc.shareCodeRole is string && doc.shareCodeRole in ['viewer', 'editor', ''])) &&
+        isValidOptionalString('ownerNotificationEmail', 0, 160) &&
+        isValidOptionalTime('updatedAt');
+    }
+
+    function isValidJoinRequestPayload(doc, requesterUid) {
+      return hasRequiredFields(['requesterUid', 'requestedRole', 'status']) &&
+        hasOnlyAllowedFields([
+          'requesterUid',
+          'requesterName',
+          'requesterEmail',
+          'requestedRole',
+          'approvedRole',
+          'shareCode',
+          'note',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        (doc.requesterUid is string) &&
+        doc.requesterUid == requesterUid &&
+        (doc.requestedRole is string) &&
+        doc.requestedRole in ['viewer', 'editor'] &&
+        (!('approvedRole' in doc) ||
+          doc.approvedRole == null ||
+          (doc.approvedRole is string && doc.approvedRole in ['viewer', 'editor'])) &&
+        (doc.status is string) &&
+        doc.status in ['pending', 'approved', 'rejected'] &&
+        isValidOptionalString('requesterName', 0, 120) &&
+        isValidOptionalString('requesterEmail', 0, 160) &&
+        isValidOptionalString('shareCode', 0, 32) &&
+        isValidOptionalString('note', 0, 300) &&
+        isValidOptionalTime('createdAt') &&
         isValidOptionalTime('updatedAt');
     }
 
@@ -278,13 +326,45 @@ service cloud.firestore {
       // Subcollection Rules: /trees/{treeId}/private/{docId}
       // ===============================================================
       // Holds sensitive sharing configuration (viewerEmails, editorEmails,
-      // shareCode, shareCodeRole) readable and writable ONLY by the parent
-      // tree's ownerUid.
+      // shareCode, shareCodeRole, ownerNotificationEmail) readable and
+      // writable ONLY by the parent tree's ownerUid.
       match /private/{docId} {
         allow get, list: if isParentTreeOwner(treeId);
         allow create, update: if isParentTreeOwner(treeId) &&
           isValidPrivateSharingPayload(request.resource.data);
         allow delete: if isParentTreeOwner(treeId);
+      }
+
+      // ===============================================================
+      // Subcollection Rules: /trees/{treeId}/joinRequests/{requesterUid}
+      // ===============================================================
+      // Spark-plan-compatible Join Request & Owner Approval workflow.
+      // Requesters can read/create/resubmit/delete their own pending request;
+      // the parent tree owner can list, read, approve/reject, and delete requests.
+      match /joinRequests/{requesterUid} {
+        allow get: if isAuthenticated() &&
+          (request.auth.uid == requesterUid || isParentTreeOwner(treeId));
+
+        allow list: if isParentTreeOwner(treeId);
+
+        allow create: if isAuthenticated() &&
+          request.auth.uid == requesterUid &&
+          isValidJoinRequestPayload(request.resource.data, requesterUid) &&
+          request.resource.data.status == 'pending';
+
+        allow update: if isValidJoinRequestPayload(request.resource.data, requesterUid) &&
+          request.resource.data.requesterUid == resource.data.requesterUid &&
+          (
+            (isParentTreeOwner(treeId) &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'approvedRole', 'updatedAt'])) ||
+            (isAuthenticated() &&
+             request.auth.uid == requesterUid &&
+             request.resource.data.status == 'pending' &&
+             request.resource.data.requesterUid == requesterUid)
+          );
+
+        allow delete: if isAuthenticated() &&
+          (request.auth.uid == requesterUid || isParentTreeOwner(treeId));
       }
     }
 

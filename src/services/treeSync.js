@@ -78,6 +78,55 @@ export function getShareCodeFromUrl() {
   }
 }
 
+export function getApproveRequesterFromUrl() {
+  if (typeof window === 'undefined') return '';
+  try {
+    const uid = new URLSearchParams(window.location.search).get('approve') || '';
+    return uid.trim();
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Parses a user-entered share link, `treeId:code`, `treeId`, or bare `code`.
+ */
+export function parseTreeJoinInput(rawInput, fallbackTreeId = '') {
+  const raw = String(rawInput || '').trim();
+  if (!raw) return { treeId: fallbackTreeId || '', code: '' };
+
+  if (/^https?:\/\//i.test(raw) || raw.includes('?tree=')) {
+    try {
+      const parsed = new URL(raw, typeof window !== 'undefined' ? window.location.origin : 'https://vanshvriksha.web.app');
+      const treeId = (parsed.searchParams.get('tree') || '').trim();
+      const code = (parsed.searchParams.get('code') || '').trim().toUpperCase();
+      if (treeId || code) {
+        return { treeId: treeId || fallbackTreeId || '', code };
+      }
+    } catch {}
+  }
+
+  if (raw.includes(':')) {
+    const [left, right] = raw.split(':');
+    return {
+      treeId: left.trim(),
+      code: (right || '').trim().toUpperCase()
+    };
+  }
+
+  // If a fallbackTreeId is already active (e.g. from URL ?tree=...), treat bare input as code unless it looks like a treeId
+  if (fallbackTreeId) {
+    return { treeId: fallbackTreeId, code: raw.toUpperCase() };
+  }
+
+  // Firestore auto-IDs are typically 20 alphanumeric chars; treat as treeId if it has lowercase or length >= 16 without hyphens
+  if (/[a-z]/.test(raw) || raw.length >= 18) {
+    return { treeId: raw, code: '' };
+  }
+
+  return { treeId: '', code: raw.toUpperCase() };
+}
+
 export function isPhotosPayloadWithinLimit(photos) {
   if (!photos || typeof photos !== 'object') return true;
   try {
@@ -465,34 +514,60 @@ export async function listAvailableTrees(user) {
  * Redeems a Family Access Code via the `redeemShareCode` Cloud Function (or local registry in local-only mode),
  * granting the caller's UID viewer or editor access and returning the tree document.
  */
-export async function redeemShareCode(rawCode) {
-  const cleanCode = String(rawCode || '').trim().toUpperCase();
-  if (!cleanCode) return null;
+export async function redeemShareCode(rawCode, fallbackTreeId = '') {
+  const { treeId: parsedTreeId, code: cleanCode } = parseTreeJoinInput(rawCode, fallbackTreeId);
+  if (!cleanCode && !parsedTreeId) return null;
 
   const localMap = readLocalTrees();
   for (const [id, tree] of Object.entries(localMap)) {
-    if (tree.shareCode && String(tree.shareCode).trim().toUpperCase() === cleanCode) {
-      recordUnlockedShareCode(id, cleanCode);
+    if (
+      (parsedTreeId && id === parsedTreeId) ||
+      (cleanCode && tree.shareCode && String(tree.shareCode).trim().toUpperCase() === cleanCode)
+    ) {
+      if (cleanCode) recordUnlockedShareCode(id, cleanCode);
       return { id, ...tree };
     }
   }
 
   const { db, auth, functions } = getFirebaseClients();
-  if (db && functions && isFirebaseConfigured()) {
+  if (db && isFirebaseConfigured()) {
     if (!auth?.currentUser) {
-      const authErr = new Error('Please sign in to redeem a Family Access Code.');
+      const authErr = new Error('Please sign in to access or request access to this Family Tree.');
       authErr.code = 'AUTH_REQUIRED';
       throw authErr;
     }
-    const callRedeem = httpsCallable(functions, 'redeemShareCode');
-    const result = await callRedeem({ code: cleanCode });
-    const treeId = result?.data?.treeId;
-    if (!treeId) return null;
 
-    recordUnlockedShareCode(treeId, cleanCode);
-    const snap = await getDoc(doc(db, 'trees', treeId));
-    if (snap.exists()) {
-      return { id: snap.id, ...snap.data() };
+    // Optional Cloud Function path (only if explicitly enabled on Blaze plan)
+    if (functions && import.meta.env?.VITE_USE_CLOUD_FUNCTIONS === 'true' && cleanCode) {
+      const callRedeem = httpsCallable(functions, 'redeemShareCode');
+      const result = await callRedeem({ code: cleanCode });
+      const treeId = result?.data?.treeId;
+      if (treeId) {
+        recordUnlockedShareCode(treeId, cleanCode);
+        const snap = await getDoc(doc(db, 'trees', treeId));
+        if (snap.exists()) {
+          return { id: snap.id, ...snap.data() };
+        }
+      }
+    }
+
+    // Spark / Free-plan path: if treeId is known, check if already authorized; otherwise signal join request needed
+    if (parsedTreeId) {
+      try {
+        const snap = await getDoc(doc(db, 'trees', parsedTreeId));
+        if (snap.exists()) {
+          return { id: snap.id, ...snap.data() };
+        }
+      } catch (err) {
+        if (err?.code === 'permission-denied') {
+          const deniedErr = new Error('Owner approval is required to access this private tree.');
+          deniedErr.code = 'APPROVAL_REQUIRED';
+          deniedErr.treeId = parsedTreeId;
+          deniedErr.shareCode = cleanCode;
+          throw deniedErr;
+        }
+        throw err;
+      }
     }
   }
 
@@ -500,14 +575,17 @@ export async function redeemShareCode(rawCode) {
 }
 
 /**
- * Looks up and redeems a family tree by its Family Access Code (shareCode).
- * Delegates to the `redeemShareCode` callable function when Firebase is configured.
+ * Looks up a family tree by share link, `treeId:code`, or Family Access Code.
  */
-export async function findTreeByShareCode(rawCode) {
+export async function findTreeByShareCode(rawCode, fallbackTreeId = '') {
   try {
-    return await redeemShareCode(rawCode);
+    return await redeemShareCode(rawCode, fallbackTreeId);
   } catch (err) {
-    if (err?.code === 'AUTH_REQUIRED' || err?.code === 'functions/resource-exhausted') {
+    if (
+      err?.code === 'AUTH_REQUIRED' ||
+      err?.code === 'APPROVAL_REQUIRED' ||
+      err?.code === 'functions/resource-exhausted'
+    ) {
       throw err;
     }
     console.warn('Failed to redeem shareCode:', err);
@@ -527,7 +605,9 @@ export async function getTreeSharingSettings(treeId) {
     viewerEmails: Array.isArray(localTree.viewerEmails) ? localTree.viewerEmails : [],
     editorEmails: Array.isArray(localTree.editorEmails) ? localTree.editorEmails : [],
     shareCode: typeof localTree.shareCode === 'string' ? localTree.shareCode : '',
-    shareCodeRole: localTree.shareCodeRole === 'editor' ? 'editor' : 'viewer'
+    shareCodeRole: localTree.shareCodeRole === 'editor' ? 'editor' : 'viewer',
+    ownerNotificationEmail:
+      typeof localTree.ownerNotificationEmail === 'string' ? localTree.ownerNotificationEmail : ''
   };
 
   const { db } = getFirebaseClients();
@@ -540,7 +620,9 @@ export async function getTreeSharingSettings(treeId) {
           viewerEmails: Array.isArray(d.viewerEmails) ? d.viewerEmails : [],
           editorEmails: Array.isArray(d.editorEmails) ? d.editorEmails : [],
           shareCode: typeof d.shareCode === 'string' ? d.shareCode : '',
-          shareCodeRole: d.shareCodeRole === 'editor' ? 'editor' : 'viewer'
+          shareCodeRole: d.shareCodeRole === 'editor' ? 'editor' : 'viewer',
+          ownerNotificationEmail:
+            typeof d.ownerNotificationEmail === 'string' ? d.ownerNotificationEmail : ''
         };
       }
     } catch (err) {
@@ -590,6 +672,11 @@ export async function updateTreeSharingSettings(treeId, patch, user) {
   if (patch.shareCodeRole === 'viewer' || patch.shareCodeRole === 'editor') {
     cleanPatch.shareCodeRole = patch.shareCodeRole;
     privatePatch.shareCodeRole = patch.shareCodeRole;
+  }
+  if (typeof patch.ownerNotificationEmail === 'string') {
+    const cleanNotifyEmail = patch.ownerNotificationEmail.trim().toLowerCase().slice(0, 160);
+    cleanPatch.ownerNotificationEmail = cleanNotifyEmail;
+    privatePatch.ownerNotificationEmail = cleanNotifyEmail;
   }
 
   const localMap = readLocalTrees();
@@ -948,4 +1035,242 @@ export function saveUserTreeDebounced(treeId, treeDoc, user) {
     saveUserTree(treeId, treeDoc, user);
   }, 600);
   pendingSaves.set(treeId, { timer, treeDoc, user });
+}
+
+const LOCAL_JOIN_REQUESTS_KEY = 'gupta_join_requests_v1';
+
+function readLocalJoinRequests() {
+  if (typeof window === 'undefined' || !window.localStorage) return {};
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_JOIN_REQUESTS_KEY) || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalJoinRequests(map) {
+  if (typeof window === 'undefined' || !window.localStorage) return false;
+  try {
+    localStorage.setItem(LOCAL_JOIN_REQUESTS_KEY, JSON.stringify(map));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Submits a join request under `trees/{treeId}/joinRequests/{user.uid}` (Spark-plan compatible).
+ */
+export async function submitJoinRequest(
+  treeId,
+  { requestedRole = 'viewer', shareCode = '', note = '', user }
+) {
+  if (!treeId) throw new Error('Tree ID is required to request access.');
+  if (!user?.uid) {
+    const err = new Error('Please sign in first to request access.');
+    err.code = 'AUTH_REQUIRED';
+    throw err;
+  }
+
+  const payload = {
+    requesterUid: user.uid,
+    requesterName: (user.displayName || '').trim().slice(0, 120),
+    requesterEmail: (user.email || '').trim().toLowerCase().slice(0, 160),
+    requestedRole: requestedRole === 'editor' ? 'editor' : 'viewer',
+    shareCode: String(shareCode || '').trim().toUpperCase().slice(0, 32),
+    note: String(note || '').trim().slice(0, 300),
+    status: 'pending'
+  };
+
+  const localAll = readLocalJoinRequests();
+  localAll[treeId] = localAll[treeId] || {};
+  localAll[treeId][user.uid] = {
+    ...payload,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  writeLocalJoinRequests(localAll);
+
+  const { db } = getFirebaseClients();
+  if (db && isFirebaseConfigured()) {
+    await setDoc(doc(db, 'trees', treeId, 'joinRequests', user.uid), {
+      ...payload,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  return payload;
+}
+
+/**
+ * Reads the current user's join request status for `treeId`, if any.
+ */
+export async function getMyJoinRequest(treeId, user) {
+  if (!treeId || !user?.uid) return null;
+
+  const { db } = getFirebaseClients();
+  if (db && isFirebaseConfigured()) {
+    try {
+      const snap = await getDoc(doc(db, 'trees', treeId, 'joinRequests', user.uid));
+      if (snap.exists()) {
+        return { id: snap.id, ...snap.data() };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  const localAll = readLocalJoinRequests();
+  return localAll[treeId]?.[user.uid] || null;
+}
+
+/**
+ * Subscribes (owner-only) to pending join requests for `treeId`.
+ */
+export function subscribePendingJoinRequests(treeId, onChange) {
+  if (!treeId) return () => {};
+
+  const { db } = getFirebaseClients();
+  if (db && isFirebaseConfigured()) {
+    const q = query(
+      collection(db, 'trees', treeId, 'joinRequests'),
+      where('status', '==', 'pending')
+    );
+    return onSnapshot(
+      q,
+      snap => {
+        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        onChange(list);
+      },
+      () => {
+        onChange([]);
+      }
+    );
+  }
+
+  const localAll = readLocalJoinRequests();
+  const list = Object.entries(localAll[treeId] || {})
+    .map(([id, item]) => ({ id, ...item }))
+    .filter(item => item.status === 'pending');
+  onChange(list);
+  return () => {};
+}
+
+/**
+ * Owner approves or declines a pending join request and updates tree membership in Firestore.
+ */
+export async function respondToJoinRequest(
+  treeId,
+  requesterUid,
+  { approve, role = 'viewer' },
+  ownerUser
+) {
+  if (!treeId || !requesterUid || !ownerUser?.uid) return null;
+  const approvedRole = role === 'editor' ? 'editor' : 'viewer';
+
+  const localAll = readLocalJoinRequests();
+  const localReq = localAll[treeId]?.[requesterUid];
+  if (localReq) {
+    localReq.status = approve ? 'approved' : 'rejected';
+    if (approve) localReq.approvedRole = approvedRole;
+    localReq.updatedAt = new Date().toISOString();
+    writeLocalJoinRequests(localAll);
+  }
+
+  const { db } = getFirebaseClients();
+  if (db && isFirebaseConfigured()) {
+    const treeRef = doc(db, 'trees', treeId);
+    const reqRef = doc(db, 'trees', treeId, 'joinRequests', requesterUid);
+    const sharingRef = doc(db, 'trees', treeId, 'private', 'sharing');
+
+    const reqSnap = await getDoc(reqRef);
+    const reqData = reqSnap.exists() ? reqSnap.data() : {};
+    const requesterEmail = String(reqData?.requesterEmail || '').trim().toLowerCase();
+
+    if (approve) {
+      await runTransaction(db, async tx => {
+        const treeSnap = await tx.get(treeRef);
+        if (!treeSnap.exists()) throw new Error('Tree not found');
+        const treeData = treeSnap.data() || {};
+        if (treeData.ownerUid !== ownerUser.uid) {
+          throw new Error('Only the tree owner can approve requests.');
+        }
+
+        const currentCollabs = Array.isArray(treeData.collaboratorUids)
+          ? treeData.collaboratorUids
+          : [];
+        const currentViewers = Array.isArray(treeData.viewerUids) ? treeData.viewerUids : [];
+        const currentEditorEmails = Array.isArray(treeData.editorEmails)
+          ? treeData.editorEmails
+          : [];
+        const currentViewerEmails = Array.isArray(treeData.viewerEmails)
+          ? treeData.viewerEmails
+          : [];
+
+        const nextCollabs =
+          approvedRole === 'editor'
+            ? Array.from(new Set([...currentCollabs, requesterUid])).slice(0, 50)
+            : currentCollabs.filter(uid => uid !== requesterUid);
+        const nextViewers =
+          approvedRole === 'viewer'
+            ? Array.from(new Set([...currentViewers.filter(uid => uid !== requesterUid), requesterUid])).slice(0, 50)
+            : currentViewers.filter(uid => uid !== requesterUid);
+
+        const nextEditorEmails =
+          requesterEmail && approvedRole === 'editor'
+            ? Array.from(new Set([...currentEditorEmails, requesterEmail])).slice(0, 50)
+            : currentEditorEmails.filter(em => em !== requesterEmail);
+        const nextViewerEmails =
+          requesterEmail && approvedRole === 'viewer'
+            ? Array.from(new Set([...currentViewerEmails.filter(em => em !== requesterEmail), requesterEmail])).slice(0, 50)
+            : currentViewerEmails.filter(em => em !== requesterEmail);
+
+        tx.update(treeRef, {
+          collaboratorUids: nextCollabs,
+          viewerUids: nextViewers,
+          editorEmails: nextEditorEmails,
+          viewerEmails: nextViewerEmails,
+          updatedAt: serverTimestamp()
+        });
+        tx.update(reqRef, {
+          status: 'approved',
+          approvedRole,
+          updatedAt: serverTimestamp()
+        });
+      });
+
+      if (requesterEmail) {
+        try {
+          const sharingSnap = await getDoc(sharingRef);
+          const sData = sharingSnap.exists() ? sharingSnap.data() : {};
+          const sEditors = Array.isArray(sData.editorEmails) ? sData.editorEmails : [];
+          const sViewers = Array.isArray(sData.viewerEmails) ? sData.viewerEmails : [];
+          await setDoc(
+            sharingRef,
+            {
+              editorEmails:
+                approvedRole === 'editor'
+                  ? Array.from(new Set([...sEditors, requesterEmail])).slice(0, 50)
+                  : sEditors.filter(em => em !== requesterEmail),
+              viewerEmails:
+                approvedRole === 'viewer'
+                  ? Array.from(new Set([...sViewers.filter(em => em !== requesterEmail), requesterEmail])).slice(0, 50)
+                  : sViewers.filter(em => em !== requesterEmail),
+              updatedAt: serverTimestamp()
+            },
+            { merge: true }
+          );
+        } catch {}
+      }
+    } else {
+      await updateDoc(reqRef, {
+        status: 'rejected',
+        updatedAt: serverTimestamp()
+      });
+    }
+  }
+
+  return { status: approve ? 'approved' : 'rejected', approvedRole };
 }
