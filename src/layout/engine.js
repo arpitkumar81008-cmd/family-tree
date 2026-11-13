@@ -732,23 +732,49 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       }
     });
 
+    function resolveCoupleDropAnchor(c) {
+      const hasH = Boolean(c.h && pos[c.h]);
+      const hasW = Boolean(c.w && pos[c.w]);
+      if (hasH && hasW) {
+        const hPos = pos[c.h];
+        const wPos = pos[c.w];
+        if (hPos.y === wPos.y) {
+          const leftP = hPos.x < wPos.x ? hPos : wPos;
+          const rightP = hPos.x < wPos.x ? wPos : hPos;
+          const gap = rightP.x - (leftP.x + CARD_W);
+          if (gap >= 0 && gap <= COUPLE_GAP + 12) {
+            return {
+              anchorX: (leftP.x + CARD_W + rightP.x) / 2,
+              parentY: leftP.y,
+              dropStartY: leftP.y + 34,
+              hasAdjacentBar: true
+            };
+          }
+        }
+      }
+      const primary = hasH ? pos[c.h] : (hasW ? pos[c.w] : null);
+      if (!primary) return null;
+      return {
+        anchorX: primary.x + CARD_W / 2,
+        parentY: primary.y,
+        dropStartY: primary.y + cardHeight,
+        hasAdjacentBar: false
+      };
+    }
+
     // Main branch parent-to-child lines
     mainCouples.forEach(c => {
       let kids = c.kids || [];
       if (!kids.length) return;
-      let parentCxs = [];
-      let parentY = 0;
-      if (c.h && pos[c.h]) { parentCxs.push(pos[c.h].x + CARD_W / 2); parentY = pos[c.h].y; }
-      if (c.w && pos[c.w]) { parentCxs.push(pos[c.w].x + CARD_W / 2); parentY = pos[c.w].y; }
-      if (!parentCxs.length) return;
+      const anchor = resolveCoupleDropAnchor(c);
+      if (!anchor) return;
 
-      let parentMidX = (Math.min(...parentCxs) + Math.max(...parentCxs)) / 2;
+      const { anchorX: parentMidX, parentY, dropStartY } = anchor;
       let placedKidIds = kids.filter(kId => pos[kId]);
       if (!placedKidIds.length) return;
       let kidCxs = placedKidIds.map(kId => pos[kId].x + CARD_W / 2);
       let minKidY = Math.min(...placedKidIds.map(kId => pos[kId].y));
 
-      let dropStartY = (c.h && c.w) ? parentY + 34 : parentY + cardHeight;
       let corridorTop = parentY + cardHeight + 18;
       let corridorBot = minKidY - 18;
       // Place sibling bus in the lower part of the corridor so upper lanes remain free for in-law bridges
@@ -757,8 +783,9 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       let busMaxX = Math.max(...kidCxs, parentMidX);
       let busY = allocateHorizontalY(preferredBusY, busMinX, busMaxX, corridorTop, corridorBot, 20, 1);
 
-      let trunkX = allocateVerticalX(parentMidX, dropStartY, busY);
+      let trunkX = parentMidX;
       mainPath += `M${trunkX} ${dropStartY}V${busY} `;
+      vertSegments.push({ x: trunkX, y1: Math.min(dropStartY, busY), y2: Math.max(dropStartY, busY) });
       mainPath += `M${ Math.min(...kidCxs, trunkX) } ${busY}H${ Math.max(...kidCxs, trunkX) } `;
       placedKidIds.forEach(kId => {
         let cx = pos[kId].x + CARD_W / 2;
@@ -777,14 +804,10 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
 
     // Spouse branch parent-to-child & connecting line to the spouse in main branch!
     sortedSpouseCouples.forEach(sc => {
-      let parentCxs = [];
-      let parentY = 0;
-      if (sc.h && pos[sc.h]) { parentCxs.push(pos[sc.h].x + CARD_W / 2); parentY = pos[sc.h].y; }
-      if (sc.w && pos[sc.w]) { parentCxs.push(pos[sc.w].x + CARD_W / 2); parentY = pos[sc.w].y; }
-      if (!parentCxs.length) return;
+      const anchor = resolveCoupleDropAnchor(sc);
+      if (!anchor) return;
 
-      let parentMidX = (Math.min(...parentCxs) + Math.max(...parentCxs)) / 2;
-      let dropStartY = (sc.h && sc.w) ? parentY + 34 : parentY + cardHeight;
+      const { anchorX: parentMidX, parentY, dropStartY } = anchor;
       let corridorTop = parentY + cardHeight + 18;
       let corridorBot = parentY + cardHeight + ROW_GAP - 18;
       let preferredSiblingBusY = parentY + cardHeight + Math.round(ROW_GAP * 0.72);
@@ -801,9 +824,9 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
         let busMinX = Math.min(...inBranchKidCxs, parentMidX);
         let busMaxX = Math.max(...inBranchKidCxs, parentMidX);
         busY = allocateHorizontalY(preferredSiblingBusY, busMinX, busMaxX, corridorTop, minKidY - 18, 20, 1);
-        trunkX = allocateVerticalX(parentMidX, dropStartY, busY);
 
         otherPath += `M${trunkX} ${dropStartY}V${busY} `;
+        vertSegments.push({ x: trunkX, y1: Math.min(dropStartY, busY), y2: Math.max(dropStartY, busY) });
         otherPath += `M${Math.min(...inBranchKidCxs, trunkX)} ${busY}H${Math.max(...inBranchKidCxs, trunkX)} `;
         unplacedKids.forEach(kId => {
           let cx = pos[kId].x + CARD_W / 2;
@@ -833,8 +856,8 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
 
         if (!inBranchKidCxs.length) {
           // No in-branch siblings: drop directly from parents to connectBusY without overshooting!
-          trunkX = allocateVerticalX(parentMidX, dropStartY, connectBusY);
           otherPath += `M${trunkX} ${dropStartY}V${connectBusY} `;
+          vertSegments.push({ x: trunkX, y1: Math.min(dropStartY, connectBusY), y2: Math.max(dropStartY, connectBusY) });
         } else if (connectBusY > busY) {
           bridgePath += `M${trunkX} ${busY}V${connectBusY} `;
         }

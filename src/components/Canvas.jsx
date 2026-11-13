@@ -60,6 +60,7 @@ export function Canvas({
     : internalCollapsedSubTrees;
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
 
   const subTrees = layout?.subTrees || [];
 
@@ -169,8 +170,10 @@ export function Canvas({
               group.push(segs[i + 1]);
               i++;
             }
-            const sourceCollapsed = collapsedNonMainBoxes.some(bb =>
-              pointInBox(cur.x1, cur.y1, bb, 24, 24, 140)
+            const sourceCollapsed = collapsedNonMainBoxes.some(
+              bb =>
+                pointInBox(cur.x1, cur.y1, bb, 24, 24, 140) ||
+                pointInBox(cur.x2, cur.y2, bb, 24, 24, 140)
             );
             if (!sourceCollapsed) {
               group.forEach(g => kept.push(g.cmd));
@@ -296,6 +299,7 @@ export function Canvas({
     onToggleFullscreenProp?.(next);
 
     if (next) {
+      setIsSidebarOpen(false);
       try {
         const el = hostRef.current;
         if (el?.requestFullscreen) {
@@ -806,15 +810,30 @@ export function Canvas({
   })();
 
   return (
-    <div ref={hostRef} className={`treewrap-host${isFullscreen ? ' is-fullscreen' : ''}`}>
+    <div
+      ref={hostRef}
+      className={`treewrap-host${isFullscreen ? ' is-fullscreen' : ''}${
+        isDesktopSidebarCollapsed && !isFullscreen ? ' is-sidebar-collapsed' : ''
+      }`}
+    >
       <div className="canvas-topbar">
-        {/* Sub-Trees Drawer Toggle Button (mobile/tablet & fullscreen) */}
+        {/* Sub-Trees Drawer Toggle Button (mobile/tablet, fullscreen, or collapsed desktop) */}
         <button
           type="button"
           className="subtrees-drawer-toggle"
-          aria-expanded={isSidebarOpen}
+          aria-expanded={isFullscreen ? isSidebarOpen : !isDesktopSidebarCollapsed || isSidebarOpen}
           aria-label={subTreesLabel}
-          onClick={() => setIsSidebarOpen(prev => !prev)}
+          onClick={() => {
+            const isMobileMode =
+              typeof document !== 'undefined' &&
+              (document.documentElement.getAttribute('data-viewport') === 'mobile' ||
+                window.innerWidth <= 900);
+            if (isFullscreen || isMobileMode) {
+              setIsSidebarOpen(prev => !prev);
+            } else {
+              setIsDesktopSidebarCollapsed(prev => !prev);
+            }
+          }}
         >
           <span aria-hidden="true">🌿</span>
           <span>{subTreesLabel}</span>
@@ -834,7 +853,7 @@ export function Canvas({
       <div className="canvas-layout">
         {isSidebarOpen && (
           <div
-            className="subtrees-drawer-backdrop"
+            className="subtrees-drawer-backdrop is-open"
             onClick={() => setIsSidebarOpen(false)}
             aria-hidden="true"
           />
@@ -851,7 +870,12 @@ export function Canvas({
           t={t}
           lang={lang}
           isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
+          onClose={() => {
+            setIsSidebarOpen(false);
+            if (!isFullscreen) {
+              setIsDesktopSidebarCollapsed(true);
+            }
+          }}
         />
         <div
           ref={containerRef}
