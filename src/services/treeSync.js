@@ -299,6 +299,9 @@ export function parseViewStateFromUrl() {
     if (rawView === 'home') {
       return { view: 'home', treeId: '' };
     }
+    if (rawView === 'admin') {
+      return { view: 'admin', treeId: '' };
+    }
     if (rawView === 'tree') {
       return { view: 'tree', treeId };
     }
@@ -318,7 +321,7 @@ export function parseViewStateFromUrl() {
  * Synchronizes browser URL query parameters with active view and tree state.
  * Uses window.history.pushState (or replaceState) without duplicating history entries.
  *
- * @param {'home' | 'tree'} view
+ * @param {'home' | 'tree' | 'admin'} view
  * @param {string} treeId
  * @param {{ replace?: boolean }} [options]
  */
@@ -328,6 +331,9 @@ export function syncUrlWithViewState(view, treeId, options = {}) {
     const url = new URL(window.location.href);
     if (view === 'home') {
       url.searchParams.set('view', 'home');
+      url.searchParams.delete('tree');
+    } else if (view === 'admin') {
+      url.searchParams.set('view', 'admin');
       url.searchParams.delete('tree');
     } else {
       url.searchParams.set('view', 'tree');

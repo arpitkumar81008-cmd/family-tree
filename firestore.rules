@@ -49,6 +49,22 @@ rules_version = '2';
 //   - createdAt: timestamp | number | string (optional) - creation timestamp
 //   - updatedAt: timestamp | number | string (optional) - last modification timestamp
 //
+// Collection: admins
+// Document ID: {uid} (UID of an authorized admin user, provisioned out-of-band)
+// Fields:
+//   - Any admin metadata (client writes are completely denied)
+//
+// Collection: analytics_daily
+// Document ID: {dayId} (YYYY-MM-DD date string, 10 chars)
+// Fields:
+//   - date: string (required, must match dayId, 10 chars) - UTC/local day identifier
+//   - pageViews: int (optional, 0..10000000) - daily page view counter
+//   - treesCreated: int (optional, 0..10000000) - daily trees created counter
+//   - photosUploaded: int (optional, 0..10000000) - daily photos uploaded counter
+//   - relationsSolved: int (optional, 0..10000000) - daily relations solved counter
+//   - joinRequests: int (optional, 0..10000000) - daily join requests counter
+//   - updatedAt: timestamp | number | string (optional) - last modification timestamp
+//
 // ===============================================================
 
 service cloud.firestore {
@@ -61,6 +77,12 @@ service cloud.firestore {
     // Check if the user is authenticated
     function isAuthenticated() {
       return request.auth != null;
+    }
+
+    // Check if the authenticated user is a provisioned admin
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
     // Check if the authenticated user has a verified email in their auth token
@@ -274,6 +296,34 @@ service cloud.firestore {
         isValidOptionalTime('updatedAt');
     }
 
+    // Validate optional non-negative integer counter bounded to 10,000,000
+    function isValidOptionalCounter(doc, field) {
+      return !(field in doc) ||
+        (doc[field] is int && doc[field] >= 0 && doc[field] <= 10000000);
+    }
+
+    function isValidAnalyticsDailyPayload(doc, dayId) {
+      return hasRequiredFields(['date']) &&
+        hasOnlyAllowedFields([
+          'date',
+          'pageViews',
+          'treesCreated',
+          'photosUploaded',
+          'relationsSolved',
+          'joinRequests',
+          'updatedAt'
+        ]) &&
+        (doc.date is string) &&
+        doc.date == dayId &&
+        doc.date.size() == 10 &&
+        isValidOptionalCounter(doc, 'pageViews') &&
+        isValidOptionalCounter(doc, 'treesCreated') &&
+        isValidOptionalCounter(doc, 'photosUploaded') &&
+        isValidOptionalCounter(doc, 'relationsSolved') &&
+        isValidOptionalCounter(doc, 'joinRequests') &&
+        isValidOptionalTime('updatedAt');
+    }
+
     // ===============================================================
     // Collection Rules: /trees/{treeId}
     // ===============================================================
@@ -370,6 +420,25 @@ service cloud.firestore {
         allow delete: if isAuthenticated() &&
           (request.auth.uid == requesterUid || isParentTreeOwner(treeId));
       }
+    }
+
+    // ===============================================================
+    // Collection Rules: /admins/{uid}
+    // ===============================================================
+
+    match /admins/{uid} {
+      allow get: if isAuthenticated() && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+    }
+
+    // ===============================================================
+    // Collection Rules: /analytics_daily/{dayId}
+    // ===============================================================
+
+    match /analytics_daily/{dayId} {
+      allow get, list: if isAdmin();
+      allow create, update: if isValidAnalyticsDailyPayload(request.resource.data, dayId);
+      allow delete: if false;
     }
 
     // ===============================================================

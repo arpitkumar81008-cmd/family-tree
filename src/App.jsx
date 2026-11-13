@@ -53,6 +53,7 @@ import {
   getMyJoinRequest
 } from './services/treeSync.js';
 import { sendOwnerJoinRequestEmail } from './services/joinNotifications.js';
+import { recordAppMetric } from './services/analyticsStats.js';
 import { compactPhotosMap } from './utils/photoCompress.js';
 import Toolbar from './components/Toolbar.jsx';
 import HelpModal from './components/HelpModal.jsx';
@@ -66,6 +67,7 @@ const RelationSolverModal = lazy(() => import('./components/RelationSolverModal.
 const CreateTreeModal = lazy(() => import('./components/CreateTreeModal.jsx'));
 const ShareTreeModal = lazy(() => import('./components/ShareTreeModal.jsx'));
 const AuthModal = lazy(() => import('./components/AuthModal.jsx'));
+const AdminPanel = lazy(() => import('./components/AdminPanel.jsx'));
 
 export function App() {
   const [treeState, setTreeState] = useState(() => {
@@ -187,6 +189,15 @@ export function App() {
   useEffect(() => {
     syncUrlWithViewState(currentView, activeTreeId);
   }, [currentView, activeTreeId]);
+
+  // Record a page view once per browser session for aggregate analytics
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("vv_pv_recorded")) return;
+      sessionStorage.setItem("vv_pv_recorded", "1");
+    } catch {}
+    recordAppMetric("pageViews", { view: currentView });
+  }, []);
 
   // Preserve last active private tree ID across view switches
   useEffect(() => {
@@ -888,6 +899,9 @@ export function App() {
     }
     isLocalMutationRef.current = true;
     setTreeState(prev => ({ ...prev, photos: updatedPhotos }));
+    if (dataUrl) {
+      recordAppMetric("photosUploaded");
+    }
     return true;
   };
 
@@ -1050,6 +1064,7 @@ export function App() {
       viewer: ""
     }));
     setIsCreateOpen(false);
+    recordAppMetric("treesCreated");
     enterTree();
   };
 
@@ -1088,6 +1103,7 @@ export function App() {
       viewer: ""
     }));
     setIsCreateOpen(false);
+    recordAppMetric("treesCreated");
     enterTree();
   };
 
@@ -1098,6 +1114,7 @@ export function App() {
     setTreeIdInUrl("");
     handleReset();
     setIsCreateOpen(false);
+    recordAppMetric("treesCreated");
     enterTree();
   };
 
@@ -1165,6 +1182,7 @@ export function App() {
         user
       });
       setMyJoinRequest(submitted);
+      recordAppMetric("joinRequests");
       const notifyRes = await sendOwnerJoinRequestEmail({
         treeId: activeTreeId,
         requesterUid: user.uid,
@@ -1250,7 +1268,19 @@ export function App() {
         setIsSettingsOpen={setIsSettingsOpen}
       />
 
-      {currentView === "home" ? (
+      {currentView === "admin" ? (
+        <main id="main-content">
+          <Suspense fallback={null}>
+            <AdminPanel
+              user={user}
+              onSignIn={() => setIsAuthOpen(true)}
+              onBackHome={handleNavigateHome}
+              memberCount={treeState.data.people.length}
+              familyCount={treeState.data.couples.length}
+            />
+          </Suspense>
+        </main>
+      ) : currentView === "home" ? (
         <main id="main-content">
           <LandingPage
             t={t}
@@ -1491,7 +1521,10 @@ export function App() {
         t={t}
         lang={treeState.lang}
         onOpenAddModal={() => canEdit && setIsAddModalOpen(true)}
-        onOpenRelationSolver={() => setIsRelationSolverOpen(true)}
+        onOpenRelationSolver={() => {
+          setIsRelationSolverOpen(true);
+          recordAppMetric("relationsSolved");
+        }}
         canEdit={canEdit}
         familyIndex={familyIndex}
       />

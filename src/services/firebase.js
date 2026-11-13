@@ -36,6 +36,7 @@ export function loadFirebaseConfig() {
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '377567252946',
     appId:
       import.meta.env.VITE_FIREBASE_APP_ID || '1:377567252946:web:6043388686762243ce380b',
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-89GMEHC09H',
     databaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)'
   };
 
@@ -111,11 +112,42 @@ export function getFirebaseClients() {
       db = dbId ? getFirestore(app, dbId) : getFirestore(app);
     }
     cachedClients = { app, auth, db, functions };
+    initAnalyticsIfSupported(app);
     return cachedClients;
   } catch (err) {
     console.error('Firebase initialization error:', err);
     return { app: null, auth: null, db: null, functions: null };
   }
+}
+
+let analyticsInstance = null;
+let analyticsInitPromise = null;
+
+function initAnalyticsIfSupported(app) {
+  if (typeof window === 'undefined' || !app || analyticsInitPromise) return;
+  const cfg = loadFirebaseConfig();
+  if (!cfg.measurementId) return;
+  analyticsInitPromise = import('firebase/analytics')
+    .then(async ({ isSupported, getAnalytics }) => {
+      if (await isSupported()) {
+        analyticsInstance = getAnalytics(app);
+      }
+    })
+    .catch(() => {});
+}
+
+export async function trackAnalyticsEvent(eventName, params = {}) {
+  if (typeof window === 'undefined' || !eventName) return;
+  try {
+    const { app } = getFirebaseClients();
+    if (!app) return;
+    if (!analyticsInstance && analyticsInitPromise) {
+      await analyticsInitPromise;
+    }
+    if (!analyticsInstance) return;
+    const { logEvent } = await import('firebase/analytics');
+    logEvent(analyticsInstance, eventName, params);
+  } catch {}
 }
 
 export function subscribeToAuth(callback) {
