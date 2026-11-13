@@ -190,6 +190,7 @@ service cloud.firestore {
           'data',
           'photos',
           'lang',
+          'version',
           'createdAt',
           'updatedAt'
         ]) &&
@@ -214,6 +215,9 @@ service cloud.firestore {
           (doc.photos is map && doc.photos.size() <= 500)) &&
         (!('lang' in doc) ||
           (doc.lang is string && doc.lang in ['en', 'hi'])) &&
+        (!('version' in doc) ||
+          doc.version == null ||
+          (doc.version is int && doc.version >= 0)) &&
         isValidOptionalTime('createdAt') &&
         isValidOptionalTime('updatedAt');
     }

@@ -83,11 +83,20 @@ export function Sheet({
   const canRemove = !children.length && !spouseId;
 
   const handlePhotoUpload = e => {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
     const reader = new FileReader();
+    reader.onerror = () => {
+      setPhotoMsg(t("noSpace"));
+      input.value = "";
+    };
     reader.onload = ev => {
       const img = new Image();
+      img.onerror = () => {
+        setPhotoMsg(t("noSpace"));
+        input.value = "";
+      };
       img.onload = () => {
         const canvas = document.createElement("canvas");
         const maxDim = 160;
@@ -104,13 +113,19 @@ export function Sheet({
             h = maxDim;
           }
         }
-        canvas.width = w;
-        canvas.height = h;
+        canvas.width = Math.max(1, w);
+        canvas.height = Math.max(1, h);
         const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          setPhotoMsg(t("noSpace"));
+          input.value = "";
+          return;
+        }
         ctx.drawImage(img, 0, 0, w, h);
         const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
         const ok = setPhoto(person.id, dataUrl);
         setPhotoMsg(ok ? t("added") : t("noSpace"));
+        input.value = "";
       };
       img.src = String(ev.target.result);
     };

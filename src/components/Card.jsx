@@ -48,7 +48,7 @@ export function Card({
       onClick={onClick}
       onKeyDown={onKeyDown}
     >
-      <Avatar photo={isCompact ? null : photo} label={t("photoOf", name)} text={initials} />
+      <Avatar photo={photo} label={t("photoOf", name)} text={initials} />
       {!isCompact && <span className="nm">{name}</span>}
       {!isCompact && relationLabel && <span className="rl">{relationLabel}</span>}
       {!isCompact && person.late && <span className="tag">{t("lateTag")}</span>}
