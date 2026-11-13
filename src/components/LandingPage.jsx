@@ -227,9 +227,9 @@ export function LandingPage({
   }, []);
 
   const metrics = [
-    [memberCount, 'metricMembers'],
-    [generationCount, 'metricGens'],
-    [branchCount, 'metricBranches'],
+    ['∞', 'metricMembers'],
+    ['EN ↔ HI', 'metricGens'],
+    ['50+', 'metricBranches'],
     ['100%', 'metricOffline']
   ];
   const features = [
