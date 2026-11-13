@@ -217,7 +217,9 @@ export function App() {
   }, []);
 
   const hasPrivateTree = Boolean(
-    (activeTreeId && activeTreeId !== "tree_demo_sharma") || userPrivateTreeId
+    user &&
+      ((activeTreeId && activeTreeId !== "tree_demo_sharma" && !treeAccessDenied) ||
+        userPrivateTreeId)
   );
 
   // Reset collapsed sub-trees when switching trees
@@ -1096,6 +1098,7 @@ export function App() {
     saveLocalAuthUser(null);
     setUser(null);
     setUserPrivateTreeId("");
+    setLastPrivateTreeId("");
     setSaveError(false);
     if (activeTreeId && (!activeTreeMeta || !activeTreeMeta.isPublic)) {
       isLocalMutationRef.current = false;
