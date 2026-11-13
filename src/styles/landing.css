@@ -13,7 +13,9 @@
   justify-content: space-between;
   gap: 16px;
   padding: 0 clamp(20px, 3vw, 48px);
-  background: var(--surface);
+  background: var(--surface-glass, var(--surface));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
   transform: translateY(0);
   opacity: 1;
@@ -824,13 +826,16 @@
   align-items: center;
   gap: 0;
   padding: 4px;
-  background: var(--surface);
+  background: var(--surface-glass, var(--surface));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--ink);
   border-radius: 999px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--shadow-dock, 0 6px 20px rgba(0, 0, 0, 0.16));
   max-width: calc(100% - 24px);
   transition: border-radius 0.28s cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.2s ease,
     padding 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 

@@ -7,26 +7,13 @@ import {
   resetPassword
 } from '../services/firebase.js';
 import { useSmartAutoAnimate } from '../utils/useSmartAutoAnimate.js';
+import {
+  LOCAL_AUTH_KEY,
+  loadLocalAuthUser,
+  saveLocalAuthUser
+} from '../utils/authStorage.js';
 
-export const LOCAL_AUTH_KEY = 'gupta_local_auth_user';
-
-export function loadLocalAuthUser() {
-  if (typeof window === 'undefined' || !window.localStorage) return null;
-  try {
-    const raw = localStorage.getItem(LOCAL_AUTH_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-export function saveLocalAuthUser(user) {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-  try {
-    if (user) localStorage.setItem(LOCAL_AUTH_KEY, JSON.stringify(user));
-    else localStorage.removeItem(LOCAL_AUTH_KEY);
-  } catch {}
-}
+export { LOCAL_AUTH_KEY, loadLocalAuthUser, saveLocalAuthUser };
 
 export function AuthModal({ t, close, onSignedIn }) {
   const cloudConfigured = isFirebaseConfigured();

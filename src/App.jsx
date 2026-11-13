@@ -29,7 +29,7 @@ import {
   LOCAL_AUTH_KEY,
   loadLocalAuthUser,
   saveLocalAuthUser
-} from './components/AuthModal.jsx';
+} from './utils/authStorage.js';
 import { subscribeToAuth, signOutUser, isFirebaseConfigured } from './services/firebase.js';
 import {
   getTreeIdFromUrl,

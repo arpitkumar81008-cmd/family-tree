@@ -1,6 +1,63 @@
 :root {
   color-scheme: light;
   box-sizing: border-box;
+
+  /* =========================================================================
+     TIER 1: PRIMITIVES (Foundational Scales)
+     ========================================================================= */
+  /* Primitive Palette: Warm Parchment & Rich Crimson Heritage */
+  --primitive-parchment-50: #fbfaf7;
+  --primitive-parchment-100: #f6f4ef;
+  --primitive-parchment-200: #ede8dc;
+  --primitive-crimson-500: #d00020;
+  --primitive-crimson-600: #b91c3b;
+  --primitive-crimson-700: #991b35;
+
+  /* Primitive Palette: Neutrals & Slate */
+  --primitive-slate-900: #0f172a;
+  --primitive-slate-800: #1e293b;
+  --primitive-slate-700: #334155;
+  --primitive-slate-600: #475569;
+  --primitive-slate-500: #5b6778;
+  --primitive-slate-400: #8b9bb0;
+  --primitive-slate-300: #cbd5e1;
+  --primitive-slate-200: #e2e8f0;
+  --primitive-slate-100: #f1f5f9;
+  --primitive-white: #ffffff;
+
+  /* Primitive Palette: Lineage Accents */
+  --primitive-blue-900: #1e40af;
+  --primitive-blue-300: #93c5fd;
+  --primitive-blue-100: #dbeafe;
+  --primitive-blue-50: #eff6ff;
+  --primitive-pink-900: #9d174d;
+  --primitive-pink-300: #f9a8d4;
+  --primitive-pink-100: #fce7f3;
+  --primitive-pink-50: #fdf2f8;
+  --primitive-amber-800: #92400e;
+  --primitive-amber-500: #f59e0b;
+  --primitive-amber-100: #fef3c7;
+
+  /* Primitive Timing & Easing Curves */
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Primitive Layered Shadows & Elevation */
+  --primitive-shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --primitive-shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+  --primitive-shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+  --primitive-shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.10), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+
+  /* Primitive Backdrop Blurs */
+  --blur-sm: 4px;
+  --blur-md: 8px;
+  --blur-lg: 12px;
+  --blur-xl: 16px;
+
+  /* =========================================================================
+     TIER 2: SEMANTIC TOKENS (Strictly Preserving Heritage & Existing Contracts)
+     ========================================================================= */
   --bg: #f6f4ef;
   --surface: #ffffff;
   --ink: #1e293b;
@@ -31,6 +88,24 @@
   --radius-lg: 10px;
   --transition-fast: 0.12s ease;
   --nav-height: 60px;
+
+  /* =========================================================================
+     TIER 3: MODERN COMPONENT & ELEVATION TOKENS
+     ========================================================================= */
+  --shadow-card: 0 2px 4px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-card-hover: 0 8px 16px -2px rgba(15, 23, 42, 0.10), 0 3px 6px -1px rgba(15, 23, 42, 0.06);
+  --shadow-card-focus: 0 0 0 3px rgba(185, 28, 59, 0.22), 0 8px 16px -2px rgba(15, 23, 42, 0.12);
+  --shadow-sheet: -4px 0 24px -2px rgba(15, 23, 42, 0.14), -2px 0 8px -1px rgba(15, 23, 42, 0.08);
+  --shadow-dock: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
+  --shadow-modal: 0 20px 25px -5px rgba(15, 23, 42, 0.18), 0 8px 10px -6px rgba(15, 23, 42, 0.10);
+  --shadow-popover: 0 10px 20px -3px rgba(15, 23, 42, 0.14), 0 4px 6px -2px rgba(15, 23, 42, 0.08);
+
+  --surface-glass: rgba(255, 255, 255, 0.88);
+  --surface-glass-subtle: rgba(255, 255, 255, 0.72);
+  --scrim-blur: blur(8px);
+  --border-subtle: rgba(139, 155, 176, 0.28);
+  --border-crisp: 1px solid var(--line);
+  --spring-micro: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -56,6 +131,18 @@
     --card-female-border: #ec4899;
     --av-female-bg: #4c1d3d;
     --av-female-ink: #fbcfe8;
+
+    --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.35);
+    --shadow-card-hover: 0 8px 20px rgba(0, 0, 0, 0.5);
+    --shadow-card-focus: 0 0 0 3px rgba(255, 69, 96, 0.3), 0 8px 20px rgba(0, 0, 0, 0.5);
+    --shadow-sheet: -4px 0 24px rgba(0, 0, 0, 0.5);
+    --shadow-dock: 0 10px 25px rgba(0, 0, 0, 0.55);
+    --shadow-modal: 0 20px 30px rgba(0, 0, 0, 0.6);
+    --shadow-popover: 0 10px 20px rgba(0, 0, 0, 0.55);
+    --surface-glass: rgba(18, 24, 22, 0.88);
+    --surface-glass-subtle: rgba(18, 24, 22, 0.72);
+    --border-subtle: rgba(75, 89, 104, 0.35);
+
     color-scheme: dark;
   }
 }
@@ -83,6 +170,18 @@
   --av-female-bg: #4c1d3d;
   --av-female-ink: #fbcfe8;
   --display: "Bodoni Moda", "Tiro Devanagari Hindi", Georgia, serif;
+
+  --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-card-hover: 0 8px 20px rgba(0, 0, 0, 0.5);
+  --shadow-card-focus: 0 0 0 3px rgba(255, 69, 96, 0.3), 0 8px 20px rgba(0, 0, 0, 0.5);
+  --shadow-sheet: -4px 0 24px rgba(0, 0, 0, 0.5);
+  --shadow-dock: 0 10px 25px rgba(0, 0, 0, 0.55);
+  --shadow-modal: 0 20px 30px rgba(0, 0, 0, 0.6);
+  --shadow-popover: 0 10px 20px rgba(0, 0, 0, 0.55);
+  --surface-glass: rgba(18, 24, 22, 0.88);
+  --surface-glass-subtle: rgba(18, 24, 22, 0.72);
+  --border-subtle: rgba(44, 53, 49, 0.45);
+
   color-scheme: dark;
 }
 
