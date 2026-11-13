@@ -143,8 +143,27 @@ export function Sheet({
           ×
         </button>
 
-        <div className="sh-head" style={{ alignItems: isEditingDetails ? "flex-start" : "center" }}>
-          <Avatar photo={photo} label={t("photoOf", name)} text={initials} big />
+        <div
+          className={`sh-head${person.g === "M" ? " is-male" : person.g === "F" ? " is-female" : ""}`}
+          style={{
+            alignItems: isEditingDetails ? "flex-start" : "center",
+            background:
+              person.g === "M"
+                ? "var(--card-male-bg, #eff6ff)"
+                : person.g === "F"
+                  ? "var(--card-female-bg, #fdf2f8)"
+                  : undefined,
+            border:
+              person.g === "M"
+                ? "1px solid var(--card-male-border, #93c5fd)"
+                : person.g === "F"
+                  ? "1px solid var(--card-female-border, #f9a8d4)"
+                  : undefined,
+            borderRadius: "12px",
+            padding: "12px"
+          }}
+        >
+          <Avatar photo={photo} label={t("photoOf", name)} text={initials} big gender={person.g} />
           <div style={{ flex: 1, minWidth: 0 }}>
             {isEditingDetails ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>

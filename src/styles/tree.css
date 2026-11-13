@@ -191,6 +191,30 @@
   opacity: 0.28;
 }
 
+.card.is-male {
+  background: var(--card-male-bg, #eff6ff);
+  border-color: var(--card-male-border, #93c5fd);
+}
+
+.card.is-female {
+  background: var(--card-female-bg, #fdf2f8);
+  border-color: var(--card-female-border, #f9a8d4);
+}
+
+.card.is-late {
+  border-style: dashed;
+}
+
+.av.is-male {
+  background: var(--av-male-bg, #dbeafe);
+  color: var(--av-male-ink, #1e40af);
+}
+
+.av.is-female {
+  background: var(--av-female-bg, #fce7f3);
+  color: var(--av-female-ink, #9d174d);
+}
+
 .card .nm {
   font-size: 14px;
   font-weight: 700;

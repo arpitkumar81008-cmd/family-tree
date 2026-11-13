@@ -368,22 +368,28 @@ export async function renderTreeToCanvas(
   // 4. Person Cards
   for (const { id, x, y, person } of nodes) {
     const gender = person?.g || person?.gender || '';
-    const accentColor = gender === 'M' ? '#2C4C6E' : gender === 'F' ? '#B91C3B' : '#64829C';
-    const softAvatarBg = gender === 'M' ? '#E7EFF6' : gender === 'F' ? '#FBECEF' : '#EEF2F6';
+    const accentColor = gender === 'M' ? '#1E40AF' : gender === 'F' ? '#9D174D' : '#64829C';
+    const cardBg = gender === 'M' ? '#EFF6FF' : gender === 'F' ? '#FDF2F8' : '#FFFFFF';
+    const cardBorder = gender === 'M' ? '#93C5FD' : gender === 'F' ? '#F9A8D4' : '#E6DFD5';
+    const softAvatarBg = gender === 'M' ? '#DBEAFE' : gender === 'F' ? '#FCE7F3' : '#EEF2F6';
 
     // Card background & border
     ctx.save();
     drawRoundedRect(ctx, x, y, CARD_W, cardHeight, 10);
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = cardBg;
     ctx.fill();
-    ctx.strokeStyle = '#E6DFD5';
+    if (person?.late) {
+      ctx.setLineDash([4, 3]);
+    }
+    ctx.strokeStyle = cardBorder;
     ctx.lineWidth = 1.5;
     ctx.stroke();
+    ctx.setLineDash([]);
 
     // Gender top accent strip clipped to card
     ctx.clip();
-    ctx.fillStyle = accentColor;
-    ctx.fillRect(x, y, CARD_W, 4);
+    ctx.fillStyle = cardBorder;
+    ctx.fillRect(x, y, CARD_W, 3);
     ctx.restore();
 
     // Circular avatar

@@ -14,6 +14,14 @@
   --rel: #991b35;
   --scrim: rgba(30, 41, 59, 0.54);
   --av: #e7eff6;
+  --card-male-bg: #eff6ff;
+  --card-male-border: #93c5fd;
+  --av-male-bg: #dbeafe;
+  --av-male-ink: #1e40af;
+  --card-female-bg: #fdf2f8;
+  --card-female-border: #f9a8d4;
+  --av-female-bg: #fce7f3;
+  --av-female-ink: #9d174d;
   --display: "Fraunces", "Tiro Devanagari Hindi", Georgia, serif;
   --body: "Familjen Grotesk", "Hind", system-ui, -apple-system, "Segoe UI", sans-serif;
   --deva: "Tiro Devanagari Hindi", "Noto Serif Devanagari", Georgia, serif;
@@ -40,6 +48,14 @@
     --rel: #ff6b80;
     --scrim: rgba(0, 0, 0, 0.7);
     --av: #1e2622;
+    --card-male-bg: #132238;
+    --card-male-border: #3b82f6;
+    --av-male-bg: #1e3a5f;
+    --av-male-ink: #bfdbfe;
+    --card-female-bg: #2d1624;
+    --card-female-border: #ec4899;
+    --av-female-bg: #4c1d3d;
+    --av-female-ink: #fbcfe8;
     color-scheme: dark;
   }
 }
@@ -58,6 +74,14 @@
   --rel: #ff6b80;
   --scrim: rgba(0, 0, 0, 0.7);
   --av: #1e2622;
+  --card-male-bg: #132238;
+  --card-male-border: #3b82f6;
+  --av-male-bg: #1e3a5f;
+  --av-male-ink: #bfdbfe;
+  --card-female-bg: #2d1624;
+  --card-female-border: #ec4899;
+  --av-female-bg: #4c1d3d;
+  --av-female-ink: #fbcfe8;
   --display: "Bodoni Moda", "Tiro Devanagari Hindi", Georgia, serif;
   color-scheme: dark;
 }
