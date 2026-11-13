@@ -1258,15 +1258,39 @@
 }
 
 :root[data-viewport="mobile"] .site-nav {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   height: auto;
   flex-wrap: wrap;
-  padding: 10px 12px;
+  padding: 8px 12px;
   gap: 8px;
+}
+
+:root[data-viewport="mobile"] .nav-actions {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+:root[data-viewport="mobile"] .nav-action-btn {
+  height: 34px;
+  padding: 0 9px;
+  font-size: 12px;
+}
+
+:root[data-viewport="mobile"] .nav-create-private-cta {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 :root[data-viewport="mobile"] .brand-text,
 :root[data-viewport="mobile"] .stats-badge,
-:root[data-viewport="mobile"] .user-pill {
+:root[data-viewport="mobile"] .user-pill,
+:root[data-viewport="mobile"] .nav-github-link {
   display: none;
 }
 
@@ -1336,10 +1360,37 @@
 /* Native Mobile Screen Breakpoint (<= 768px, unless user forced Laptop mode) */
 @media (max-width: 768px) {
   :root:not([data-viewport="laptop"]) .site-nav {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     height: auto;
     flex-wrap: wrap;
-    padding: 10px 12px;
+    padding: 8px 12px;
     gap: 8px;
+  }
+
+  :root:not([data-viewport="laptop"]) .nav-actions {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  :root:not([data-viewport="laptop"]) .nav-action-btn {
+    height: 34px;
+    padding: 0 9px;
+    font-size: 12px;
+  }
+
+  :root:not([data-viewport="laptop"]) .nav-create-private-cta {
+    max-width: 170px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  :root:not([data-viewport="laptop"]) .nav-github-link {
+    display: none;
   }
 
   :root:not([data-viewport="laptop"]) .nav-center {

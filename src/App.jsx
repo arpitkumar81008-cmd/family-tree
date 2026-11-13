@@ -1378,35 +1378,42 @@ export function App() {
       if (err?.code === 'AUTH_REQUIRED') {
         setIsAuthOpen(true);
       } else if (err?.code === 'APPROVAL_REQUIRED') {
-        await handleRequestTreeAccess(null, code);
+        setLockedCodeInput("");
+        await handleRequestTreeAccess(null, code, err.treeId || "");
       } else {
         setLockedCodeError(t("joinByCodeNotFound"));
       }
     }
   };
 
-  const handleRequestTreeAccess = async (e, explicitCode = "") => {
+  const handleRequestTreeAccess = async (e, explicitCode = "", explicitTreeId = "") => {
     e?.preventDefault?.();
-    if (!activeTreeId) return;
+    const targetTreeId = explicitTreeId || activeTreeId;
+    if (!targetTreeId) return;
     if (!user?.uid) {
       setIsAuthOpen(true);
       return;
+    }
+    if (targetTreeId !== activeTreeId) {
+      setActiveTreeId(targetTreeId);
+      setTreeIdInUrl(targetTreeId);
     }
     setRequestBusy(true);
     setRequestMsg("");
     setRequestNotifyLinks(null);
     try {
       const codeToSend = explicitCode || lockedCodeInput.trim() || getShareCodeFromUrl();
-      const submitted = await submitJoinRequest(activeTreeId, {
+      const submitted = await submitJoinRequest(targetTreeId, {
         requestedRole: requestRole,
         shareCode: codeToSend,
         note: requestNote,
         user
       });
       setMyJoinRequest(submitted);
+      setLockedCodeInput("");
       recordAppMetric("joinRequests");
       const notifyRes = await sendOwnerJoinRequestEmail({
-        treeId: activeTreeId,
+        treeId: targetTreeId,
         requesterUid: user.uid,
         requesterName: user.displayName || "",
         requesterEmail: user.email || "",
@@ -1561,18 +1568,20 @@ export function App() {
                   </button>
                 )}
               </div>
-              <form className="private-locked-code-form" onSubmit={handleUnlockLockedTreeByCode}>
-                <input
-                  type="text"
-                  value={lockedCodeInput}
-                  onChange={e => setLockedCodeInput(e.target.value)}
-                  placeholder={t("joinByCodePh")}
-                  aria-label={t("privateLockedCodeLabel")}
-                />
-                <button type="submit" className="btn primary">
-                  {t("joinByCodeBtn")}
-                </button>
-              </form>
+              {myJoinRequest?.status !== "pending" && (
+                <form className="private-locked-code-form" onSubmit={handleUnlockLockedTreeByCode}>
+                  <input
+                    type="text"
+                    value={lockedCodeInput}
+                    onChange={e => setLockedCodeInput(e.target.value)}
+                    placeholder={t("joinByCodePh")}
+                    aria-label={t("privateLockedCodeLabel")}
+                  />
+                  <button type="submit" className="btn primary">
+                    {t("joinByCodeBtn")}
+                  </button>
+                </form>
+              )}
               {lockedCodeError && (
                 <p className="msg" role="alert" style={{ marginTop: 10 }}>
                   {lockedCodeError}
