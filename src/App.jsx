@@ -1181,6 +1181,13 @@ export function App() {
         lang: merged.lang || prev.lang,
         viewer: ""
       }));
+    } else if (
+      activeTreeId === treeId &&
+      activeTreeMetaRef.current?.id === treeId &&
+      treeState.data?.people?.length > 0
+    ) {
+      // Same tree is already loaded in memory (e.g. returning from Home view)
+      setLoadingTree(false);
     } else {
       setLoadingTree(true);
     }
@@ -1202,6 +1209,17 @@ export function App() {
 
   const handleNavigateMyTree = async () => {
     if (activeTreeId && currentView === "tree") return;
+    if (
+      activeTreeId &&
+      activeTreeId !== "tree_demo_sharma" &&
+      activeTreeMetaRef.current?.id === activeTreeId
+    ) {
+      setLoadingTree(false);
+      setTreeLoadError(false);
+      setTreeAccessDenied(false);
+      enterTree();
+      return;
+    }
     const lastId = getLastPrivateTreeId();
     if (lastId) {
       handleSelectTree(lastId);
