@@ -3,6 +3,7 @@ import { Avatar } from './Card.jsx';
 import { getInitials } from '../data/familyData.js';
 import { calculateKinship } from '../utils/kinship.js';
 import { transliterateToHindi } from '../i18n/translit.js';
+import { compressPhotoFile } from '../utils/photoCompress.js';
 
 export function Sheet({
   id,
@@ -82,54 +83,20 @@ export function Sheet({
 
   const canRemove = !children.length && !spouseId;
 
-  const handlePhotoUpload = e => {
+  const handlePhotoUpload = async e => {
     const input = e.target;
     const file = input.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onerror = () => {
-      setPhotoMsg(t("noSpace"));
+    setPhotoMsg(t("photoProcessing"));
+    try {
+      const dataUrl = await compressPhotoFile(file, { targetBytes: 8192 });
+      const ok = setPhoto(person.id, dataUrl);
+      setPhotoMsg(ok ? t("added") : t("noSpace"));
+    } catch {
+      setPhotoMsg(t("badImg"));
+    } finally {
       input.value = "";
-    };
-    reader.onload = ev => {
-      const img = new Image();
-      img.onerror = () => {
-        setPhotoMsg(t("noSpace"));
-        input.value = "";
-      };
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const maxDim = 160;
-        let w = img.width;
-        let h = img.height;
-        if (w > h) {
-          if (w > maxDim) {
-            h = Math.round((h * maxDim) / w);
-            w = maxDim;
-          }
-        } else {
-          if (h > maxDim) {
-            w = Math.round((w * maxDim) / h);
-            h = maxDim;
-          }
-        }
-        canvas.width = Math.max(1, w);
-        canvas.height = Math.max(1, h);
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          setPhotoMsg(t("noSpace"));
-          input.value = "";
-          return;
-        }
-        ctx.drawImage(img, 0, 0, w, h);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
-        const ok = setPhoto(person.id, dataUrl);
-        setPhotoMsg(ok ? t("added") : t("noSpace"));
-        input.value = "";
-      };
-      img.src = String(ev.target.result);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleSubAdd = e => {
@@ -344,7 +311,7 @@ export function Sheet({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,.heic,.heif"
               style={{ display: "none" }}
               onChange={handlePhotoUpload}
             />
