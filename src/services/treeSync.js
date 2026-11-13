@@ -396,12 +396,14 @@ export function subscribeToTree(treeId, onUpdate, onError, options = {}) {
 
   if (db && isFirebaseConfigured()) {
     const ref = doc(db, 'trees', treeId);
+    let hasDeliveredInitial = false;
     return onSnapshot(
       ref,
       snap => {
-        if (snap.metadata.hasPendingWrites) {
+        if (hasDeliveredInitial && snap.metadata.hasPendingWrites) {
           return;
         }
+        hasDeliveredInitial = true;
         if (snap.exists()) {
           const docData = { id: snap.id, ...snap.data() };
           if (!canUserViewTree(docData, resolvedUser)) {

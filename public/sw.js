@@ -1,7 +1,6 @@
-const CACHE_NAME = 'vanshvriksha-static-v1';
+const CACHE_NAME = 'vanshvriksha-static-v2';
 
 const PRECACHE_URLS = [
-  '/',
   '/manifest.webmanifest',
   '/favicon.svg'
 ];

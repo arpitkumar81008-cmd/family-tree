@@ -335,9 +335,20 @@ export function App() {
     }
     setTreeLoadError(false);
     setTreeAccessDenied(false);
-    return subscribeToTree(
+
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (!settled) {
+        setLoadingTree(false);
+        setTreeLoadError(true);
+      }
+    }, 10000);
+
+    const unsubscribe = subscribeToTree(
       activeTreeId,
       docData => {
+        settled = true;
+        clearTimeout(timeoutId);
         setLoadingTree(false);
         setTreeLoadError(false);
         setTreeAccessDenied(false);
@@ -361,6 +372,8 @@ export function App() {
         }
       },
       err => {
+        settled = true;
+        clearTimeout(timeoutId);
         setLoadingTree(false);
         if (err?.code === "ACCESS_DENIED") {
           setActiveTreeMeta(null);
@@ -374,6 +387,12 @@ export function App() {
       },
       { user }
     );
+
+    return () => {
+      settled = true;
+      clearTimeout(timeoutId);
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
   }, [activeTreeId, user, treeRetryCount]);
 
   const executeCloudSave = useCallback(async (targetTreeId, payload, targetUser) => {
