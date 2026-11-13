@@ -55,6 +55,13 @@ import {
 import { sendOwnerJoinRequestEmail } from './services/joinNotifications.js';
 import { recordAppMetric } from './services/analyticsStats.js';
 import { compactPhotosMap } from './utils/photoCompress.js';
+import {
+  createHistoryState,
+  pushHistorySnapshot,
+  stepUndo,
+  stepRedo
+} from './utils/historyStack.js';
+import { downloadTreePng, printTreePoster } from './utils/treeExportImage.js';
 import Toolbar from './components/Toolbar.jsx';
 import HelpModal from './components/HelpModal.jsx';
 import Tabs from './components/Tabs.jsx';
@@ -68,6 +75,7 @@ const CreateTreeModal = lazy(() => import('./components/CreateTreeModal.jsx'));
 const ShareTreeModal = lazy(() => import('./components/ShareTreeModal.jsx'));
 const AuthModal = lazy(() => import('./components/AuthModal.jsx'));
 const AdminPanel = lazy(() => import('./components/AdminPanel.jsx'));
+const MilestonesModal = lazy(() => import('./components/MilestonesModal.jsx'));
 
 export function App() {
   const [treeState, setTreeState] = useState(() => {
@@ -146,11 +154,16 @@ export function App() {
 
   // Search & Navigation
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeSearchIndex, setActiveSearchIndex] = useState(0);
   const [activeTab, setActiveTab] = useState("rel");
   const [selectedPersonId, setSelectedPersonId] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [isRelationSolverOpen, setIsRelationSolverOpen] = useState(false);
+  const [isMilestonesOpen, setIsMilestonesOpen] = useState(false);
+  const [highlightedPathIds, setHighlightedPathIds] = useState([]);
+  const [highlightedPathLabel, setHighlightedPathLabel] = useState("");
+  const [historyState, setHistoryState] = useState(() => createHistoryState());
   const [collapsedSubTrees, setCollapsedSubTrees] = useState({});
   const [showGuideBanner, setShowGuideBanner] = useState(() => {
     try {
@@ -165,6 +178,10 @@ export function App() {
 
   const previousActiveElement = useRef(null);
   const isLocalMutationRef = useRef(false);
+  const historyRef = useRef(historyState);
+  historyRef.current = historyState;
+  const treeStateRef = useRef(treeState);
+  treeStateRef.current = treeState;
   const activeTreeMetaRef = useRef(null);
   const autoLoadedUidRef = useRef(null);
   const saveTimerRef = useRef(null);
@@ -637,7 +654,7 @@ export function App() {
     return treeState.data.people.reduce((m, p) => Math.max(m, depth(p.id)), 0);
   }, [familyIndex, treeState.data.people]);
 
-  // Search Filtering
+  // Search Filtering & Cycling
   const cleanQuery = searchQuery.trim().toLowerCase();
   const searchMatches = useMemo(() => {
     if (!cleanQuery) return [];
@@ -645,6 +662,26 @@ export function App() {
       `${p.name} ${p.hi || ""}`.toLowerCase().includes(cleanQuery)
     );
   }, [cleanQuery, treeState.data.people]);
+
+  useEffect(() => {
+    setActiveSearchIndex(0);
+  }, [cleanQuery]);
+
+  useEffect(() => {
+    if (searchMatches.length === 0 || activeSearchIndex >= searchMatches.length) {
+      setActiveSearchIndex(0);
+    }
+  }, [searchMatches.length, activeSearchIndex]);
+
+  const handleStepSearchMatch = useCallback(delta => {
+    if (searchMatches.length === 0) return;
+    setActiveSearchIndex(prev => {
+      const len = searchMatches.length;
+      return ((prev + delta) % len + len) % len;
+    });
+  }, [searchMatches.length]);
+
+  const focusedSearchId = cleanQuery ? (searchMatches[activeSearchIndex]?.id || "") : "";
 
   // Modal open / close handlers
   const openPersonDetails = id => {
@@ -689,9 +726,151 @@ export function App() {
   // whereas shared trees (?tree=<id>) are strictly editable only by their owner or collaborators.
   const canEdit = !activeTreeId || canUserEditTree(activeTreeMeta, user);
 
+  // Undo / Redo history helpers
+  const recordHistorySnapshot = useCallback(() => {
+    const current = treeStateRef.current;
+    const nextHistory = pushHistorySnapshot(historyRef.current, {
+      data: current.data,
+      photos: current.photos
+    });
+    historyRef.current = nextHistory;
+    setHistoryState(nextHistory);
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (!canEdit) return;
+    const current = treeStateRef.current;
+    const res = stepUndo(historyRef.current, {
+      data: current.data,
+      photos: current.photos
+    });
+    if (!res) return;
+    historyRef.current = res.history;
+    setHistoryState(res.history);
+    isLocalMutationRef.current = true;
+    setTreeState(prev => ({
+      ...prev,
+      data: res.snapshot.data,
+      photos: res.snapshot.photos
+    }));
+  }, [canEdit]);
+
+  const handleRedo = useCallback(() => {
+    if (!canEdit) return;
+    const current = treeStateRef.current;
+    const res = stepRedo(historyRef.current, {
+      data: current.data,
+      photos: current.photos
+    });
+    if (!res) return;
+    historyRef.current = res.history;
+    setHistoryState(res.history);
+    isLocalMutationRef.current = true;
+    setTreeState(prev => ({
+      ...prev,
+      data: res.snapshot.data,
+      photos: res.snapshot.photos
+    }));
+  }, [canEdit]);
+
+  useEffect(() => {
+    const empty = createHistoryState();
+    historyRef.current = empty;
+    setHistoryState(empty);
+    setHighlightedPathIds([]);
+    setHighlightedPathLabel("");
+  }, [activeTreeId]);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = e => {
+      const tag = e.target?.tagName;
+      const isEditable =
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        e.target?.isContentEditable;
+      const mod = e.ctrlKey || e.metaKey;
+      const key = (e.key || "").toLowerCase();
+
+      if (mod && key === "k") {
+        e.preventDefault();
+        const input = document.getElementById("search-input");
+        if (input) {
+          input.focus();
+          input.select?.();
+        }
+        return;
+      }
+
+      if (isEditable) return;
+
+      if (!mod && e.key === "/") {
+        const input = document.getElementById("search-input");
+        if (input) {
+          e.preventDefault();
+          input.focus();
+          input.select?.();
+        }
+        return;
+      }
+
+      if (mod && key === "z" && !e.shiftKey) {
+        if (historyRef.current.past.length > 0 && canEdit) {
+          e.preventDefault();
+          handleUndo();
+        }
+        return;
+      }
+
+      if ((mod && key === "y") || (mod && e.shiftKey && key === "z")) {
+        if (historyRef.current.future.length > 0 && canEdit) {
+          e.preventDefault();
+          handleRedo();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [canEdit, handleUndo, handleRedo]);
+
+  const activeTreeTitle = activeTreeMeta?.title || t("h1");
+
+  const handleExportPng = useCallback(async () => {
+    try {
+      await downloadTreePng(layout, {
+        title: activeTreeTitle,
+        people: treeState.data.people,
+        displayName,
+        photos: treeState.photos,
+        lang: treeState.lang,
+        cardHeight
+      });
+    } catch (err) {
+      console.error("Failed to export PNG:", err);
+      alert(t("exportPngError"));
+    }
+  }, [layout, activeTreeTitle, treeState.data.people, displayName, treeState.photos, treeState.lang, cardHeight, t]);
+
+  const handlePrintPoster = useCallback(async () => {
+    try {
+      await printTreePoster(layout, {
+        title: activeTreeTitle,
+        people: treeState.data.people,
+        displayName,
+        photos: treeState.photos,
+        lang: treeState.lang,
+        cardHeight
+      });
+    } catch (err) {
+      console.error("Failed to print poster:", err);
+      alert(err?.message?.includes("Popup") ? t("popupBlockedError") : t("printPosterError"));
+    }
+  }, [layout, activeTreeTitle, treeState.data.people, displayName, treeState.photos, treeState.lang, cardHeight, t]);
+
   // Person mutation actions
   const handlePatchPerson = (id, patch) => {
     if (!canEdit) return;
+    recordHistorySnapshot();
     isLocalMutationRef.current = true;
     setTreeState(prev => ({
       ...prev,
@@ -704,6 +883,7 @@ export function App() {
 
   const handleAddMember = ({ rel, target, person }) => {
     if (!canEdit) return;
+    recordHistorySnapshot();
     isLocalMutationRef.current = true;
     const newId = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const newPerson = { id: newId, ...person };
@@ -801,6 +981,7 @@ export function App() {
 
   const handleRemovePerson = id => {
     if (!canEdit) return;
+    recordHistorySnapshot();
     recordDeletedId(id, activeTreeId || "public_demo");
     isLocalMutationRef.current = true;
     setTreeState(prev => {
@@ -829,6 +1010,7 @@ export function App() {
 
   const handleUnlinkSpouse = (personId, spouseId) => {
     if (!canEdit) return;
+    recordHistorySnapshot();
     isLocalMutationRef.current = true;
     setTreeState(prev => {
       const updatedCouples = prev.data.couples
@@ -857,6 +1039,7 @@ export function App() {
 
   const handleUnlinkParents = personId => {
     if (!canEdit) return;
+    recordHistorySnapshot();
     isLocalMutationRef.current = true;
     setTreeState(prev => {
       const updatedCouples = prev.data.couples.map(c => {
@@ -897,6 +1080,7 @@ export function App() {
         return false;
       }
     }
+    recordHistorySnapshot();
     isLocalMutationRef.current = true;
     setTreeState(prev => ({ ...prev, photos: updatedPhotos }));
     if (dataUrl) {
@@ -907,6 +1091,7 @@ export function App() {
 
   const handleImport = (newData, newPhotos) => {
     if (!canEdit) return;
+    recordHistorySnapshot();
     isLocalMutationRef.current = true;
     setTreeState(prev =>
       dedup({
@@ -1527,6 +1712,16 @@ export function App() {
         }}
         canEdit={canEdit}
         familyIndex={familyIndex}
+        canUndo={historyState.past.length > 0}
+        canRedo={historyState.future.length > 0}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        searchMatchCount={searchMatches.length}
+        activeSearchIndex={activeSearchIndex}
+        onStepSearchMatch={handleStepSearchMatch}
+        onOpenMilestones={() => setIsMilestonesOpen(true)}
+        onExportPng={handleExportPng}
+        onPrintPoster={handlePrintPoster}
       />
 
       {/* Interactive Canvas */}
@@ -1551,6 +1746,7 @@ export function App() {
           fitView={fitView}
           searchQuery={searchQuery}
           searchMatches={searchMatches}
+          focusedSearchId={focusedSearchId}
           viewer={treeState.viewer}
           lang={treeState.lang}
           t={t}
@@ -1560,6 +1756,12 @@ export function App() {
           onResetViewer={() => setTreeState(prev => ({ ...prev, viewer: "" }))}
           collapsedSubTrees={collapsedSubTrees}
           onToggleSubTree={handleToggleSubTree}
+          highlightedPathIds={highlightedPathIds}
+          highlightedPathLabel={highlightedPathLabel}
+          onClearHighlightedPath={() => {
+            setHighlightedPathIds([]);
+            setHighlightedPathLabel("");
+          }}
         />
       </Suspense>
 
@@ -1664,6 +1866,27 @@ export function App() {
             displayName={displayName}
             initialOriginId={treeState.viewer || selectedPersonId || ""}
             onSelectPerson={openPersonDetails}
+            onHighlightPath={(ids, label) => {
+              setHighlightedPathIds(ids || []);
+              setHighlightedPathLabel(label || "");
+            }}
+          />
+        </Suspense>
+      )}
+
+      {/* Milestones Modal */}
+      {isMilestonesOpen && (
+        <Suspense fallback={null}>
+          <MilestonesModal
+            isOpen={isMilestonesOpen}
+            onClose={() => setIsMilestonesOpen(false)}
+            people={treeState.data.people}
+            displayName={displayName}
+            lang={treeState.lang}
+            onSelectPerson={id => {
+              setIsMilestonesOpen(false);
+              openPersonDetails(id);
+            }}
           />
         </Suspense>
       )}

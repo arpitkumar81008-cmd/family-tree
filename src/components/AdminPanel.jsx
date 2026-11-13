@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { fetchAnalyticsDaily, isUserAdmin } from '../services/analyticsStats';
+import { fetchAnalyticsDaily, getTodayDateKey, isUserAdmin } from '../services/analyticsStats';
 
 const FIREBASE_PROJECT_ID = 'gupta-family-tree-akg';
 
@@ -100,6 +100,65 @@ export default function AdminPanel({
     );
   }, [dailyRows]);
 
+  const chartData = useMemo(() => {
+    if (!dailyRows.length) return [];
+    return [...dailyRows]
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((row) => ({
+        ...row,
+        actions:
+          row.treesCreated +
+          row.photosUploaded +
+          row.relationsSolved +
+          row.joinRequests,
+      }));
+  }, [dailyRows]);
+
+  const todayVsAvg = useMemo(() => {
+    const todayDate = new Date();
+    const todayKey = getTodayDateKey(todayDate);
+    const sevenDaysAgo = new Date(todayDate);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    const cutoffKey = getTodayDateKey(sevenDaysAgo);
+
+    const todayRow = dailyRows.find((r) => r.date === todayKey);
+    const recentRows = dailyRows.filter(
+      (r) => r.date >= cutoffKey && r.date <= todayKey
+    );
+
+    const keys = [
+      'pageViews',
+      'treesCreated',
+      'photosUploaded',
+      'relationsSolved',
+      'joinRequests',
+    ];
+    const result = {};
+    for (const key of keys) {
+      const todayVal = todayRow ? todayRow[key] || 0 : 0;
+      const sum7 = recentRows.reduce((sum, r) => sum + (r[key] || 0), 0);
+      const avg7 = sum7 / 7;
+      let deltaText = '—';
+      let deltaTone = 'neutral';
+      if (avg7 > 0) {
+        const pct = Math.round(((todayVal - avg7) / avg7) * 100);
+        deltaText = `${pct > 0 ? '+' : ''}${pct}%`;
+        deltaTone = pct > 0 ? 'up' : pct < 0 ? 'down' : 'neutral';
+      } else if (todayVal > 0) {
+        deltaText = 'New';
+        deltaTone = 'up';
+      }
+      result[key] = {
+        today: todayVal,
+        avg7,
+        avg7Label: avg7 >= 10 ? avg7.toFixed(0) : avg7.toFixed(1),
+        deltaText,
+        deltaTone,
+      };
+    }
+    return result;
+  }, [dailyRows]);
+
   const handleCopyUid = async () => {
     if (!user?.uid) return;
     try {
@@ -112,11 +171,11 @@ export default function AdminPanel({
   };
 
   const kpiCards = [
-    { label: 'Page Views (30d)', value: totals.pageViews, badge: '👁️' },
-    { label: 'Trees Created (30d)', value: totals.treesCreated, badge: '🌿' },
-    { label: 'Photos Uploaded (30d)', value: totals.photosUploaded, badge: '🖼️' },
-    { label: 'Relations Solved (30d)', value: totals.relationsSolved, badge: '🧭' },
-    { label: 'Join Requests (30d)', value: totals.joinRequests, badge: '🤝' },
+    { key: 'pageViews', label: 'Page Views (30d)', value: totals.pageViews, badge: '👁️' },
+    { key: 'treesCreated', label: 'Trees Created (30d)', value: totals.treesCreated, badge: '🌿' },
+    { key: 'photosUploaded', label: 'Photos Uploaded (30d)', value: totals.photosUploaded, badge: '🖼️' },
+    { key: 'relationsSolved', label: 'Relations Solved (30d)', value: totals.relationsSolved, badge: '🧭' },
+    { key: 'joinRequests', label: 'Join Requests (30d)', value: totals.joinRequests, badge: '🤝' },
   ];
 
   return (
@@ -225,6 +284,80 @@ export default function AdminPanel({
           font-weight: 700;
           line-height: 1.1;
           font-variant-numeric: tabular-nums;
+        }
+        .admin-kpi-meta {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          font-size: 0.74rem;
+          color: var(--muted, #6B7280);
+          font-variant-numeric: tabular-nums;
+          padding-top: 2px;
+        }
+        .admin-delta-badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 2px 7px;
+          border-radius: 999px;
+          font-size: 0.7rem;
+          font-weight: 600;
+          line-height: 1.2;
+        }
+        .admin-delta-up {
+          background: rgba(16, 185, 129, 0.12);
+          color: #047857;
+        }
+        .admin-delta-down {
+          background: rgba(185, 28, 59, 0.1);
+          color: #9f1239;
+        }
+        .admin-delta-neutral {
+          background: rgba(107, 114, 128, 0.1);
+          color: var(--muted, #6B7280);
+        }
+        .admin-chart-card {
+          background: var(--surface, #FFFFFF);
+          border: 1px solid var(--line, #E6DFD5);
+          border-radius: 16px;
+          padding: 18px 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .admin-chart-head {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+        .admin-chart-legend {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          font-size: 0.78rem;
+          color: var(--muted, #6B7280);
+        }
+        .admin-legend-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .admin-legend-swatch {
+          width: 10px;
+          height: 10px;
+          border-radius: 3px;
+          display: inline-block;
+        }
+        .admin-chart-svg {
+          width: 100%;
+          height: auto;
+          display: block;
+          overflow: visible;
+        }
+        .admin-chart-bar-group:hover .admin-chart-hover-bg {
+          fill: rgba(27, 36, 50, 0.04);
         }
         .admin-table-wrap {
           background: var(--surface, #FFFFFF);
@@ -415,16 +548,229 @@ export default function AdminPanel({
             {statsError && <div className="admin-error">{statsError}</div>}
 
             <section className="admin-kpi-grid">
-              {kpiCards.map((card) => (
-                <div key={card.label} className="admin-kpi-card">
-                  <div className="admin-kpi-top">
-                    <span>{card.label}</span>
-                    <span aria-hidden="true">{card.badge}</span>
+              {kpiCards.map((card) => {
+                const stats = todayVsAvg[card.key] || {
+                  today: 0,
+                  avg7Label: '0.0',
+                  deltaText: '—',
+                  deltaTone: 'neutral',
+                };
+                return (
+                  <div key={card.label} className="admin-kpi-card">
+                    <div className="admin-kpi-top">
+                      <span>{card.label}</span>
+                      <span aria-hidden="true">{card.badge}</span>
+                    </div>
+                    <div className="admin-kpi-value">{card.value.toLocaleString()}</div>
+                    <div className="admin-kpi-meta">
+                      <span>
+                        Today: <strong>{stats.today.toLocaleString()}</strong> · 7d avg:{' '}
+                        {stats.avg7Label}
+                      </span>
+                      <span
+                        className={`admin-delta-badge admin-delta-${stats.deltaTone}`}
+                        title={`Today (${stats.today}) vs 7-day daily average (${stats.avg7Label})`}
+                      >
+                        {stats.deltaText}
+                      </span>
+                    </div>
                   </div>
-                  <div className="admin-kpi-value">{card.value.toLocaleString()}</div>
-                </div>
-              ))}
+                );
+              })}
             </section>
+
+            {dailyRows.length > 0 && (() => {
+              const svgW = 800;
+              const svgH = 236;
+              const padL = 44;
+              const padR = 14;
+              const padT = 16;
+              const padB = 30;
+              const plotW = svgW - padL - padR;
+              const plotH = svgH - padT - padB;
+              const maxVal = Math.max(
+                1,
+                ...chartData.map((d) => Math.max(d.pageViews, d.actions))
+              );
+              const midVal = maxVal >= 2 ? Math.round(maxVal / 2) : null;
+              const n = chartData.length;
+              const slotW = plotW / n;
+              const groupW = Math.min(28, slotW * 0.72);
+              const barGap = Math.max(1.5, groupW * 0.12);
+              const barW = Math.max(2, (groupW - barGap) / 2);
+
+              const tickIndices = new Set([0, n - 1]);
+              if (n > 2 && n <= 7) {
+                for (let i = 1; i < n - 1; i += 1) tickIndices.add(i);
+              } else if (n > 7) {
+                const steps = 4;
+                for (let s = 1; s < steps; s += 1) {
+                  tickIndices.add(Math.round((s * (n - 1)) / steps));
+                }
+              }
+
+              return (
+                <section className="admin-chart-card" aria-label="30-Day Activity Trend">
+                  <div className="admin-chart-head">
+                    <strong>30-Day Activity Trend</strong>
+                    <div className="admin-chart-legend">
+                      <span className="admin-legend-item">
+                        <span
+                          className="admin-legend-swatch"
+                          style={{ background: '#b91c3b' }}
+                        />
+                        Page Views
+                      </span>
+                      <span
+                        className="admin-legend-item"
+                        title="Trees Created + Photos Uploaded + Relations Solved + Join Requests"
+                      >
+                        <span
+                          className="admin-legend-swatch"
+                          style={{ background: '#d97706' }}
+                        />
+                        Actions
+                      </span>
+                    </div>
+                  </div>
+                  <svg
+                    className="admin-chart-svg"
+                    viewBox={`0 0 ${svgW} ${svgH}`}
+                    role="img"
+                    aria-label="Grouped bar chart of daily page views and actions"
+                  >
+                    <line
+                      x1={padL}
+                      y1={padT}
+                      x2={svgW - padR}
+                      y2={padT}
+                      stroke="var(--line, #E6DFD5)"
+                      strokeDasharray="3 3"
+                    />
+                    <text
+                      x={padL - 8}
+                      y={padT + 4}
+                      textAnchor="end"
+                      fontSize="11"
+                      fill="var(--muted, #6B7280)"
+                    >
+                      {maxVal.toLocaleString()}
+                    </text>
+
+                    {midVal !== null && (
+                      <>
+                        <line
+                          x1={padL}
+                          y1={padT + plotH / 2}
+                          x2={svgW - padR}
+                          y2={padT + plotH / 2}
+                          stroke="var(--line, #E6DFD5)"
+                          strokeDasharray="3 3"
+                        />
+                        <text
+                          x={padL - 8}
+                          y={padT + plotH / 2 + 4}
+                          textAnchor="end"
+                          fontSize="11"
+                          fill="var(--muted, #6B7280)"
+                        >
+                          {midVal.toLocaleString()}
+                        </text>
+                      </>
+                    )}
+
+                    <line
+                      x1={padL}
+                      y1={padT + plotH}
+                      x2={svgW - padR}
+                      y2={padT + plotH}
+                      stroke="var(--line, #E6DFD5)"
+                    />
+                    <text
+                      x={padL - 8}
+                      y={padT + plotH + 4}
+                      textAnchor="end"
+                      fontSize="11"
+                      fill="var(--muted, #6B7280)"
+                    >
+                      0
+                    </text>
+
+                    {chartData.map((d, i) => {
+                      const slotX = padL + i * slotW;
+                      const groupX = slotX + (slotW - groupW) / 2;
+                      const pvH =
+                        d.pageViews > 0
+                          ? Math.max(2, (d.pageViews / maxVal) * plotH)
+                          : 0;
+                      const actH =
+                        d.actions > 0
+                          ? Math.max(2, (d.actions / maxVal) * plotH)
+                          : 0;
+                      const pvY = padT + plotH - pvH;
+                      const actY = padT + plotH - actH;
+                      const showTick = tickIndices.has(i);
+                      const tickAnchor =
+                        i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle';
+
+                      return (
+                        <g key={d.date} className="admin-chart-bar-group">
+                          <title>
+                            {`${d.date}\nPage Views: ${d.pageViews.toLocaleString()}\nActions: ${d.actions.toLocaleString()} (Trees: ${d.treesCreated}, Photos: ${d.photosUploaded}, Relations: ${d.relationsSolved}, Joins: ${d.joinRequests})`}
+                          </title>
+                          <rect
+                            className="admin-chart-hover-bg"
+                            x={slotX}
+                            y={padT}
+                            width={slotW}
+                            height={plotH}
+                            fill="transparent"
+                            rx="3"
+                          />
+                          {pvH > 0 && (
+                            <rect
+                              x={groupX}
+                              y={pvY}
+                              width={barW}
+                              height={pvH}
+                              fill="#b91c3b"
+                              rx="2"
+                            />
+                          )}
+                          {actH > 0 && (
+                            <rect
+                              x={groupX + barW + barGap}
+                              y={actY}
+                              width={barW}
+                              height={actH}
+                              fill="#d97706"
+                              rx="2"
+                            />
+                          )}
+                          {showTick && (
+                            <text
+                              x={
+                                i === 0
+                                  ? Math.max(padL, slotX + slotW / 2)
+                                  : i === n - 1
+                                    ? Math.min(svgW - padR, slotX + slotW / 2)
+                                    : slotX + slotW / 2
+                              }
+                              y={padT + plotH + 18}
+                              textAnchor={tickAnchor}
+                              fontSize="11"
+                              fill="var(--muted, #6B7280)"
+                            >
+                              {d.date.slice(5)}
+                            </text>
+                          )}
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </section>
+              );
+            })()}
 
             <section className="admin-table-wrap">
               <div className="admin-table-head">

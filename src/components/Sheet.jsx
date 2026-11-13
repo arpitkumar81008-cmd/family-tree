@@ -40,6 +40,8 @@ export function Sheet({
   const [editHi, setEditHi] = useState(person?.hi || "");
   const [editGender, setEditGender] = useState(person?.g || "M");
   const [editDob, setEditDob] = useState(person?.dob || "");
+  const [editCity, setEditCity] = useState(person?.city || "");
+  const [editAnniversary, setEditAnniversary] = useState(person?.anniversary || "");
   const [editLate, setEditLate] = useState(Boolean(person?.late));
 
   const sheetRef = useRef(null);
@@ -57,8 +59,10 @@ export function Sheet({
     setEditHi(person?.hi || "");
     setEditGender(person?.g || "M");
     setEditDob(person?.dob || "");
+    setEditCity(person?.city || "");
+    setEditAnniversary(person?.anniversary || "");
     setEditLate(Boolean(person?.late));
-  }, [id, person?.name, person?.hi, person?.g, person?.dob, person?.late, person?.note]);
+  }, [id, person?.name, person?.hi, person?.g, person?.dob, person?.city, person?.anniversary, person?.late, person?.note]);
 
   useEffect(() => {
     const handleKeyDown = e => {
@@ -187,7 +191,7 @@ export function Sheet({
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
                   <div>
                     <label htmlFor="edit-gender" style={{ fontSize: "11px", fontWeight: "bold", color: "var(--muted)" }}>
                       {t("gender")}
@@ -215,6 +219,33 @@ export function Sheet({
                       style={{ display: "block", marginTop: "4px", padding: "4px 8px" }}
                     />
                   </div>
+
+                  <div>
+                    <label htmlFor="edit-anniversary" style={{ fontSize: "11px", fontWeight: "bold", color: "var(--muted)" }}>
+                      {lang === "hi" ? "विवाह / विशेष तिथि" : "Anniversary"}
+                    </label>
+                    <input
+                      id="edit-anniversary"
+                      type="date"
+                      value={editAnniversary}
+                      onChange={e => setEditAnniversary(e.target.value)}
+                      style={{ display: "block", marginTop: "4px", padding: "4px 8px" }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="edit-city" style={{ fontSize: "11px", fontWeight: "bold", color: "var(--muted)" }}>
+                    {lang === "hi" ? "गृहनगर / शहर" : "Hometown / City"}
+                  </label>
+                  <input
+                    id="edit-city"
+                    type="text"
+                    value={editCity}
+                    placeholder={lang === "hi" ? "जैसे: जयपुर, दिल्ली" : "e.g. Jaipur, Delhi"}
+                    onChange={e => setEditCity(e.target.value)}
+                    style={{ width: "100%", padding: "6px 8px", fontSize: "14px", marginTop: "4px" }}
+                  />
                 </div>
 
                 <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", cursor: "pointer", marginTop: "4px" }}>
@@ -238,6 +269,8 @@ export function Sheet({
                         hi: editHi.trim() || undefined,
                         g: editGender,
                         dob: editDob || undefined,
+                        city: editCity.trim() || undefined,
+                        anniversary: editAnniversary || undefined,
                         late: editLate || undefined
                       });
                       setIsEditingDetails(false);
@@ -253,6 +286,8 @@ export function Sheet({
                       setEditHi(person.hi || "");
                       setEditGender(person.g || "M");
                       setEditDob(person.dob || "");
+                      setEditCity(person.city || "");
+                      setEditAnniversary(person.anniversary || "");
                       setEditLate(Boolean(person.late));
                       setIsEditingDetails(false);
                     }}
@@ -283,6 +318,13 @@ export function Sheet({
                     {relationWithViewer[1] && (
                       <span className="muted"> · {relationWithViewer[1]}</span>
                     )}
+                  </div>
+                )}
+                {(person.dob || person.anniversary || person.city) && (
+                  <div className="muted" style={{ display: "flex", flexWrap: "wrap", gap: "8px 12px", fontSize: "12px", marginTop: "6px" }}>
+                    {person.dob && <span>🎂 {person.dob}</span>}
+                    {person.anniversary && <span>💍 {person.anniversary}</span>}
+                    {person.city && <span>📍 {person.city}</span>}
                   </div>
                 )}
               </div>

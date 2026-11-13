@@ -315,6 +315,14 @@ export const en = {
   treeLoadErrorBody: "We couldn't load this tree right now, or you may not have permission to view it. Check your connection and try again.",
   forgotPassword: "Forgot password?",
   resetSent: "Password reset email sent! Check your inbox (and spam folder).",
-  sendResetLink: "Send Reset Link"
+  sendResetLink: "Send Reset Link",
+  undoBtn: "Undo",
+  redoBtn: "Redo",
+  milestonesBtn: "Milestones",
+  exportPngBtn: "Export PNG",
+  printPosterBtn: "PDF/Print",
+  exportPngError: "Could not export the family tree image. Please try again.",
+  printPosterError: "Could not open print poster. Please try again.",
+  popupBlockedError: "Popup blocked. Please allow popups to print the family tree poster."
 };
 export default en;

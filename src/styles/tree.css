@@ -1069,3 +1069,97 @@
 :root[data-viewport="mobile"] .subtrees-sidebar-close {
   display: inline-flex;
 }
+
+/* Relation Path Highlight & Search Focus */
+.card.is-path-dimmed {
+  opacity: 0.32;
+  transition: opacity 0.2s ease, transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.card.is-path-active {
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 3px #f59e0b, 0 8px 20px color-mix(in srgb, var(--accent) 28%, transparent);
+  z-index: 7;
+  transform: translateY(-2px);
+}
+
+@keyframes searchFocusPulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 65%, transparent), 0 0 0 2px #f59e0b;
+    transform: scale(1);
+  }
+  45% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent), 0 0 0 3px var(--accent);
+    transform: scale(1.04);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent), 0 0 0 2px #f59e0b;
+    transform: scale(1);
+  }
+}
+
+.card.is-search-focus {
+  border-color: var(--accent);
+  z-index: 8;
+  animation: searchFocusPulse 0.8s ease-out 2;
+}
+
+.lines.is-path-dimmed .guide-line,
+.lines.is-path-dimmed .main-branch-line,
+.lines.is-path-dimmed .other-branch-line,
+.lines.is-path-dimmed .bridge-line {
+  opacity: 0.2;
+  transition: opacity 0.2s ease;
+}
+
+.relation-highlight-line {
+  stroke: var(--accent);
+  stroke-width: 3.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.55));
+}
+
+.canvas-path-banner {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 32px);
+  padding: 6px 12px 6px 14px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1.5px solid var(--accent);
+  border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.canvas-path-banner-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.canvas-path-banner-clear {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.canvas-path-banner-clear:hover {
+  opacity: 0.9;
+}

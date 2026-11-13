@@ -14,7 +14,8 @@ export function RelationSolverModal({
   startPerson = "",
   initialTargetId = "",
   onSelectPerson,
-  openPerson
+  openPerson,
+  onHighlightPath
 }) {
   const handleClose = onClose || close || (() => {});
   const handleOpenPerson = onSelectPerson || openPerson;
@@ -98,8 +99,25 @@ export function RelationSolverModal({
     direct: isHi ? "सीधी वंशावली" : "Direct Lineage",
     commonAnc: isHi ? "साझा पूर्वज" : "Common Ancestor",
     pathTitle: isHi ? "रिश्ते की कड़ी" : "Step-by-Step Path",
+    highlightPath: isHi ? "✨ वृक्ष पर रास्ता दिखाएँ" : "✨ Highlight Path on Tree",
     close: typeof t === "function" ? t("close") : (isHi ? "बंद करें" : "Close")
   };
+
+  const resolvedPath = useMemo(() => {
+    if (!result) return [];
+    if (Array.isArray(result.path) && result.path.length > 0) return result.path;
+    if (result.lineageSide !== null && Array.isArray(result.pathSteps) && result.pathSteps.length > 0) {
+      return [result.pathSteps[0].fromId, ...result.pathSteps.map(s => s.toId)];
+    }
+    return [];
+  }, [result]);
+
+  const canHighlightPath = Boolean(
+    onHighlightPath &&
+    (result?.found ?? result?.lineageSide !== null) &&
+    resolvedPath.length > 0
+  );
+  const pathRelationLabel = result?.relation || result?.shortLabel || "";
 
   const badgeBase = {
     display: "inline-flex",
@@ -457,6 +475,22 @@ export function RelationSolverModal({
                     );
                   })}
                 </div>
+              </div>
+            )}
+
+            {canHighlightPath && (
+              <div style={{ paddingTop: "4px" }}>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ width: "100%", justifyContent: "center" }}
+                  onClick={() => {
+                    onHighlightPath(resolvedPath, pathRelationLabel);
+                    handleClose();
+                  }}
+                >
+                  {labels.highlightPath}
+                </button>
               </div>
             )}
           </div>

@@ -26,7 +26,11 @@ export function Canvas({
   isFullscreen: isFullscreenProp,
   onToggleFullscreen: onToggleFullscreenProp,
   collapsedSubTrees: collapsedSubTreesProp,
-  onToggleSubTree: onToggleSubTreeProp
+  onToggleSubTree: onToggleSubTreeProp,
+  highlightedPathIds = [],
+  highlightedPathLabel = '',
+  onClearHighlightedPath,
+  focusedSearchId = ''
 }) {
   const containerRef = useRef(null);
   const stageRef = useRef(null);
@@ -710,6 +714,105 @@ export function Canvas({
     }
   }, [searchQuery, searchMatches, layout, zoom]);
 
+  const highlightedPathKey = Array.isArray(highlightedPathIds) ? highlightedPathIds.join('|') : '';
+  const hasHighlightedPath = Array.isArray(highlightedPathIds) && highlightedPathIds.length > 0;
+
+  // Apply .is-path-active / .is-path-dimmed classes to rendered cards
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const pathSet = new Set(Array.isArray(highlightedPathIds) ? highlightedPathIds : []);
+    const active = pathSet.size > 0;
+    const cards = stage.querySelectorAll('.card[data-person-id]');
+    cards.forEach(cardEl => {
+      const pid = cardEl.getAttribute('data-person-id');
+      const inPath = active && pathSet.has(pid);
+      cardEl.classList.toggle('is-path-active', inPath);
+      cardEl.classList.toggle('is-path-dimmed', active && !inPath);
+    });
+  }, [highlightedPathKey, highlightedPathIds, treeState.data.people, hiddenMemberIds, layout]);
+
+  // Center on middle/first node when highlightedPathIds changes
+  useEffect(() => {
+    if (!Array.isArray(highlightedPathIds) || highlightedPathIds.length === 0) return;
+    const midIdx = Math.floor((highlightedPathIds.length - 1) / 2);
+    const targetId = highlightedPathIds[midIdx] || highlightedPathIds[0];
+    if (!targetId) return;
+
+    const ownerSubTree = subTrees.find(st => (st.memberIds || []).includes(targetId));
+    if (ownerSubTree && isSubTreeCollapsed(ownerSubTree.id)) {
+      handleToggleSubTree(ownerSubTree.id);
+    }
+
+    const el = containerRef.current;
+    const pos = layoutRef.current?.pos?.[targetId];
+    if (el && pos) {
+      const curZoom = zoomRef.current || 1;
+      requestAnimationFrame(() => {
+        const targetLeft = Math.max(0, (pos.x + 48) * curZoom - el.clientWidth / 2);
+        const targetTop = Math.max(0, (pos.y + (cardHeight || 138) / 2) * curZoom - el.clientHeight / 2);
+        el.scrollTo({ left: targetLeft, top: targetTop, behavior: 'smooth' });
+        saveCanvasPan({ scrollLeft: targetLeft, scrollTop: targetTop });
+      });
+    }
+  }, [highlightedPathKey, cardHeight, subTrees, isSubTreeCollapsed, handleToggleSubTree]);
+
+  // Smooth scroll/pan & brief pulse when focusedSearchId changes
+  useEffect(() => {
+    if (!focusedSearchId) return;
+    const ownerSubTree = subTrees.find(st => (st.memberIds || []).includes(focusedSearchId));
+    if (ownerSubTree && isSubTreeCollapsed(ownerSubTree.id)) {
+      handleToggleSubTree(ownerSubTree.id);
+    }
+
+    const el = containerRef.current;
+    const pos = layoutRef.current?.pos?.[focusedSearchId];
+    if (el && pos) {
+      const curZoom = zoomRef.current || 1;
+      requestAnimationFrame(() => {
+        const targetLeft = Math.max(0, (pos.x + 48) * curZoom - el.clientWidth / 2);
+        const targetTop = Math.max(0, (pos.y + (cardHeight || 138) / 2) * curZoom - el.clientHeight / 2);
+        el.scrollTo({ left: targetLeft, top: targetTop, behavior: 'smooth' });
+        saveCanvasPan({ scrollLeft: targetLeft, scrollTop: targetTop });
+      });
+    }
+
+    const stage = stageRef.current;
+    const cardEl = stage?.querySelector(`.card[data-person-id="${focusedSearchId}"]`);
+    if (cardEl) {
+      cardEl.classList.remove('is-search-focus');
+      void cardEl.offsetWidth;
+      cardEl.classList.add('is-search-focus');
+      const timer = setTimeout(() => {
+        cardEl.classList.remove('is-search-focus');
+      }, 1600);
+      return () => clearTimeout(timer);
+    }
+  }, [focusedSearchId, cardHeight, subTrees, isSubTreeCollapsed, handleToggleSubTree]);
+
+  const highlightedSvgPath = useMemo(() => {
+    if (!Array.isArray(highlightedPathIds) || highlightedPathIds.length < 2) return '';
+    const posMap = layout?.pos || {};
+    const hHalf = (cardHeight || 138) / 2;
+    const parts = [];
+    for (let i = 0; i < highlightedPathIds.length - 1; i++) {
+      const a = posMap[highlightedPathIds[i]];
+      const b = posMap[highlightedPathIds[i + 1]];
+      if (!a || !b) continue;
+      const ax = a.x + 48;
+      const ay = a.y + hHalf;
+      const bx = b.x + 48;
+      const by = b.y + hHalf;
+      if (Math.abs(ay - by) < 12) {
+        parts.push(`M ${ax} ${ay} L ${bx} ${by}`);
+      } else {
+        const midY = (ay + by) / 2;
+        parts.push(`M ${ax} ${ay} V ${midY} H ${bx} V ${by}`);
+      }
+    }
+    return parts.join(' ');
+  }, [highlightedPathIds, layout, cardHeight]);
+
   const handlePanBy = (dx, dy) => {
     const el = containerRef.current;
     if (!el) return;
@@ -850,6 +953,23 @@ export function Canvas({
           <span>{isFullscreen ? t('fullscreenExitShort') : t('fullscreenEnterShort')}</span>
         </button>
       </div>
+      {hasHighlightedPath && (
+        <div className="canvas-path-banner" role="status" aria-live="polite">
+          <span className="canvas-path-banner-text">
+            {lang === 'hi' ? 'संबंध मार्ग दिखाया जा रहा है' : 'Showing relation path'}
+            {highlightedPathLabel ? `: ${highlightedPathLabel}` : ''}
+          </span>
+          {onClearHighlightedPath && (
+            <button
+              type="button"
+              className="canvas-path-banner-clear"
+              onClick={onClearHighlightedPath}
+            >
+              {lang === 'hi' ? 'साफ़ करें' : 'Clear'}
+            </button>
+          )}
+        </div>
+      )}
       <div className="canvas-layout">
         {isSidebarOpen && (
           <div
@@ -914,7 +1034,7 @@ export function Canvas({
             >
               {/* SVG Connector Lines */}
               <svg
-                className="lines"
+                className={`lines${hasHighlightedPath ? ' is-path-dimmed' : ''}`}
                 width={layoutW}
                 height={layoutH}
                 viewBox={`0 0 ${layoutW} ${layoutH}`}
@@ -934,6 +1054,9 @@ export function Canvas({
                 )}
                 {!layout?.mainPath && !layout?.otherPath && layout?.path && (
                   <path className="main-branch-line" d={layout.path} />
+                )}
+                {highlightedSvgPath && (
+                  <path className="relation-highlight-line" d={highlightedSvgPath} />
                 )}
               </svg>
 
