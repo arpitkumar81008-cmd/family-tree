@@ -152,8 +152,43 @@ export function LandingPage({
   };
   const rootRef = useRef(null);
   const [activeFeatureTab, setActiveFeatureTab] = useState(0);
+  const featureTabPausedRef = useRef(false);
+  const featureTabResumeTimerRef = useRef(null);
   const featuresCarousel = useMobileCarousel(4, 4);
   const tutorialsCarousel = useMobileCarousel(4, 4);
+
+  const pauseFeatureTab = useCallback(() => {
+    featureTabPausedRef.current = true;
+    if (featureTabResumeTimerRef.current) clearTimeout(featureTabResumeTimerRef.current);
+  }, []);
+
+  const resumeFeatureTabDelayed = useCallback((delayMs = 4000) => {
+    if (featureTabResumeTimerRef.current) clearTimeout(featureTabResumeTimerRef.current);
+    featureTabResumeTimerRef.current = setTimeout(() => {
+      featureTabPausedRef.current = false;
+    }, delayMs);
+  }, []);
+
+  const handleFeatureTabSelect = useCallback(
+    idx => {
+      setActiveFeatureTab(idx);
+      pauseFeatureTab();
+      resumeFeatureTabDelayed(6000);
+    },
+    [pauseFeatureTab, resumeFeatureTabDelayed]
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const timer = setInterval(() => {
+      if (featureTabPausedRef.current || isMotionReduced()) return;
+      setActiveFeatureTab(prev => (prev + 1) % 4);
+    }, 4000);
+    return () => {
+      clearInterval(timer);
+      if (featureTabResumeTimerRef.current) clearTimeout(featureTabResumeTimerRef.current);
+    };
+  }, []);
 
   const handleScrollToTutorials = useCallback(e => {
     if (e) e.preventDefault();
@@ -420,7 +455,15 @@ export function LandingPage({
             />
           ))}
         </div>
-        <div className="features-tabs-box">
+        <div
+          className="features-tabs-box"
+          onMouseEnter={pauseFeatureTab}
+          onMouseLeave={() => resumeFeatureTabDelayed(3500)}
+          onTouchStart={pauseFeatureTab}
+          onTouchEnd={() => resumeFeatureTabDelayed(5000)}
+          onFocus={pauseFeatureTab}
+          onBlur={() => resumeFeatureTabDelayed(3500)}
+        >
           <div
             className="features-tablist"
             role="tablist"
@@ -437,7 +480,7 @@ export function LandingPage({
                   aria-selected={isSelected}
                   aria-controls={`feature-panel-${tab.id}`}
                   className={`features-tab-btn${isSelected ? ' is-active' : ''}`}
-                  onClick={() => setActiveFeatureTab(idx)}
+                  onClick={() => handleFeatureTabSelect(idx)}
                 >
                   {tab.label}
                 </button>
