@@ -337,24 +337,128 @@
   padding: 32px 0;
 }
 
-.feature-pills-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 20px;
-}
-
-.feature-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--ink);
+.features-tabs-box {
+  margin-top: 24px;
+  padding: 16px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-md);
+}
+
+.features-tablist {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.features-tab-btn {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.features-tab-btn:hover {
+  color: var(--ink);
+}
+
+.features-tab-btn.is-active {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.features-tabpanel {
+  margin-top: 14px;
+}
+
+.features-tab-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.features-tab-item {
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fti-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fti-icon {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.fti-head h3 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.fti-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+@media (max-width: 960px) {
+  .features-tablist {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .features-tab-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+:root[data-viewport="mobile"] .features-tabs-box {
+  padding: 12px;
+}
+
+:root[data-viewport="mobile"] .features-tablist {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+:root[data-viewport="mobile"] .features-tab-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+:root[data-viewport="mobile"] .features-tab-item {
+  padding: 10px;
 }
 
 .tutorial-step-card {

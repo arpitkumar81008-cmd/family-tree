@@ -151,6 +151,7 @@ export function LandingPage({
     return !res || res === key ? fallback : res;
   };
   const rootRef = useRef(null);
+  const [activeFeatureTab, setActiveFeatureTab] = useState(0);
   const featuresCarousel = useMobileCarousel(4, 4);
   const tutorialsCarousel = useMobileCarousel(4, 4);
 
@@ -232,27 +233,93 @@ export function LandingPage({
     }
   ];
 
-  const featurePills = lang === 'hi'
+  const featureTabs = lang === 'hi'
     ? [
-        '🌿 पारिवारिक शाखा फ़िल्टर',
-        '🔍 40+ भारतीय रिश्ते',
-        '🇮🇳 अंग्रेज़ी → हिन्दी नाम',
-        '🎂 जन्मदिन व स्मृतियाँ',
-        '🖼️ PNG व PDF पोस्टर',
-        '🔒 निजी कोड साझाकरण',
-        '↩️ पूर्ववत (Undo/Redo)',
-        '📱 पिंच-टू-ज़ूम व फुल स्क्रीन'
+        {
+          id: 'canvas',
+          label: '🌿 कैनवास',
+          items: [
+            { icon: '🌿', title: 'पारिवारिक शाखाएँ', desc: 'मुख्य व ससुराल शाखाओं पर तुरंत ध्यान दें' },
+            { icon: '📱', title: 'पिंच और फुल स्क्रीन', desc: 'ज़ूम नियंत्रण और पूरा स्क्रीन दृश्य' },
+            { icon: '💻', title: 'लैपटॉप और मोबाइल', desc: 'किसी भी स्क्रीन के लिए उपयुक्त लेआउट' },
+            { icon: '🌳', title: 'स्पष्ट वंशावली रेखाएँ', desc: 'बिना किसी ओवरलैप के पीढ़ियों का जुड़ाव' }
+          ]
+        },
+        {
+          id: 'kinship',
+          label: '🔍 रिश्ते व खोज',
+          items: [
+            { icon: '🤝', title: '40+ भारतीय रिश्ते', desc: 'चाचा, बुआ, मामा, मौसी सहित सटीक नाम' },
+            { icon: '🧭', title: 'रिश्ता मार्ग', desc: 'किन्हीं दो सदस्यों का सीधा संबंध देखें' },
+            { icon: '👁️', title: 'दृष्टिकोण बदलें', desc: 'किसी भी व्यक्ति के नजरिये से वृक्ष देखें' },
+            { icon: '🔎', title: 'त्वरित नाम खोज', desc: 'मिलते-जुलते नामों के बीच तुरंत जाएँ' }
+          ]
+        },
+        {
+          id: 'bilingual',
+          label: '🇮🇳 द्विभाषी व यादें',
+          items: [
+            { icon: '✍️', title: 'अंग्रेज़ी और हिन्दी', desc: 'लिखते ही स्वतः हिन्दी नाम तैयार' },
+            { icon: '🖼️', title: 'फ़ोटो और HEIC', desc: 'स्वतः संपीड़न के साथ सदस्य फ़ोटो जोड़ें' },
+            { icon: '🎂', title: 'जन्मदिन व मील के पत्थर', desc: 'आने वाले जन्मदिन और आयु विवरण' },
+            { icon: '📝', title: 'नोट्स और स्मृतियाँ', desc: 'पैतृक स्थान, यादें और स्व. चिह्न' }
+          ]
+        },
+        {
+          id: 'share',
+          label: '🔒 निजी व बैकअप',
+          items: [
+            { icon: '☁️', title: 'क्लाउड सिंक', desc: 'Google या ईमेल से सुरक्षित निजी वृक्ष' },
+            { icon: '🔑', title: 'पारिवारिक कोड', desc: 'एक्सेस कोड व अनुमति से रिश्तेदार जोड़ें' },
+            { icon: '📄', title: 'PNG व PDF पोस्टर', desc: 'प्रिंट करने योग्य वंश पोस्टर डाउनलोड करें' },
+            { icon: '↩️', title: 'Undo और JSON बैकअप', desc: 'बदलाव पूर्ववत करें व बैकअप सहेजें' }
+          ]
+        }
       ]
     : [
-        '🌿 Family Branches Filter',
-        '🔍 40+ Indian Kinship Terms',
-        '🇮🇳 Auto Hindi Transliteration',
-        '🎂 Birthdays & Milestones',
-        '🖼️ PNG & PDF Poster Export',
-        '🔒 Private Access Code Sharing',
-        '↩️ Undo / Redo & JSON Backup',
-        '📱 Pinch-to-Zoom & Full Screen'
+        {
+          id: 'canvas',
+          label: '🌿 Tree & Canvas',
+          items: [
+            { icon: '🌿', title: 'Family Branches', desc: 'Filter main or in-law branches anytime' },
+            { icon: '📱', title: 'Pinch & Full Screen', desc: 'Smooth zoom controls & full-screen canvas' },
+            { icon: '💻', title: 'Laptop & Mobile Views', desc: 'Switch display modes cleanly on any device' },
+            { icon: '🌳', title: 'Zero-Overlap Lines', desc: 'Clear generations and couple connectors' }
+          ]
+        },
+        {
+          id: 'kinship',
+          label: '🔍 Kinship & Search',
+          items: [
+            { icon: '🤝', title: '40+ Indian Relations', desc: 'Chacha, Bua, Mama, Mausi, Jethani & more' },
+            { icon: '🧭', title: 'Relation Path', desc: 'Trace exact connections between any two people' },
+            { icon: '👁️', title: 'See Relations From', desc: 'View the lineage from anyone\'s perspective' },
+            { icon: '🔎', title: 'Instant Search', desc: 'Find and cycle through matching relatives' }
+          ]
+        },
+        {
+          id: 'bilingual',
+          label: '🇮🇳 Bilingual & Photos',
+          items: [
+            { icon: '✍️', title: 'English & Hindi', desc: 'Auto Devanagari transliteration as you type' },
+            { icon: '🖼️', title: 'Photos & HEIC', desc: 'Upload portraits with automatic compression' },
+            { icon: '🎂', title: 'Birthdays & Milestones', desc: 'Upcoming family birthdays and age tracker' },
+            { icon: '📝', title: 'Notes & Legacy', desc: 'Hometowns, memories & late-ancestor tags' }
+          ]
+        },
+        {
+          id: 'share',
+          label: '🔒 Private & Export',
+          items: [
+            { icon: '☁️', title: 'Private Cloud Sync', desc: 'Sign in with Google or email to sync safely' },
+            { icon: '🔑', title: 'Family Access Code', desc: 'Invite relatives by code or join requests' },
+            { icon: '📄', title: 'PNG & PDF Posters', desc: 'Download high-res images or print posters' },
+            { icon: '↩️', title: 'Undo & JSON Backup', desc: 'Step backward/forward or export a backup' }
+          ]
+        }
       ];
+
+  const activeTabObj = featureTabs[activeFeatureTab] || featureTabs[0];
 
   const tutorials = [
     ['tut1Step', 'tut1Title', 'tut1Body'],
@@ -353,10 +420,48 @@ export function LandingPage({
             />
           ))}
         </div>
-        <div className="feature-pills-strip" aria-label={lang === 'hi' ? 'मुख्य सुविधाएँ' : 'All platform features'}>
-          {featurePills.map(pill => (
-            <span className="feature-pill" key={pill}>{pill}</span>
-          ))}
+        <div className="features-tabs-box">
+          <div
+            className="features-tablist"
+            role="tablist"
+            aria-label={lang === 'hi' ? 'मुख्य सुविधाएँ' : 'Platform features'}
+          >
+            {featureTabs.map((tab, idx) => {
+              const isSelected = activeFeatureTab === idx;
+              return (
+                <button
+                  key={tab.id}
+                  id={`feature-tab-${tab.id}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  aria-controls={`feature-panel-${tab.id}`}
+                  className={`features-tab-btn${isSelected ? ' is-active' : ''}`}
+                  onClick={() => setActiveFeatureTab(idx)}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+          <div
+            id={`feature-panel-${activeTabObj.id}`}
+            role="tabpanel"
+            aria-labelledby={`feature-tab-${activeTabObj.id}`}
+            className="features-tabpanel"
+          >
+            <div className="features-tab-grid">
+              {activeTabObj.items.map(item => (
+                <div className="features-tab-item" key={item.title}>
+                  <div className="fti-head">
+                    <span className="fti-icon" aria-hidden="true">{item.icon}</span>
+                    <h3>{item.title}</h3>
+                  </div>
+                  <p className="fti-desc">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
