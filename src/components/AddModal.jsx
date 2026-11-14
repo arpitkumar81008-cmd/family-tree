@@ -252,7 +252,7 @@ export function AddModal({
                   }
                 }}
               >
-                ✨
+                अ
               </button>
             </div>
           </div>

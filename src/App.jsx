@@ -1527,7 +1527,6 @@ export function App() {
         <main id="main-content" className="page">
           <section className="private-locked-screen" aria-busy="true" aria-label={t("loadingTree")}>
             <div className="private-locked-card">
-              <div className="private-locked-icon" aria-hidden="true">🌿</div>
               <h1 className="private-locked-title">{t("loadingTree")}</h1>
             </div>
           </section>
@@ -1536,7 +1535,6 @@ export function App() {
         <main id="main-content" className="page">
           <section className="private-locked-screen" aria-labelledby="private-locked-heading">
             <div className="private-locked-card">
-              <div className="private-locked-icon" aria-hidden="true">🔒</div>
               <h1 id="private-locked-heading" className="private-locked-title">
                 {t("privateLockedTitle")}
               </h1>
@@ -1605,7 +1603,7 @@ export function App() {
                   </p>
                   {myJoinRequest?.status === "pending" && (
                     <p className="msg" style={{ margin: 0 }}>
-                      ⏳ {t("requestAccessPending")}
+                      {t("requestAccessPending")}
                     </p>
                   )}
                   {myJoinRequest?.status === "rejected" && (
@@ -1666,7 +1664,6 @@ export function App() {
         <main id="main-content" className="page">
           <section className="private-locked-screen" aria-labelledby="tree-load-error-heading">
             <div className="private-locked-card">
-              <div className="private-locked-icon" aria-hidden="true">⚠️</div>
               <h1 id="tree-load-error-heading" className="private-locked-title">
                 {t("treeLoadError")}
               </h1>

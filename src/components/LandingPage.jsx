@@ -237,84 +237,84 @@ export function LandingPage({
     ? [
         {
           id: 'canvas',
-          label: '🌿 कैनवास',
+          label: 'कैनवास',
           items: [
-            { icon: '🌿', title: 'पारिवारिक शाखाएँ', desc: 'मुख्य व ससुराल शाखाओं पर तुरंत ध्यान दें' },
-            { icon: '📱', title: 'पिंच और फुल स्क्रीन', desc: 'ज़ूम नियंत्रण और पूरा स्क्रीन दृश्य' },
-            { icon: '💻', title: 'लैपटॉप और मोबाइल', desc: 'किसी भी स्क्रीन के लिए उपयुक्त लेआउट' },
-            { icon: '🌳', title: 'स्पष्ट वंशावली रेखाएँ', desc: 'बिना किसी ओवरलैप के पीढ़ियों का जुड़ाव' }
+            { title: 'पारिवारिक शाखाएँ', desc: 'मुख्य व ससुराल शाखाओं पर तुरंत ध्यान दें' },
+            { title: 'पिंच और फुल स्क्रीन', desc: 'ज़ूम नियंत्रण और पूरा स्क्रीन दृश्य' },
+            { title: 'लैपटॉप और मोबाइल', desc: 'किसी भी स्क्रीन के लिए उपयुक्त लेआउट' },
+            { title: 'स्पष्ट वंशावली रेखाएँ', desc: 'बिना किसी ओवरलैप के पीढ़ियों का जुड़ाव' }
           ]
         },
         {
           id: 'kinship',
-          label: '🔍 रिश्ते व खोज',
+          label: 'रिश्ते व खोज',
           items: [
-            { icon: '🤝', title: '40+ भारतीय रिश्ते', desc: 'चाचा, बुआ, मामा, मौसी सहित सटीक नाम' },
-            { icon: '🧭', title: 'रिश्ता मार्ग', desc: 'किन्हीं दो सदस्यों का सीधा संबंध देखें' },
-            { icon: '👁️', title: 'दृष्टिकोण बदलें', desc: 'किसी भी व्यक्ति के नजरिये से वृक्ष देखें' },
-            { icon: '🔎', title: 'त्वरित नाम खोज', desc: 'मिलते-जुलते नामों के बीच तुरंत जाएँ' }
+            { title: '40+ भारतीय रिश्ते', desc: 'चाचा, बुआ, मामा, मौसी सहित सटीक नाम' },
+            { title: 'रिश्ता मार्ग', desc: 'किन्हीं दो सदस्यों का सीधा संबंध देखें' },
+            { title: 'दृष्टिकोण बदलें', desc: 'किसी भी व्यक्ति के नजरिये से वृक्ष देखें' },
+            { title: 'त्वरित नाम खोज', desc: 'मिलते-जुलते नामों के बीच तुरंत जाएँ' }
           ]
         },
         {
           id: 'bilingual',
-          label: '🇮🇳 द्विभाषी व यादें',
+          label: 'द्विभाषी व यादें',
           items: [
-            { icon: '✍️', title: 'अंग्रेज़ी और हिन्दी', desc: 'लिखते ही स्वतः हिन्दी नाम तैयार' },
-            { icon: '🖼️', title: 'फ़ोटो और HEIC', desc: 'स्वतः संपीड़न के साथ सदस्य फ़ोटो जोड़ें' },
-            { icon: '🎂', title: 'जन्मदिन व मील के पत्थर', desc: 'आने वाले जन्मदिन और आयु विवरण' },
-            { icon: '📝', title: 'नोट्स और स्मृतियाँ', desc: 'पैतृक स्थान, यादें और स्व. चिह्न' }
+            { title: 'अंग्रेज़ी और हिन्दी', desc: 'लिखते ही स्वतः हिन्दी नाम तैयार' },
+            { title: 'फ़ोटो और HEIC', desc: 'स्वतः संपीड़न के साथ सदस्य फ़ोटो जोड़ें' },
+            { title: 'जन्मदिन व मील के पत्थर', desc: 'आने वाले जन्मदिन और आयु विवरण' },
+            { title: 'नोट्स और स्मृतियाँ', desc: 'पैतृक स्थान, यादें और स्व. चिह्न' }
           ]
         },
         {
           id: 'share',
-          label: '🔒 निजी व बैकअप',
+          label: 'निजी व बैकअप',
           items: [
-            { icon: '☁️', title: 'क्लाउड सिंक', desc: 'Google या ईमेल से सुरक्षित निजी वृक्ष' },
-            { icon: '🔑', title: 'पारिवारिक कोड', desc: 'एक्सेस कोड व अनुमति से रिश्तेदार जोड़ें' },
-            { icon: '📄', title: 'PNG व PDF पोस्टर', desc: 'प्रिंट करने योग्य वंश पोस्टर डाउनलोड करें' },
-            { icon: '↩️', title: 'Undo और JSON बैकअप', desc: 'बदलाव पूर्ववत करें व बैकअप सहेजें' }
+            { title: 'क्लाउड सिंक', desc: 'Google या ईमेल से सुरक्षित निजी वृक्ष' },
+            { title: 'पारिवारिक कोड', desc: 'एक्सेस कोड व अनुमति से रिश्तेदार जोड़ें' },
+            { title: 'PNG व PDF पोस्टर', desc: 'प्रिंट करने योग्य वंश पोस्टर डाउनलोड करें' },
+            { title: 'Undo और JSON बैकअप', desc: 'बदलाव पूर्ववत करें व बैकअप सहेजें' }
           ]
         }
       ]
     : [
         {
           id: 'canvas',
-          label: '🌿 Tree & Canvas',
+          label: 'Tree & Canvas',
           items: [
-            { icon: '🌿', title: 'Family Branches', desc: 'Filter main or in-law branches anytime' },
-            { icon: '📱', title: 'Pinch & Full Screen', desc: 'Smooth zoom controls & full-screen canvas' },
-            { icon: '💻', title: 'Laptop & Mobile Views', desc: 'Switch display modes cleanly on any device' },
-            { icon: '🌳', title: 'Zero-Overlap Lines', desc: 'Clear generations and couple connectors' }
+            { title: 'Family Branches', desc: 'Filter main or in-law branches anytime' },
+            { title: 'Pinch & Full Screen', desc: 'Smooth zoom controls & full-screen canvas' },
+            { title: 'Laptop & Mobile Views', desc: 'Switch display modes cleanly on any device' },
+            { title: 'Zero-Overlap Lines', desc: 'Clear generations and couple connectors' }
           ]
         },
         {
           id: 'kinship',
-          label: '🔍 Kinship & Search',
+          label: 'Kinship & Search',
           items: [
-            { icon: '🤝', title: '40+ Indian Relations', desc: 'Chacha, Bua, Mama, Mausi, Jethani & more' },
-            { icon: '🧭', title: 'Relation Path', desc: 'Trace exact connections between any two people' },
-            { icon: '👁️', title: 'See Relations From', desc: 'View the lineage from anyone\'s perspective' },
-            { icon: '🔎', title: 'Instant Search', desc: 'Find and cycle through matching relatives' }
+            { title: '40+ Indian Relations', desc: 'Chacha, Bua, Mama, Mausi, Jethani & more' },
+            { title: 'Relation Path', desc: 'Trace exact connections between any two people' },
+            { title: 'See Relations From', desc: 'View the lineage from anyone\'s perspective' },
+            { title: 'Instant Search', desc: 'Find and cycle through matching relatives' }
           ]
         },
         {
           id: 'bilingual',
-          label: '🇮🇳 Bilingual & Photos',
+          label: 'Bilingual & Photos',
           items: [
-            { icon: '✍️', title: 'English & Hindi', desc: 'Auto Devanagari transliteration as you type' },
-            { icon: '🖼️', title: 'Photos & HEIC', desc: 'Upload portraits with automatic compression' },
-            { icon: '🎂', title: 'Birthdays & Milestones', desc: 'Upcoming family birthdays and age tracker' },
-            { icon: '📝', title: 'Notes & Legacy', desc: 'Hometowns, memories & late-ancestor tags' }
+            { title: 'English & Hindi', desc: 'Auto Devanagari transliteration as you type' },
+            { title: 'Photos & HEIC', desc: 'Upload portraits with automatic compression' },
+            { title: 'Birthdays & Milestones', desc: 'Upcoming family birthdays and age tracker' },
+            { title: 'Notes & Legacy', desc: 'Hometowns, memories & late-ancestor tags' }
           ]
         },
         {
           id: 'share',
-          label: '🔒 Private & Export',
+          label: 'Private & Export',
           items: [
-            { icon: '☁️', title: 'Private Cloud Sync', desc: 'Sign in with Google or email to sync safely' },
-            { icon: '🔑', title: 'Family Access Code', desc: 'Invite relatives by code or join requests' },
-            { icon: '📄', title: 'PNG & PDF Posters', desc: 'Download high-res images or print posters' },
-            { icon: '↩️', title: 'Undo & JSON Backup', desc: 'Step backward/forward or export a backup' }
+            { title: 'Private Cloud Sync', desc: 'Sign in with Google or email to sync safely' },
+            { title: 'Family Access Code', desc: 'Invite relatives by code or join requests' },
+            { title: 'PNG & PDF Posters', desc: 'Download high-res images or print posters' },
+            { title: 'Undo & JSON Backup', desc: 'Step backward/forward or export a backup' }
           ]
         }
       ];
@@ -454,7 +454,6 @@ export function LandingPage({
               {activeTabObj.items.map(item => (
                 <div className="features-tab-item" key={item.title}>
                   <div className="fti-head">
-                    <span className="fti-icon" aria-hidden="true">{item.icon}</span>
                     <h3>{item.title}</h3>
                   </div>
                   <p className="fti-desc">{item.desc}</p>

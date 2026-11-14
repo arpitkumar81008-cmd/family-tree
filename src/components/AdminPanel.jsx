@@ -171,11 +171,11 @@ export default function AdminPanel({
   };
 
   const kpiCards = [
-    { key: 'pageViews', label: 'Page Views (30d)', value: totals.pageViews, badge: '👁️' },
-    { key: 'treesCreated', label: 'Trees Created (30d)', value: totals.treesCreated, badge: '🌿' },
-    { key: 'photosUploaded', label: 'Photos Uploaded (30d)', value: totals.photosUploaded, badge: '🖼️' },
-    { key: 'relationsSolved', label: 'Relations Solved (30d)', value: totals.relationsSolved, badge: '🧭' },
-    { key: 'joinRequests', label: 'Join Requests (30d)', value: totals.joinRequests, badge: '🤝' },
+    { key: 'pageViews', label: 'Page Views (30d)', value: totals.pageViews, badge: '' },
+    { key: 'treesCreated', label: 'Trees Created (30d)', value: totals.treesCreated, badge: '' },
+    { key: 'photosUploaded', label: 'Photos Uploaded (30d)', value: totals.photosUploaded, badge: '' },
+    { key: 'relationsSolved', label: 'Relations Solved (30d)', value: totals.relationsSolved, badge: '' },
+    { key: 'joinRequests', label: 'Join Requests (30d)', value: totals.joinRequests, badge: '' },
   ];
 
   return (
@@ -443,7 +443,7 @@ export default function AdminPanel({
             <button type="button" className="btn" onClick={onBackHome}>
               ← Back to App
             </button>
-            <h1 className="admin-title">📊 Admin Analytics Panel</h1>
+            <h1 className="admin-title">Admin Analytics Panel</h1>
           </div>
           {user && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>

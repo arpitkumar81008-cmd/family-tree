@@ -341,9 +341,9 @@ export function Sheet({
                 )}
                 {(person.dob || person.anniversary || person.city) && (
                   <div className="muted" style={{ display: "flex", flexWrap: "wrap", gap: "8px 12px", fontSize: "12px", marginTop: "6px" }}>
-                    {person.dob && <span>🎂 {person.dob}</span>}
-                    {person.anniversary && <span>💍 {person.anniversary}</span>}
-                    {person.city && <span>📍 {person.city}</span>}
+                    {person.dob && <span>{person.dob}</span>}
+                    {person.anniversary && <span>{person.anniversary}</span>}
+                    {person.city && <span>{person.city}</span>}
                   </div>
                 )}
               </div>
@@ -633,7 +633,7 @@ export function Sheet({
                         if (subName) setSubHi(await transliterateToHindi(subName));
                       }}
                     >
-                      ✨
+                      अ
                     </button>
                   </div>
                 </div>

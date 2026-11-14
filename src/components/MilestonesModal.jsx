@@ -112,7 +112,7 @@ export function MilestonesModal({
             aria-pressed={filter === 'birthday'}
             onClick={() => setFilter('birthday')}
           >
-            🎂 {isHi ? 'जन्मदिन' : 'Birthdays'}
+            {isHi ? 'जन्मदिन' : 'Birthdays'}
           </button>
           <button
             type="button"
@@ -120,7 +120,7 @@ export function MilestonesModal({
             aria-pressed={filter === 'anniversary'}
             onClick={() => setFilter('anniversary')}
           >
-            💍 {isHi ? 'वर्षगाँठ' : 'Anniversaries'}
+            {isHi ? 'वर्षगाँठ' : 'Anniversaries'}
           </button>
         </div>
 
@@ -146,7 +146,7 @@ export function MilestonesModal({
               const name = getPersonName(m.person);
               const isToday = m.daysUntil === 0;
               const isBirthday = m.type === 'birthday';
-              const icon = isBirthday ? '🎂' : '💍';
+              const icon = '•';
               const typeLabel = isBirthday
                 ? (isHi ? 'जन्मदिन' : 'Birthday')
                 : (isHi ? 'वर्षगाँठ' : 'Anniversary');

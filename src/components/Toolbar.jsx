@@ -249,7 +249,7 @@ export function Toolbar({
                   onOpenRelationSolver();
                 }}
               >
-                🔗 {tr('findRelationBtn', lang === 'hi' ? 'रिश्ता खोजें' : 'Find Relation')}
+                {tr('findRelationBtn', lang === 'hi' ? 'रिश्ता खोजें' : 'Find Relation')}
               </button>
             )}
 
@@ -263,7 +263,7 @@ export function Toolbar({
                 }}
                 title={tr('milestonesBtn', lang === 'hi' ? 'मील के पत्थर' : 'Milestones')}
               >
-                🎂 {tr('milestonesBtn', lang === 'hi' ? 'मील के पत्थर' : 'Milestones')}
+                {tr('milestonesBtn', lang === 'hi' ? 'मील के पत्थर' : 'Milestones')}
               </button>
             )}
 
@@ -278,7 +278,7 @@ export function Toolbar({
                 title={tr('exportPngBtn', lang === 'hi' ? 'PNG निर्यात' : 'Export PNG')}
                 aria-label={tr('exportPngBtn', lang === 'hi' ? 'PNG निर्यात' : 'Export PNG')}
               >
-                🖼️ PNG
+                PNG
               </button>
             )}
 
@@ -293,7 +293,7 @@ export function Toolbar({
                 title={tr('printPosterBtn', lang === 'hi' ? 'PDF/प्रिंट' : 'PDF/Print')}
                 aria-label={tr('printPosterBtn', lang === 'hi' ? 'PDF/प्रिंट' : 'PDF/Print')}
               >
-                🖨️ {tr('printPosterBtn', lang === 'hi' ? 'PDF/प्रिंट' : 'PDF/Print')}
+                {tr('printPosterBtn', lang === 'hi' ? 'PDF/प्रिंट' : 'PDF/Print')}
               </button>
             )}
           </div>

@@ -938,7 +938,6 @@ export function Canvas({
             }
           }}
         >
-          <span aria-hidden="true">🌿</span>
           <span>{subTreesLabel}</span>
         </button>
         {/* Full-Screen Toggle Button */}

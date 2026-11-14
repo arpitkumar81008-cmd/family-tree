@@ -466,7 +466,7 @@ export function Navbar({
             onClick={copyShareLink}
             title={translate('shareModalTitle')}
           >
-            {copied ? translate('linkCopied') : `🔗 ${translate('shareTreeBtn')}`}
+            {copied ? translate('linkCopied') : translate('shareTreeBtn')}
           </button>
         )}
 

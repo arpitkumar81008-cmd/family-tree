@@ -60,7 +60,7 @@ export function MobileBottomNav({
           aria-current={isMyTreeActive ? 'page' : undefined}
           onClick={() => onNavigateMyTree && onNavigateMyTree()}
         >
-          <span className="mobile-nav-icon" aria-hidden="true">🌳</span>
+          <span className="mobile-nav-icon" aria-hidden="true">◈</span>
           <span className="mobile-nav-label">{tr('mobileNavMyTree', 'My Tree')}</span>
         </button>
       )}
@@ -71,7 +71,7 @@ export function MobileBottomNav({
           className="mobile-nav-btn mobile-nav-create-btn"
           onClick={() => (onCreatePrivateTree ? onCreatePrivateTree() : onNavigateMyTree && onNavigateMyTree())}
         >
-          <span className="mobile-nav-icon" aria-hidden="true">✨</span>
+          <span className="mobile-nav-icon" aria-hidden="true">＋</span>
           <span className="mobile-nav-label">{tr('mobileNavCreatePrivate', 'Create')}</span>
         </button>
       )}

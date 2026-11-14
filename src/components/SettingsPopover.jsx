@@ -149,7 +149,7 @@ export function SettingsPopover({
               aria-pressed={theme === "light"}
               onClick={() => setTheme("light")}
             >
-              ☀️ {t("themeLight")}
+              {t("themeLight")}
             </button>
             <button
               type="button"
@@ -157,7 +157,7 @@ export function SettingsPopover({
               aria-pressed={theme === "dark"}
               onClick={() => setTheme("dark")}
             >
-              🌙 {t("themeDark")}
+              {t("themeDark")}
             </button>
             <button
               type="button"
