@@ -73,18 +73,26 @@
 }
 
 .brand-crest {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--ink);
-  color: var(--bg);
-  font-family: var(--display);
-  font-size: 20px;
-  font-weight: 700;
+  background: #ffffff;
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
+  overflow: hidden;
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.brand-crest-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  border-radius: calc(var(--radius-sm) - 2px);
 }
 
 .brand-text {
@@ -198,14 +206,14 @@
 }
 
 .hero {
-  padding: 64px 0 52px;
+  padding: 36px 0 28px;
   border-bottom: 1px solid var(--line);
 }
 
 .hero-title {
   font-family: var(--display);
   font-weight: 600;
-  font-size: clamp(28px, 4.5vw, 56px);
+  font-size: clamp(24px, 3.8vw, 42px);
   line-height: 1.08;
   letter-spacing: -0.015em;
   margin: 0;
@@ -215,11 +223,11 @@
 }
 
 .hero-lede {
-  max-width: 88ch;
+  max-width: 60ch;
   color: var(--muted);
-  font-size: 18px;
+  font-size: 15.5px;
   line-height: 1.55;
-  margin: 18px 0 0;
+  margin: 12px 0 0;
 }
 
 /* Progressive Disclosure: Explanations appear on hover, keyboard focus, or scroll */
@@ -257,7 +265,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  margin-top: 32px;
+  margin-top: 22px;
 }
 
 .land-cta-tutorial {
@@ -1019,7 +1027,7 @@
     display: none;
   }
   .hero {
-    padding: 44px 0 32px;
+    padding: 24px 0 20px;
   }
   .metrics {
     grid-template-columns: repeat(2, 1fr);
@@ -1152,6 +1160,19 @@
   border-color: var(--ink) !important;
 }
 
+.nav-github-link {
+  width: 36px !important;
+  min-width: 36px !important;
+  padding: 0 !important;
+}
+
+.github-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  flex-shrink: 0;
+}
+
 @media (max-width: 1180px) {
   .site-nav {
     gap: 10px;
@@ -1267,35 +1288,57 @@
   max-width: 100%;
   box-sizing: border-box;
   height: auto;
+  min-height: 50px;
   flex-wrap: wrap;
-  padding: 8px 12px;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  gap: 6px;
+}
+
+:root[data-viewport="mobile"] .brand-crest {
+  width: 34px;
+  height: 34px;
 }
 
 :root[data-viewport="mobile"] .nav-actions {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
+  max-width: calc(100% - 42px);
   min-width: 0;
   justify-content: flex-end;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
 }
 
 :root[data-viewport="mobile"] .nav-action-btn {
-  height: 34px;
-  padding: 0 9px;
-  font-size: 12px;
+  height: 34px !important;
+  padding: 0 9px !important;
+  font-size: 12px !important;
 }
 
 :root[data-viewport="mobile"] .nav-create-private-cta {
-  max-width: 170px;
+  max-width: 150px;
+  flex-shrink: 1 !important;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+:root[data-viewport="mobile"] .nav-github-link {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  padding: 0 !important;
+}
+
+:root[data-viewport="mobile"] .site-nav .settings-btn {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
 }
 
 :root[data-viewport="mobile"] .brand-text,
 :root[data-viewport="mobile"] .stats-badge,
 :root[data-viewport="mobile"] .user-pill,
-:root[data-viewport="mobile"] .nav-github-link,
 :root[data-viewport="mobile"] .nav-center {
   display: none;
 }
@@ -1309,11 +1352,11 @@
 }
 
 :root[data-viewport="mobile"] .hero {
-  padding: 36px 0 28px;
+  padding: 24px 0 20px;
 }
 
 :root[data-viewport="mobile"] .hero-title {
-  font-size: 34px;
+  font-size: 26px;
 }
 
 :root[data-viewport="mobile"] .metrics {
@@ -1362,32 +1405,57 @@
     max-width: 100%;
     box-sizing: border-box;
     height: auto;
+    min-height: 50px;
     flex-wrap: wrap;
-    padding: 8px 12px;
-    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  :root:not([data-viewport="laptop"]) .brand-crest {
+    width: 34px;
+    height: 34px;
   }
 
   :root:not([data-viewport="laptop"]) .nav-actions {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
+    max-width: calc(100% - 42px);
     min-width: 0;
     justify-content: flex-end;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 6px;
   }
 
   :root:not([data-viewport="laptop"]) .nav-action-btn {
-    height: 34px;
-    padding: 0 9px;
-    font-size: 12px;
+    height: 34px !important;
+    padding: 0 9px !important;
+    font-size: 12px !important;
   }
 
   :root:not([data-viewport="laptop"]) .nav-create-private-cta {
-    max-width: 170px;
+    max-width: 150px;
+    flex-shrink: 1 !important;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  :root:not([data-viewport="laptop"]) .nav-github-link,
+  :root:not([data-viewport="laptop"]) .nav-github-link {
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    padding: 0 !important;
+  }
+
+  :root:not([data-viewport="laptop"]) .site-nav .settings-btn {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+  }
+
+  :root:not([data-viewport="laptop"]) .brand-text,
+  :root:not([data-viewport="laptop"]) .stats-badge,
+  :root:not([data-viewport="laptop"]) .user-pill,
   :root:not([data-viewport="laptop"]) .nav-center {
     display: none;
   }
@@ -1398,6 +1466,14 @@
     height: 36px;
     padding: 0 8px;
     font-size: 12.5px;
+  }
+
+  :root:not([data-viewport="laptop"]) .hero {
+    padding: 24px 0 20px;
+  }
+
+  :root:not([data-viewport="laptop"]) .hero-title {
+    font-size: 26px;
   }
 
   :root:not([data-viewport="laptop"]) .bar .field {
@@ -1668,6 +1744,10 @@
   justify-content: center;
 }
 
+:root[data-viewport="mobile"] .hero-cta .btn-lg:only-child {
+  grid-column: 1 / -1;
+}
+
 :root[data-viewport="mobile"] .spotlight-desktop {
   display: none;
 }
@@ -1732,6 +1812,10 @@
     overflow: hidden;
     text-overflow: ellipsis;
     justify-content: center;
+  }
+
+  :root:not([data-viewport="laptop"]) .hero-cta .btn-lg:only-child {
+    grid-column: 1 / -1;
   }
 
   :root:not([data-viewport="laptop"]) .spotlight-desktop {
