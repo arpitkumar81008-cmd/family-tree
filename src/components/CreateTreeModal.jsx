@@ -18,7 +18,8 @@ export function CreateTreeModal({
   onSelectTree,
   onCreateBlank,
   onImport,
-  onRestore
+  onRestore,
+  onOpenShareModal
 }) {
   const [treeTitle, setTreeTitle] = useState('');
   const [name, setName] = useState('');
@@ -238,17 +239,31 @@ export function CreateTreeModal({
                         · {tr.data?.people?.length || 0} · {badgeText}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      className="chip"
-                      onClick={() => {
-                        onSelectTree?.(tr.id, tr);
-                        close();
-                      }}
-                    >
-                      {activeTreeId === tr.id ? '✓ ' : ''}
-                      {t('openTreeBtn')}
-                    </button>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {isUserOwner && onOpenShareModal && (
+                        <button
+                          type="button"
+                          className="chip"
+                          onClick={() => {
+                            onSelectTree?.(tr.id, tr);
+                            onOpenShareModal();
+                          }}
+                        >
+                          {t('shareTreeBtn')}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="chip"
+                        onClick={() => {
+                          onSelectTree?.(tr.id, tr);
+                          close();
+                        }}
+                      >
+                        {activeTreeId === tr.id ? '✓ ' : ''}
+                        {t('openTreeBtn')}
+                      </button>
+                    </div>
                   </li>
                 );
               })}

@@ -1765,6 +1765,8 @@ export function App() {
         onOpenMilestones={() => setIsMilestonesOpen(true)}
         onExportPng={handleExportPng}
         onPrintPoster={handlePrintPoster}
+        onOpenShareModal={() => setIsShareOpen(true)}
+        onOpenTreesModal={() => setIsCreateOpen(true)}
       />
 
       {/* Interactive Canvas */}
@@ -1957,6 +1959,10 @@ export function App() {
             onCreateBlank={handleCreateBlank}
             onImport={handleCreateImport}
             onRestore={handleCreateRestore}
+            onOpenShareModal={() => {
+              setIsCreateOpen(false);
+              setIsShareOpen(true);
+            }}
           />
         </Suspense>
       )}

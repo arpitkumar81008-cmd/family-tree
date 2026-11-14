@@ -295,6 +295,11 @@ export function Navbar({
   };
 
   const copyShareLink = async () => {
+    if (onOpenShareModal) {
+      onOpenShareModal();
+      return;
+    }
+
     if (isPrivate && activeTreeId) {
       try {
         let shareUrl = '';
@@ -326,10 +331,6 @@ export function Navbar({
       return;
     }
 
-    if (onOpenShareModal) {
-      onOpenShareModal();
-      return;
-    }
     try {
       await navigator.clipboard.writeText(window.location.href);
       setCopied(true);
@@ -429,6 +430,17 @@ export function Navbar({
             {tr('navCreatePrivateCta', lang === 'hi' ? 'अपना वृक्ष बनाएँ' : 'Build your own tree')}
           </button>
         )}
+        {hasPrivateTree === true && (
+          <button
+            id="nav-btn-manage-trees"
+            data-testid="nav-btn-manage-trees"
+            type="button"
+            className="zbtn nav-action-btn"
+            onClick={handleCreatePrivateClick}
+          >
+            {tr('manageTreesBtn', lang === 'hi' ? 'वृक्ष प्रबंधन' : 'Manage Trees')}
+          </button>
+        )}
         {currentView !== 'home' && (
           <span
             className="stats-badge nav-status-badge active-tree-badge"
@@ -459,8 +471,9 @@ export function Navbar({
           </span>
         )}
 
-        {isPrivateTreePage && (
+        {currentView !== 'home' && (
           <button
+            id="nav-btn-share"
             type="button"
             className="zbtn nav-action-btn"
             onClick={copyShareLink}

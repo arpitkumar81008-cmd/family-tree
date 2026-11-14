@@ -278,6 +278,60 @@ test('Toolbar & RelationSolverModal: Find Relation button and solver modal rende
   assert.match(modalHtml, /Relationship|Find Relation/i);
 });
 
+test('Share & Code and Manage Trees controls render cleanly across Navbar, Toolbar, and LandingPage', async () => {
+  setupBrowserGlobals('');
+  const t = createTranslator('en');
+  const familyIndex = buildFamilyIndex(INITIAL_DATA);
+  const Navbar = await loadComponent('src/components/Navbar.jsx');
+  const Toolbar = await loadComponent('src/components/Toolbar.jsx');
+  const LandingPage = await loadComponent('src/components/LandingPage.jsx');
+
+  const navHtml = renderComponentToHtml(Navbar, {
+    currentView: 'tree',
+    activeTreeId: 'tree_user_1',
+    hasPrivateTree: true,
+    t,
+    lang: 'en'
+  });
+  assert.match(navHtml, /id="nav-btn-manage-trees"/);
+  assert.match(navHtml, /Manage Trees/);
+  assert.match(navHtml, /id="nav-btn-share"/);
+  assert.match(navHtml, /Share &amp; Code/);
+
+  const toolbarHtml = renderComponentToHtml(Toolbar, {
+    viewer: '',
+    setViewer: () => {},
+    searchQuery: '',
+    setSearchQuery: () => {},
+    people: INITIAL_DATA.people,
+    displayName: id => familyIndex.byId[id]?.name || id,
+    t,
+    lang: 'en',
+    onOpenAddModal: () => {},
+    onOpenRelationSolver: () => {},
+    onOpenShareModal: () => {},
+    onOpenTreesModal: () => {},
+    canEdit: true
+  });
+  assert.match(toolbarHtml, /id="toolbar-share-btn"/);
+  assert.match(toolbarHtml, /Share &amp; Code/);
+  assert.match(toolbarHtml, /id="toolbar-trees-btn"/);
+  assert.match(toolbarHtml, /Manage Trees/);
+
+  const landingHtml = renderComponentToHtml(LandingPage, {
+    t,
+    lang: 'en',
+    hasPrivateTree: true,
+    memberCount: INITIAL_DATA.people.length,
+    generationCount: 5,
+    branchCount: INITIAL_DATA.couples.length,
+    onExplore: () => {},
+    onCreate: () => {},
+    onNavigateMyTree: () => {}
+  });
+  assert.match(landingHtml, /Manage Trees/);
+});
+
 test.after(async () => {
   await closeViteServer();
 });

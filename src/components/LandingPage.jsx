@@ -397,6 +397,13 @@ export function LandingPage({
               >
                 {tr('navMyTree', lang === 'hi' ? 'मेरा निजी वृक्ष' : 'My Private Tree')} →
               </button>
+              <button
+                type="button"
+                className="btn ghost btn-lg land-cta-create"
+                onClick={onCreate}
+              >
+                {tr('manageTreesBtn', lang === 'hi' ? 'वृक्ष प्रबंधन' : 'Manage Trees')}
+              </button>
               <a
                 href="#quick-start-tutorials"
                 className="btn ghost btn-lg land-cta-tutorial"

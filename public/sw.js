@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vanshvriksha-static-v8';
+const CACHE_NAME = 'vanshvriksha-static-v9';
 
 const PRECACHE_URLS = [
   '/manifest.webmanifest',

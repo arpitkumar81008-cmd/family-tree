@@ -22,6 +22,8 @@ export function Toolbar({
   onOpenMilestones,
   onExportPng,
   onPrintPoster,
+  onOpenShareModal,
+  onOpenTreesModal,
 }) {
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const toolsRef = useRef(null);
@@ -156,6 +158,36 @@ export function Toolbar({
             >
               + <span className="btn-label-full">{t("addMember")}</span>
               <span className="btn-label-short">{lang === 'hi' ? 'जोड़ें' : 'Add'}</span>
+            </button>
+          )}
+
+          {onOpenShareModal && (
+            <button
+              id="toolbar-share-btn"
+              type="button"
+              className="zbtn toolbar-action-btn toolbar-share-btn"
+              onClick={onOpenShareModal}
+              title={tr('shareModalTitle', lang === 'hi' ? 'परिवार साझाकरण और पहुँच' : 'Share & Family Access')}
+            >
+              <span className="btn-label-full">
+                {tr('shareTreeBtn', lang === 'hi' ? 'साझा करें व कोड' : 'Share & Code')}
+              </span>
+              <span className="btn-label-short">{lang === 'hi' ? 'साझा' : 'Share'}</span>
+            </button>
+          )}
+
+          {onOpenTreesModal && (
+            <button
+              id="toolbar-trees-btn"
+              type="button"
+              className="zbtn toolbar-action-btn toolbar-trees-btn"
+              onClick={onOpenTreesModal}
+              title={tr('createTitle', lang === 'hi' ? 'मेरा वंश वृक्ष बनाएँ या चुनें' : 'Create or Select a Family Tree')}
+            >
+              <span className="btn-label-full">
+                {tr('manageTreesBtn', lang === 'hi' ? 'वृक्ष प्रबंधन' : 'Manage Trees')}
+              </span>
+              <span className="btn-label-short">{lang === 'hi' ? 'वृक्ष' : 'Trees'}</span>
             </button>
           )}
 
