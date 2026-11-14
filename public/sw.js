@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vanshvriksha-static-v9';
+const CACHE_NAME = 'vanshvriksha-static-v10';
 
 const PRECACHE_URLS = [
   '/manifest.webmanifest',
@@ -50,6 +50,11 @@ self.addEventListener('fetch', (event) => {
   try {
     url = new URL(request.url);
   } catch {
+    return;
+  }
+
+  // Only intercept HTTP(S) requests; never intercept blob: or data: URLs
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     return;
   }
 

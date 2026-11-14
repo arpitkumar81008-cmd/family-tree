@@ -92,13 +92,24 @@ export function Sheet({
     const file = input.files?.[0];
     if (!file) return;
     setPhotoMsg(t("photoProcessing"));
+    let guardTimer = null;
     try {
-      const dataUrl = await compressPhotoFile(file, { targetBytes: 8192 });
-      const ok = await setPhoto(person.id, dataUrl);
+      const timeoutGuard = new Promise((_, reject) => {
+        guardTimer = setTimeout(() => reject(new Error("PHOTO_UPLOAD_TIMEOUT")), 20000);
+      });
+      const dataUrl = await Promise.race([
+        compressPhotoFile(file, { targetBytes: 8192 }),
+        timeoutGuard
+      ]);
+      if (!dataUrl || typeof dataUrl !== "string") {
+        throw new Error("EMPTY_IMAGE");
+      }
+      const ok = await Promise.race([setPhoto(person.id, dataUrl), timeoutGuard]);
       setPhotoMsg(ok ? t("added") : t("noSpace"));
     } catch {
       setPhotoMsg(t("badImg"));
     } finally {
+      if (guardTimer !== null) clearTimeout(guardTimer);
       input.value = "";
     }
   };

@@ -295,3 +295,75 @@ test('Security: validateTreeData rejects prototype-pollution IDs and oversized f
   };
   assert.equal(validateTreeData(longCityTree).valid, false);
 });
+
+test('Photo compression: uses fast createImageBitmap path and rejects cleanly on decode timeouts', async () => {
+  const { isHeicFile, compressPhotoFile, compressDataUrl } = await import('../src/utils/photoCompress.js');
+
+  assert.equal(isHeicFile({ name: 'IMG_001.HEIC', type: '' }), true);
+  assert.equal(isHeicFile({ name: 'photo.heif', type: 'image/heif' }), true);
+  assert.equal(isHeicFile({ name: 'portrait.jpg', type: 'image/jpeg' }), false);
+
+  // Small data URL passes through without decoding
+  const tiny = 'data:image/jpeg;base64,/9j/4AAQ';
+  assert.equal(await compressDataUrl(tiny, { targetBytes: 8192 }), tiny);
+
+  const origCreateImageBitmap = globalThis.createImageBitmap;
+  const origDocument = globalThis.document;
+  const origImage = globalThis.Image;
+  const origURL = globalThis.URL;
+
+  try {
+    let closedCalled = false;
+    globalThis.createImageBitmap = async () => ({
+      width: 1200,
+      height: 800,
+      close: () => {
+        closedCalled = true;
+      }
+    });
+    globalThis.document = {
+      createElement: tag => {
+        assert.equal(tag, 'canvas');
+        return {
+          width: 0,
+          height: 0,
+          getContext: () => ({
+            fillStyle: '',
+            fillRect: () => {},
+            drawImage: () => {}
+          }),
+          toDataURL: (_mime, q) =>
+            `data:image/jpeg;base64,${q <= 0.6 ? 'A'.repeat(120) : 'B'.repeat(9500)}`
+        };
+      }
+    };
+
+    const fakeFile = new Blob(['fake-jpeg-bytes'], { type: 'image/jpeg' });
+    const compressed = await compressPhotoFile(fakeFile, { targetBytes: 8192 });
+    assert.ok(compressed.startsWith('data:image/jpeg;base64,'));
+    assert.ok(compressed.length <= 8192);
+    assert.equal(closedCalled, true, 'ImageBitmap.close() must be invoked to free GPU memory');
+
+    // Simulate stalled browser decoder (promise never resolves) and confirm timeout rejects
+    globalThis.createImageBitmap = () => new Promise(() => {});
+    await assert.rejects(
+      () => compressPhotoFile(fakeFile, { targetBytes: 8192, timeoutMs: 40 }),
+      /BITMAP_DECODE_TIMEOUT/
+    );
+
+    // Simulate stalled Image() in compressDataUrl and confirm timeout rejects
+    globalThis.Image = class StalledImage {
+      set src(_val) {}
+    };
+    const largeDataUrl = `data:image/jpeg;base64,${'X'.repeat(9000)}`;
+    await assert.rejects(
+      () => compressDataUrl(largeDataUrl, { targetBytes: 8192, timeoutMs: 40 }),
+      /IMAGE_DECODE_TIMEOUT/
+    );
+  } finally {
+    globalThis.createImageBitmap = origCreateImageBitmap;
+    globalThis.document = origDocument;
+    globalThis.Image = origImage;
+    globalThis.URL = origURL;
+  }
+});
