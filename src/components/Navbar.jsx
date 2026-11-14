@@ -426,7 +426,7 @@ export function Navbar({
             className="btn nav-action-btn nav-create-private-cta"
             onClick={handleCreatePrivateClick}
           >
-            {tr('navCreatePrivateCta', lang === 'hi' ? 'अपना वृक्ष बनाएँ' : 'Build your own tree.')}
+            {tr('navCreatePrivateCta', lang === 'hi' ? 'अपना वृक्ष बनाएँ' : 'Build your own tree')}
           </button>
         )}
         {currentView !== 'home' && (
@@ -481,8 +481,8 @@ export function Navbar({
           <svg
             className="github-icon"
             viewBox="0 0 24 24"
-            width="18"
-            height="18"
+            width="26"
+            height="26"
             fill="currentColor"
             aria-hidden="true"
           >

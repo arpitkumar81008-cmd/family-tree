@@ -152,6 +152,15 @@ export function LandingPage({
   };
   const rootRef = useRef(null);
   const featuresCarousel = useMobileCarousel(4, 4);
+  const tutorialsCarousel = useMobileCarousel(4, 4);
+
+  const handleScrollToTutorials = useCallback(e => {
+    if (e) e.preventDefault();
+    const target = document.getElementById('quick-start-tutorials');
+    if (target && typeof target.scrollIntoView === 'function') {
+      target.scrollIntoView({ behavior: isMotionReduced() ? 'auto' : 'smooth', block: 'start' });
+    }
+  }, []);
 
   useEffect(() => {
     const el = rootRef.current;
@@ -223,6 +232,35 @@ export function LandingPage({
     }
   ];
 
+  const featurePills = lang === 'hi'
+    ? [
+        '🌿 पारिवारिक शाखा फ़िल्टर',
+        '🔍 40+ भारतीय रिश्ते',
+        '🇮🇳 अंग्रेज़ी → हिन्दी नाम',
+        '🎂 जन्मदिन व स्मृतियाँ',
+        '🖼️ PNG व PDF पोस्टर',
+        '🔒 निजी कोड साझाकरण',
+        '↩️ पूर्ववत (Undo/Redo)',
+        '📱 पिंच-टू-ज़ूम व फुल स्क्रीन'
+      ]
+    : [
+        '🌿 Family Branches Filter',
+        '🔍 40+ Indian Kinship Terms',
+        '🇮🇳 Auto Hindi Transliteration',
+        '🎂 Birthdays & Milestones',
+        '🖼️ PNG & PDF Poster Export',
+        '🔒 Private Access Code Sharing',
+        '↩️ Undo / Redo & JSON Backup',
+        '📱 Pinch-to-Zoom & Full Screen'
+      ];
+
+  const tutorials = [
+    ['tut1Step', 'tut1Title', 'tut1Body'],
+    ['tut2Step', 'tut2Title', 'tut2Body'],
+    ['tut3Step', 'tut3Title', 'tut3Body'],
+    ['tut4Step', 'tut4Title', 'tut4Body']
+  ];
+
   return (
     <div className="landing" ref={rootRef}>
       <section className="hero reveal-parent" tabIndex={0}>
@@ -231,21 +269,37 @@ export function LandingPage({
         <p className="hero-lede">{t('landLede')}</p>
         <div className="hero-cta">
           {hasPrivateTree ? (
-            <button
-              type="button"
-              className="btn btn-lg land-cta-primary"
-              onClick={onNavigateMyTree || onCreate}
-            >
-              {tr('navMyTree', lang === 'hi' ? 'मेरा निजी वृक्ष' : 'My Private Tree')} →
-            </button>
+            <>
+              <button
+                type="button"
+                className="btn btn-lg land-cta-primary"
+                onClick={onNavigateMyTree || onCreate}
+              >
+                {tr('navMyTree', lang === 'hi' ? 'मेरा निजी वृक्ष' : 'My Private Tree')} →
+              </button>
+              <a
+                href="#quick-start-tutorials"
+                className="btn ghost btn-lg land-cta-tutorial"
+                onClick={handleScrollToTutorials}
+              >
+                {tr('quickStartCta', lang === 'hi' ? 'त्वरित उपयोग गाइड' : 'Quick Start Tutorial')} ↓
+              </a>
+            </>
           ) : (
             <>
               <button type="button" className="btn btn-lg land-cta-primary" onClick={onExplore}>
                 {t('landCtaExplore')}
               </button>
               <button type="button" className="btn ghost btn-lg land-cta-create" onClick={onCreate}>
-                {tr('navCreatePrivateCta', lang === 'hi' ? 'अपना वृक्ष बनाएँ' : 'Build your own tree.')}
+                {tr('navCreatePrivateCta', lang === 'hi' ? 'अपना वृक्ष बनाएँ' : 'Build your own tree')}
               </button>
+              <a
+                href="#quick-start-tutorials"
+                className="btn ghost btn-lg land-cta-tutorial"
+                onClick={handleScrollToTutorials}
+              >
+                {tr('quickStartCta', lang === 'hi' ? 'त्वरित उपयोग गाइड' : 'Quick Start Tutorial')} ↓
+              </a>
             </>
           )}
         </div>
@@ -299,11 +353,66 @@ export function LandingPage({
             />
           ))}
         </div>
+        <div className="feature-pills-strip" aria-label={lang === 'hi' ? 'मुख्य सुविधाएँ' : 'All platform features'}>
+          {featurePills.map(pill => (
+            <span className="feature-pill" key={pill}>{pill}</span>
+          ))}
+        </div>
+      </section>
+
+      <section className="tutorials-section" id="quick-start-tutorials">
+        <h2 className="section-title">{t('tutorialsTitle')}</h2>
+        <div
+          className="feature-grid tutorials-grid mobile-carousel-track"
+          ref={tutorialsCarousel.trackRef}
+          onScroll={tutorialsCarousel.handleScroll}
+          onTouchStart={tutorialsCarousel.pause}
+          onTouchEnd={tutorialsCarousel.resumeDelayed}
+          onPointerDown={tutorialsCarousel.pause}
+          onPointerUp={tutorialsCarousel.resumeDelayed}
+          onMouseEnter={tutorialsCarousel.pause}
+          onMouseLeave={tutorialsCarousel.resumeDelayed}
+          onFocus={tutorialsCarousel.pause}
+          onBlur={tutorialsCarousel.resumeDelayed}
+        >
+          {tutorials.map(([stepKey, titleKey, bodyKey]) => (
+            <article
+              className="feature-card tutorial-step-card mobile-carousel-slide reveal-parent reveal-on-scroll"
+              key={stepKey}
+              tabIndex={0}
+            >
+              <span className="feature-num" aria-hidden="true">{t(stepKey)}</span>
+              <h3>{t(titleKey)}</h3>
+              <p className="fac-desc">{t(bodyKey)}</p>
+            </article>
+          ))}
+        </div>
+        <div className="carousel-dots" role="tablist" aria-label={t('tutorialsTitle')}>
+          {[0, 1, 2, 3].map(dotIdx => (
+            <button
+              key={dotIdx}
+              type="button"
+              role="tab"
+              aria-selected={tutorialsCarousel.activeDot === dotIdx}
+              aria-label={`Tutorial ${dotIdx + 1}`}
+              className={`carousel-dot${tutorialsCarousel.activeDot === dotIdx ? ' is-active' : ''}`}
+              onClick={() => tutorialsCarousel.handleDotClick(dotIdx)}
+            />
+          ))}
+        </div>
       </section>
 
       <footer className="site-footer">
         <span>{t('foot')}</span>
         <span className="footer-links">
+          <a
+            href="https://www.linkedin.com/in/arpit-kumar-gupta-0320a4335/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            LinkedIn ↗
+          </a>
+          <span aria-hidden="true">·</span>
           <a
             href="https://github.com/arpitkumar81008-cmd"
             target="_blank"

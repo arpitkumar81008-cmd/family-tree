@@ -840,6 +840,35 @@ export default function AdminPanel({
             </section>
           </>
         )}
+
+        <footer className="site-footer">
+          <span>VanshVriksha</span>
+          <span className="footer-links">
+            <a
+              href="https://www.linkedin.com/in/arpit-kumar-gupta-0320a4335/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              LinkedIn ↗
+            </a>
+            <span aria-hidden="true">·</span>
+            <a
+              href="https://github.com/arpitkumar81008-cmd"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GitHub (@arpitkumar81008-cmd) ↗
+            </a>
+            <span aria-hidden="true">·</span>
+            <a
+              href="https://github.com/arpitkumar81008-cmd/family-tree"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Source Repository ↗
+            </a>
+          </span>
+        </footer>
       </div>
     </div>
   );
