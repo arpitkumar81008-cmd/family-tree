@@ -14,6 +14,7 @@ export async function getViteServer() {
   if (!viteInstance) {
     viteInstance = await createServer({
       server: { middlewareMode: true, watch: null, hmr: false, ws: false },
+      optimizeDeps: { noDiscovery: true, include: [] },
       appType: 'custom'
     });
   }

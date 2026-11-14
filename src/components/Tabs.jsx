@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { solveComplexRelation } from '../utils/kinship.js';
-import { validateTreeData } from '../data/schema.js';
+import { validateTreeData, sanitizePhotosMap } from '../data/schema.js';
+import { isPhotosPayloadWithinLimit } from '../services/treeSync.js';
 import { useSmartAutoAnimate } from '../utils/useSmartAutoAnimate.js';
 
 export function RelationshipFinder({ familyIndex, lang, t, displayName, people, startPerson }) {
@@ -283,9 +284,15 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
       if (!res.valid) {
         throw new Error(res.error);
       }
+      const hasPhotosObj = parsed.photos && typeof parsed.photos === "object" && !Array.isArray(parsed.photos);
+      const safePhotos = hasPhotosObj ? sanitizePhotosMap(parsed.photos) : undefined;
+      if (safePhotos && !isPhotosPayloadWithinLimit(safePhotos)) {
+        setStatusMsg(t("noSpace"));
+        return;
+      }
       onImport(
         { people: d.people, couples: d.couples },
-        parsed.photos && typeof parsed.photos === "object" ? parsed.photos : undefined
+        safePhotos
       );
       setStatusMsg(t("importOk"));
       setImportText("");

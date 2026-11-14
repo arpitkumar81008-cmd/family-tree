@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { validateTreeData } from '../data/schema.js';
+import { validateTreeData, sanitizePhotosMap } from '../data/schema.js';
 import {
   listAvailableTrees,
   findTreeByShareCode,
@@ -138,9 +138,7 @@ export function CreateTreeModal({
         throw new Error(res.error || t('importBad'));
       }
 
-      const photos = parsed.photos && typeof parsed.photos === 'object' && !Array.isArray(parsed.photos)
-        ? parsed.photos
-        : {};
+      const photos = sanitizePhotosMap(parsed.photos);
       if (!isPhotosPayloadWithinLimit(photos)) {
         setMsg(t('noSpace'));
         return;

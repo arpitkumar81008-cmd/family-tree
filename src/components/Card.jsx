@@ -1,12 +1,14 @@
 import React from 'react';
 import { getInitials } from '../data/familyData.js';
+import { isSafePhotoUrl } from '../data/schema.js';
 
 export function Avatar({ photo, label, text, big = false, gender = '' }) {
   const genderClass = gender === 'M' ? ' is-male' : gender === 'F' ? ' is-female' : '';
+  const safePhoto = photo && isSafePhotoUrl(photo) ? photo.trim() : '';
   return (
     <div className={`av${big ? " big" : ""}${genderClass}`}>
-      {photo ? (
-        <img src={photo} alt={label} />
+      {safePhoto ? (
+        <img src={safePhoto} alt={label} loading="lazy" decoding="async" />
       ) : (
         <span>{text}</span>
       )}

@@ -310,7 +310,7 @@ export function ShareTreeModal({
                 className="btn primary"
                 style={{ fontSize: '12px', textDecoration: 'none' }}
               >
-                ✉ {t('notifyOwnerEmailBtn')}
+                {t('notifyOwnerEmailBtn')}
               </a>
             </div>
           )}

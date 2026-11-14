@@ -247,3 +247,51 @@ test('B8: Card.jsx aria-label has no trailing comma when relationLabel is empty'
   });
   assert.match(htmlWithRelation, /aria-label="Aarav Verma, Father"/);
 });
+
+test('Security: isSafePhotoUrl & sanitizePhotosMap block SVG/script payloads and prototype keys', async () => {
+  const { isSafePhotoUrl, sanitizePhotosMap } = await import('../src/data/schema.js');
+
+  assert.equal(isSafePhotoUrl('data:image/jpeg;base64,/9j/4AAQSkZJRg=='), true);
+  assert.equal(isSafePhotoUrl('data:image/png;base64,iVBORw0KGgo='), true);
+  assert.equal(isSafePhotoUrl('data:image/webp;base64,UklGRh4='), true);
+  assert.equal(isSafePhotoUrl('/images/tree-logo.png'), true);
+  assert.equal(isSafePhotoUrl('https://firebasestorage.googleapis.com/v0/b/app/o/pic.jpg'), true);
+
+  assert.equal(isSafePhotoUrl('data:image/svg+xml,<svg onload=alert(1)>'), false);
+  assert.equal(isSafePhotoUrl('data:text/html,<script>alert(1)</script>'), false);
+  assert.equal(isSafePhotoUrl('javascript:alert(1)'), false);
+  assert.equal(isSafePhotoUrl('https://evil.example.com/tracker.png'), false);
+
+  const dirtyPhotos = Object.create(null);
+  dirtyPhotos.p1 = 'data:image/png;base64,iVBORw0KGgo=';
+  dirtyPhotos.p2 = 'data:image/svg+xml;base64,PHN2Zz4=';
+  dirtyPhotos['constructor'] = 'data:image/png;base64,bad';
+  dirtyPhotos['prototype'] = 'data:image/png;base64,bad';
+  Object.defineProperty(dirtyPhotos, '__proto__', {
+    value: 'data:image/png;base64,bad',
+    enumerable: true
+  });
+
+  const clean = sanitizePhotosMap(dirtyPhotos);
+  assert.equal(clean.p1, 'data:image/png;base64,iVBORw0KGgo=');
+  assert.equal(clean.p2, undefined);
+  assert.equal(Object.prototype.hasOwnProperty.call(clean, '__proto__'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(clean, 'constructor'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(clean, 'prototype'), false);
+});
+
+test('Security: validateTreeData rejects prototype-pollution IDs and oversized fields', async () => {
+  const { validateTreeData } = await import('../src/data/schema.js');
+
+  const protoIdTree = {
+    people: [{ id: '__proto__', name: 'Evil', g: 'M' }],
+    couples: []
+  };
+  assert.equal(validateTreeData(protoIdTree).valid, false);
+
+  const longCityTree = {
+    people: [{ id: 'p1', name: 'Valid Name', g: 'M', city: 'X'.repeat(200) }],
+    couples: []
+  };
+  assert.equal(validateTreeData(longCityTree).valid, false);
+});

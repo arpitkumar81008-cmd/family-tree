@@ -138,7 +138,7 @@ export function App() {
   const [activeTreeMeta, setActiveTreeMeta] = useState(null);
   const [userPrivateTreeId, setUserPrivateTreeId] = useState(() => getLastPrivateTreeId() || "");
   const [treeAccessDenied, setTreeAccessDenied] = useState(false);
-  const [loadingTree, setLoadingTree] = useState(() => Boolean(parseViewStateFromUrl().treeId));
+  const [loadingTree, setLoadingTree] = useState(false);
   const [treeLoadError, setTreeLoadError] = useState(false);
   const [treeRetryCount, setTreeRetryCount] = useState(0);
   const [saveError, setSaveError] = useState(false);
@@ -1651,7 +1651,7 @@ export function App() {
                         className="btn primary"
                         style={{ fontSize: 12, textDecoration: "none" }}
                       >
-                        ✉ {t("notifyOwnerEmailBtn")}
+                        {t("notifyOwnerEmailBtn")}
                       </a>
                     </div>
                   )}

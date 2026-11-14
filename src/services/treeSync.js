@@ -299,7 +299,7 @@ export function parseViewStateFromUrl() {
     if (rawView === 'home') {
       return { view: 'home', treeId: '' };
     }
-    if (rawView === 'admin') {
+    if (rawView === 'admin' && !treeId) {
       return { view: 'admin', treeId: '' };
     }
     if (rawView === 'tree') {

@@ -1,4 +1,5 @@
 import { getInitials } from '../data/familyData.js';
+import { isSafePhotoUrl } from '../data/schema.js';
 
 const CARD_W = 96;
 const HEADER_H = 72;
@@ -8,7 +9,7 @@ const MAX_CANVAS_DIM = 8192;
  * Loads an image from a data URL or URL, resolving to null on failure.
  */
 function loadImage(src) {
-  if (!src) return Promise.resolve(null);
+  if (!src || !isSafePhotoUrl(src)) return Promise.resolve(null);
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -548,17 +549,25 @@ export async function downloadTreePng(layout, options = {}) {
 export async function printTreePoster(layout, options = {}) {
   const canvas = await renderTreeToCanvas(layout, options);
   const dataUrl = canvas.toDataURL('image/png');
+  if (!dataUrl || !dataUrl.startsWith('data:image/png;base64,')) {
+    throw new Error('Failed to render tree poster image.');
+  }
   const title = options.title || 'Family Tree';
 
   const win = window.open('', '_blank');
   if (!win) {
     throw new Error('Popup blocked. Please allow popups to print the family tree poster.');
   }
+  try {
+    win.opener = null;
+  } catch {}
 
   const escapedTitle = String(title)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
   win.document.open();
   win.document.write(`<!DOCTYPE html>
@@ -591,21 +600,20 @@ export async function printTreePoster(layout, options = {}) {
 </head>
 <body>
   <img id="tree-poster" src="${dataUrl}" alt="${escapedTitle}" />
-  <script>
-    (function () {
-      var img = document.getElementById('tree-poster');
-      function triggerPrint() {
-        window.focus();
-        window.print();
-      }
-      if (img.complete) {
-        triggerPrint();
-      } else {
-        img.addEventListener('load', triggerPrint, { once: true });
-      }
-    })();
-  </script>
 </body>
 </html>`);
   win.document.close();
+
+  const img = win.document.getElementById('tree-poster');
+  const triggerPrint = () => {
+    try {
+      win.focus();
+      win.print();
+    } catch {}
+  };
+  if (!img || img.complete) {
+    triggerPrint();
+  } else {
+    img.addEventListener('load', triggerPrint, { once: true });
+  }
 }

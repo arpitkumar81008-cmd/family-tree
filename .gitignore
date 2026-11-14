@@ -33,8 +33,10 @@ Thumbs.db
 scratch/
 .system_generated/
 
-# Private Personal Reference Files & Local UI Feedback
-Gupta Family Tree.html
-Gupta Family Tree.md
-Gupta Family Tree Project Summary.md
+# Internal Planning / Review / Local Notes
+PROMPT.md
+REVIEW.md
+*.local.md
+*.local.html
 ui changes/
+ui-changes/

@@ -302,6 +302,36 @@ service cloud.firestore {
         (doc[field] is int && doc[field] >= 0 && doc[field] <= 10000000);
     }
 
+    // Validate optional counter on create (if present, must be 0 or 1)
+    function isValidAnalyticsCreateCounter(doc, field) {
+      return !(field in doc) ||
+        (doc[field] is int && (doc[field] == 0 || doc[field] == 1));
+    }
+
+    function isValidAnalyticsDailyCreateCounters(doc) {
+      return isValidAnalyticsCreateCounter(doc, 'pageViews') &&
+        isValidAnalyticsCreateCounter(doc, 'treesCreated') &&
+        isValidAnalyticsCreateCounter(doc, 'photosUploaded') &&
+        isValidAnalyticsCreateCounter(doc, 'relationsSolved') &&
+        isValidAnalyticsCreateCounter(doc, 'joinRequests');
+    }
+
+    // Validate monotonic single-step increment (+0 or +1) for analytics counters on update
+    function isValidAnalyticsCounterIncrement(field) {
+      return resource.data.get(field, 0) is int &&
+        request.resource.data.get(field, 0) is int &&
+        request.resource.data.get(field, 0) >= resource.data.get(field, 0) &&
+        request.resource.data.get(field, 0) <= resource.data.get(field, 0) + 1;
+    }
+
+    function isValidAnalyticsDailyUpdateCounters() {
+      return isValidAnalyticsCounterIncrement('pageViews') &&
+        isValidAnalyticsCounterIncrement('treesCreated') &&
+        isValidAnalyticsCounterIncrement('photosUploaded') &&
+        isValidAnalyticsCounterIncrement('relationsSolved') &&
+        isValidAnalyticsCounterIncrement('joinRequests');
+    }
+
     function isValidAnalyticsDailyPayload(doc, dayId) {
       return hasRequiredFields(['date']) &&
         hasOnlyAllowedFields([
@@ -313,6 +343,7 @@ service cloud.firestore {
           'joinRequests',
           'updatedAt'
         ]) &&
+        dayId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
         (doc.date is string) &&
         doc.date == dayId &&
         doc.date.size() == 10 &&
@@ -404,7 +435,9 @@ service cloud.firestore {
         allow create: if isAuthenticated() &&
           request.auth.uid == requesterUid &&
           isValidJoinRequestPayload(request.resource.data, requesterUid) &&
-          request.resource.data.status == 'pending';
+          request.resource.data.status == 'pending' &&
+          (!('approvedRole' in request.resource.data) ||
+           request.resource.data.approvedRole == null);
 
         allow update: if isValidJoinRequestPayload(request.resource.data, requesterUid) &&
           request.resource.data.requesterUid == resource.data.requesterUid &&
@@ -414,7 +447,9 @@ service cloud.firestore {
             (isAuthenticated() &&
              request.auth.uid == requesterUid &&
              request.resource.data.status == 'pending' &&
-             request.resource.data.requesterUid == requesterUid)
+             request.resource.data.requesterUid == requesterUid &&
+             (!('approvedRole' in request.resource.data) ||
+              request.resource.data.approvedRole == null))
           );
 
         allow delete: if isAuthenticated() &&
@@ -437,7 +472,11 @@ service cloud.firestore {
 
     match /analytics_daily/{dayId} {
       allow get, list: if isAdmin();
-      allow create, update: if isValidAnalyticsDailyPayload(request.resource.data, dayId);
+      allow create: if isValidAnalyticsDailyPayload(request.resource.data, dayId) &&
+        isValidAnalyticsDailyCreateCounters(request.resource.data);
+      allow update: if isValidAnalyticsDailyPayload(request.resource.data, dayId) &&
+        request.resource.data.date == resource.data.date &&
+        isValidAnalyticsDailyUpdateCounters();
       allow delete: if false;
     }
 

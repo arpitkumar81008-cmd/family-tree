@@ -1,8 +1,8 @@
-const CACHE_NAME = 'vanshvriksha-static-v7';
+const CACHE_NAME = 'vanshvriksha-static-v8';
 
 const PRECACHE_URLS = [
   '/manifest.webmanifest',
-  '/favicon.svg'
+  '/images/tree-logo.png'
 ];
 
 const BYPASS_HOSTS = new Set([

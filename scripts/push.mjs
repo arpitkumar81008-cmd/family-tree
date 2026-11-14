@@ -61,7 +61,7 @@ if (!repoReady) {
       },
       body: JSON.stringify({
         name: GITHUB_REPO,
-        description: 'Gupta Family Tree — Interactive Bilingual Heritage & Genealogy Platform',
+        description: 'VanshVriksha — Interactive Bilingual Family Tree & Lineage Platform',
         private: false
       })
     });

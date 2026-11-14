@@ -151,7 +151,9 @@ export function LandingPage({
     return !res || res === key ? fallback : res;
   };
   const rootRef = useRef(null);
+  const featurePanelRef = useRef(null);
   const [activeFeatureTab, setActiveFeatureTab] = useState(0);
+  const [isTabAutoPaused, setIsTabAutoPaused] = useState(false);
   const featureTabPausedRef = useRef(false);
   const featureTabResumeTimerRef = useRef(null);
   const featuresCarousel = useMobileCarousel(4, 4);
@@ -159,6 +161,7 @@ export function LandingPage({
 
   const pauseFeatureTab = useCallback(() => {
     featureTabPausedRef.current = true;
+    setIsTabAutoPaused(true);
     if (featureTabResumeTimerRef.current) clearTimeout(featureTabResumeTimerRef.current);
   }, []);
 
@@ -166,6 +169,7 @@ export function LandingPage({
     if (featureTabResumeTimerRef.current) clearTimeout(featureTabResumeTimerRef.current);
     featureTabResumeTimerRef.current = setTimeout(() => {
       featureTabPausedRef.current = false;
+      setIsTabAutoPaused(false);
     }, delayMs);
   }, []);
 
@@ -189,6 +193,20 @@ export function LandingPage({
       if (featureTabResumeTimerRef.current) clearTimeout(featureTabResumeTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || isMotionReduced()) return undefined;
+    const panelEl = featurePanelRef.current;
+    if (!panelEl) return undefined;
+    const items = panelEl.querySelectorAll('.features-tab-item');
+    if (!items.length) return undefined;
+    const controls = animate(
+      items,
+      { opacity: [0, 1], y: [8, 0] },
+      { duration: 0.28, delay: stagger(0.045) }
+    );
+    return () => controls?.stop?.();
+  }, [activeFeatureTab]);
 
   const handleScrollToTutorials = useCallback(e => {
     if (e) e.preventDefault();
@@ -457,6 +475,7 @@ export function LandingPage({
         </div>
         <div
           className="features-tabs-box"
+          data-paused={isTabAutoPaused ? 'true' : 'false'}
           onMouseEnter={pauseFeatureTab}
           onMouseLeave={() => resumeFeatureTabDelayed(3500)}
           onTouchStart={pauseFeatureTab}
@@ -482,12 +501,14 @@ export function LandingPage({
                   className={`features-tab-btn${isSelected ? ' is-active' : ''}`}
                   onClick={() => handleFeatureTabSelect(idx)}
                 >
-                  {tab.label}
+                  <span className="ftb-index">{String(idx + 1).padStart(2, '0')}</span>
+                  <span>{tab.label}</span>
                 </button>
               );
             })}
           </div>
           <div
+            ref={featurePanelRef}
             id={`feature-panel-${activeTabObj.id}`}
             role="tabpanel"
             aria-labelledby={`feature-tab-${activeTabObj.id}`}

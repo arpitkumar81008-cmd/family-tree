@@ -21,6 +21,42 @@ const MAX_ID_LEN = 100;
 const MAX_NAME_LEN = 120;
 const MAX_DOB_LEN = 30;
 const MAX_NOTE_LEN = 2000;
+const MAX_PHOTO_URL_LEN = 250000;
+const MAX_PHOTOS_COUNT = 500;
+const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+const SAFE_DATA_IMAGE_RE = /^data:image\/(?:jpeg|jpg|png|webp|gif|avif);base64,[A-Za-z0-9+/=\s]+$/i;
+const SAFE_LOCAL_IMAGE_RE = /^\/images\/[A-Za-z0-9._/-]+$/;
+const SAFE_REMOTE_IMAGE_RE =
+  /^https:\/\/(?:[a-z0-9-]+\.)*(?:googleusercontent\.com|firebasestorage\.googleapis\.com)\/[^\s"'<>]+$/i;
+
+export function isSafePhotoUrl(url) {
+  if (typeof url !== "string") return false;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.length > MAX_PHOTO_URL_LEN) return false;
+  return (
+    SAFE_DATA_IMAGE_RE.test(trimmed) ||
+    SAFE_LOCAL_IMAGE_RE.test(trimmed) ||
+    SAFE_REMOTE_IMAGE_RE.test(trimmed)
+  );
+}
+
+export function sanitizePhotosMap(photos) {
+  if (!photos || typeof photos !== "object" || Array.isArray(photos)) {
+    return {};
+  }
+  const clean = {};
+  let count = 0;
+  for (const [key, val] of Object.entries(photos)) {
+    if (count >= MAX_PHOTOS_COUNT) break;
+    if (!key || FORBIDDEN_KEYS.has(key) || key.length > MAX_ID_LEN) continue;
+    if (isSafePhotoUrl(val)) {
+      clean[key] = val.trim();
+      count += 1;
+    }
+  }
+  return clean;
+}
 
 export function validateTreeData(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) {
@@ -64,6 +100,9 @@ export function validateTreeData(data) {
     if (!person.id || typeof person.id !== "string" || !person.id.trim()) {
       return { valid: false, error: "Invalid person ID" };
     }
+    if (FORBIDDEN_KEYS.has(person.id)) {
+      return { valid: false, error: `Forbidden person ID: ${person.id}` };
+    }
     if (person.id.length > MAX_ID_LEN) {
       return { valid: false, error: `Person ID exceeds ${MAX_ID_LEN} characters: ${person.id.slice(0, 30)}...` };
     }
@@ -92,6 +131,22 @@ export function validateTreeData(data) {
         return { valid: false, error: `Date of birth exceeds ${MAX_DOB_LEN} characters for ID: ${person.id}` };
       }
     }
+    if (person.city !== undefined && person.city !== null) {
+      if (typeof person.city !== "string") {
+        return { valid: false, error: `City must be a string for ID: ${person.id}` };
+      }
+      if (person.city.length > MAX_NAME_LEN) {
+        return { valid: false, error: `City exceeds ${MAX_NAME_LEN} characters for ID: ${person.id}` };
+      }
+    }
+    if (person.anniversary !== undefined && person.anniversary !== null) {
+      if (typeof person.anniversary !== "string") {
+        return { valid: false, error: `Anniversary must be a string for ID: ${person.id}` };
+      }
+      if (person.anniversary.length > MAX_DOB_LEN) {
+        return { valid: false, error: `Anniversary exceeds ${MAX_DOB_LEN} characters for ID: ${person.id}` };
+      }
+    }
     if (person.note !== undefined && person.note !== null) {
       if (typeof person.note !== "string") {
         return { valid: false, error: `Note must be a string for ID: ${person.id}` };
@@ -118,6 +173,9 @@ export function validateTreeData(data) {
     if (couple.id !== undefined && couple.id !== null) {
       if (typeof couple.id !== "string" || !couple.id.trim()) {
         return { valid: false, error: "Invalid couple ID" };
+      }
+      if (FORBIDDEN_KEYS.has(couple.id)) {
+        return { valid: false, error: `Forbidden couple ID: ${couple.id}` };
       }
       if (couple.id.length > MAX_ID_LEN) {
         return { valid: false, error: `Couple ID exceeds ${MAX_ID_LEN} characters` };
