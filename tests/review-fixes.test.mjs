@@ -436,3 +436,95 @@ test('Reload persistence: cacheLocalTreeSnapshot and mergeCloudTreeWithLocalHist
     globalThis.localStorage = origLocalStorage;
   }
 });
+
+test('Deduplication & Deep Merge: dedup() and deepMergeTree() preserve city and anniversary fields', async () => {
+  const { dedup, deepMergeTree } = await import('../src/utils/deduplication.js');
+
+  const dupState = {
+    data: {
+      people: [
+        { id: 'p1', name: 'Ramesh Verma', g: 'M', dob: '1970-05-12' },
+        { id: 'p1', name: 'Ramesh Verma', g: 'M', city: 'Varanasi', anniversary: '1995-11-24', note: 'Elder brother' }
+      ],
+      couples: []
+    },
+    photos: {}
+  };
+
+  const deduped = dedup(dupState);
+  assert.equal(deduped.data.people.length, 1);
+  assert.equal(deduped.data.people[0].dob, '1970-05-12');
+  assert.equal(deduped.data.people[0].city, 'Varanasi');
+  assert.equal(deduped.data.people[0].anniversary, '1995-11-24');
+  assert.equal(deduped.data.people[0].note, 'Elder brother');
+
+  const baseState = {
+    data: {
+      people: [{ id: 'p1', name: 'Ramesh Verma', g: 'M', city: 'Gorakhpur', anniversary: '1995-11-24' }],
+      couples: []
+    },
+    photos: {}
+  };
+  const overlayState = {
+    data: {
+      people: [{ id: 'p1', name: 'Ramesh Verma', g: 'M', hi: 'रमेश वर्मा', city: '', anniversary: '' }],
+      couples: []
+    },
+    photos: {}
+  };
+
+  const merged = deepMergeTree(baseState, overlayState);
+  assert.equal(merged.data.people[0].hi, 'रमेश वर्मा');
+  assert.equal(merged.data.people[0].city, 'Gorakhpur');
+  assert.equal(merged.data.people[0].anniversary, '1995-11-24');
+});
+
+test('Milestones: parseMilestoneDate rejects impossible calendar dates and accepts valid leap/non-leap dates', async () => {
+  const { parseMilestoneDate } = await import('../src/utils/milestones.js');
+
+  assert.equal(parseMilestoneDate('2020-02-31'), null);
+  assert.equal(parseMilestoneDate('2021-02-29'), null);
+  assert.equal(parseMilestoneDate('2020-13-45'), null);
+  assert.equal(parseMilestoneDate('2023-04-31'), null);
+
+  assert.deepEqual(parseMilestoneDate('2020-02-29'), { year: 2020, month: 2, day: 29 });
+  assert.deepEqual(parseMilestoneDate('1995-11-24'), { year: 1995, month: 11, day: 24 });
+  assert.deepEqual(parseMilestoneDate('24/11/1995'), { year: 1995, month: 11, day: 24 });
+  assert.deepEqual(parseMilestoneDate('--08-15'), { year: null, month: 8, day: 15 });
+});
+
+test('History Stack: pushHistorySnapshot, stepUndo, and stepRedo enforce deep snapshot isolation', async () => {
+  const {
+    createHistoryState,
+    pushHistorySnapshot,
+    stepUndo,
+    stepRedo
+  } = await import('../src/utils/historyStack.js');
+
+  let history = createHistoryState();
+  const liveSnapshot = {
+    data: {
+      people: [{ id: 'p1', name: 'Original Name', g: 'M' }],
+      couples: []
+    },
+    photos: { p1: 'data:image/jpeg;base64,orig' }
+  };
+
+  history = pushHistorySnapshot(history, liveSnapshot);
+
+  // Mutate liveSnapshot in place after pushing
+  liveSnapshot.data.people[0].name = 'Mutated In Place';
+  liveSnapshot.photos.p1 = 'data:image/jpeg;base64,mutated';
+
+  const undoRes = stepUndo(history, liveSnapshot);
+  assert.ok(undoRes);
+  assert.equal(undoRes.snapshot.data.people[0].name, 'Original Name');
+  assert.equal(undoRes.snapshot.photos.p1, 'data:image/jpeg;base64,orig');
+
+  // Mutate restored snapshot in place and verify redo remains isolated
+  undoRes.snapshot.data.people[0].name = 'Corrupted Restored';
+  const redoRes = stepRedo(undoRes.history, undoRes.snapshot);
+  assert.ok(redoRes);
+  assert.equal(redoRes.snapshot.data.people[0].name, 'Mutated In Place');
+  assert.equal(redoRes.snapshot.photos.p1, 'data:image/jpeg;base64,mutated');
+});
