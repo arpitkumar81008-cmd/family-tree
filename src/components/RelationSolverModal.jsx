@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { solveComplexRelation } from '../utils/kinship.js';
 
 export function RelationSolverModal({
@@ -20,6 +20,7 @@ export function RelationSolverModal({
   const handleClose = onClose || close || (() => {});
   const handleOpenPerson = onSelectPerson || openPerson;
   const isHi = lang === "hi";
+  const modalRef = useRef(null);
 
   const [originId, setOriginId] = useState(initialOriginId || startPerson || "");
   const [targetId, setTargetId] = useState(initialTargetId || "");
@@ -39,7 +40,26 @@ export function RelationSolverModal({
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = e => {
-      if (e.key === "Escape") handleClose();
+      if (e.key === "Escape") {
+        handleClose();
+      } else if (e.key === "Tab" && modalRef.current) {
+        const focusable = Array.from(
+          modalRef.current.querySelectorAll(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => el.offsetParent !== null || el.offsetWidth > 0);
+        if (focusable.length) {
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -151,6 +171,7 @@ export function RelationSolverModal({
       }}
     >
       <div
+        ref={modalRef}
         className="sheet"
         role="dialog"
         aria-modal="true"

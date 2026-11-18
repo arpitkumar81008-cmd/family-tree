@@ -13,7 +13,8 @@ import {
   saveCanvasPan,
   clampCanvasZoom,
   getLastPrivateTreeId,
-  setLastPrivateTreeId
+  setLastPrivateTreeId,
+  clearLastPrivateTreeId
 } from './utils/storage.js';
 import { buildFamilyIndex, INITIAL_DATA } from './data/familyData.js';
 import { createTranslator } from './i18n/index.js';
@@ -305,6 +306,10 @@ export function App() {
                 privateOwnedOrShared.photos || {},
                 privateOwnedOrShared.lang
               );
+              const hasUnsyncedLocalAdditions =
+                merged.data.people.length > (privateOwnedOrShared.data.people.length || 0) ||
+                (merged.data.couples?.length || 0) > (privateOwnedOrShared.data.couples?.length || 0);
+              isLocalMutationRef.current = hasUnsyncedLocalAdditions;
               setTreeState(prev => ({
                 ...prev,
                 data: merged.data,
@@ -416,32 +421,33 @@ export function App() {
     }
   }, []);
 
+  const flushPendingCloudSave = useCallback(() => {
+    const pending = pendingSaveRef.current;
+    if (!pending) return;
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    pendingSaveRef.current = null;
+    executeCloudSave(pending.treeId, pending.payload, pending.user);
+  }, [executeCloudSave]);
+
   // Flush any pending 600ms debounced cloud save immediately when reloading or hiding the page
   useEffect(() => {
-    const flushOnLeave = () => {
-      const pending = pendingSaveRef.current;
-      if (!pending) return;
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
-      }
-      pendingSaveRef.current = null;
-      executeCloudSave(pending.treeId, pending.payload, pending.user);
-    };
     const onVisChange = () => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") {
-        flushOnLeave();
+        flushPendingCloudSave();
       }
     };
-    window.addEventListener("pagehide", flushOnLeave);
-    window.addEventListener("beforeunload", flushOnLeave);
+    window.addEventListener("pagehide", flushPendingCloudSave);
+    window.addEventListener("beforeunload", flushPendingCloudSave);
     document.addEventListener("visibilitychange", onVisChange);
     return () => {
-      window.removeEventListener("pagehide", flushOnLeave);
-      window.removeEventListener("beforeunload", flushOnLeave);
+      window.removeEventListener("pagehide", flushPendingCloudSave);
+      window.removeEventListener("beforeunload", flushPendingCloudSave);
       document.removeEventListener("visibilitychange", onVisChange);
     };
-  }, [executeCloudSave]);
+  }, [flushPendingCloudSave]);
 
   const handleRetrySave = async () => {
     if (saveTimerRef.current) {
@@ -589,8 +595,9 @@ export function App() {
   // Keyboard shortcuts (/ for search, ? for help)
   useEffect(() => {
     const handleGlobalKey = e => {
-      const tag = document.activeElement?.tagName?.toLowerCase();
-      if (tag === "input" || tag === "textarea" || tag === "select") return;
+      const active = document.activeElement;
+      const tag = active?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select" || active?.isContentEditable) return;
 
       if (e.key === "/") {
         e.preventDefault();
@@ -940,65 +947,104 @@ export function App() {
   };
 
   const handleAddMember = ({ rel, target, person }) => {
-    if (!canEdit) return;
+    if (!canEdit || !person) return;
+    const cleanName = typeof person.name === "string" ? person.name.trim() : "";
+    if (!cleanName) return;
+
+    if (rel === "parent" && target) {
+      const existingParentCouple = (treeStateRef.current?.data?.couples || []).find(
+        c => Array.isArray(c.kids) && c.kids.includes(target)
+      );
+      if (existingParentCouple && existingParentCouple.h && existingParentCouple.w) {
+        return;
+      }
+    }
+
     recordHistorySnapshot();
     isLocalMutationRef.current = true;
     const newId = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    const newPerson = { id: newId, ...person };
+    const cleanHi = typeof person.hi === "string" && person.hi.trim() ? person.hi.trim() : undefined;
+    const newPerson = {
+      id: newId,
+      ...person,
+      name: cleanName,
+      hi: cleanHi,
+      g: person.g === "F" ? "F" : "M"
+    };
 
     setTreeState(prev => {
       const idx = buildFamilyIndex(prev.data);
-      let couples = prev.data.couples.map(c => ({ ...c, kids: [...c.kids] }));
+      let couples = prev.data.couples.map(c => ({ ...c, kids: [...(c.kids || [])] }));
 
-      if (rel === "spouse") {
+      if (rel === "spouse" && target) {
         const existingCouple = couples.find(
           c => (c.h === target && !c.w) || (c.w === target && !c.h)
         );
         if (existingCouple) {
-          if (existingCouple.h === target) existingCouple.w = newId;
-          else existingCouple.h = newId;
-        } else {
           const targetPerson = idx.byId[target];
-          couples.push(
-            (targetPerson?.g || "M") === "F" && person.g === "M"
-              ? { h: newId, w: target, kids: [] }
-              : { h: target, w: newId, kids: [] }
+          if (existingCouple.h === target) {
+            if ((targetPerson?.g || "M") === "F" && newPerson.g === "M") {
+              existingCouple.h = newId;
+              existingCouple.w = target;
+            } else {
+              existingCouple.w = newId;
+            }
+          } else {
+            existingCouple.h = newId;
+          }
+        } else {
+          const alreadyMarried = couples.some(
+            c => (c.h === target && c.w) || (c.w === target && c.h)
           );
+          if (!alreadyMarried) {
+            const targetPerson = idx.byId[target];
+            couples.push(
+              (targetPerson?.g || "M") === "F" && newPerson.g === "M"
+                ? { h: newId, w: target, kids: [] }
+                : { h: target, w: newId, kids: [] }
+            );
+          }
         }
-      } else if (rel === "child") {
+      } else if (rel === "child" && target) {
         let placed = false;
         couples = couples.map(c => {
-          if (c.h === target || c.w === target) {
+          if (!placed && (c.h === target || c.w === target)) {
             placed = true;
             return { ...c, kids: Array.from(new Set([...c.kids, newId])) };
           }
           return c;
         });
         if (!placed) {
-          couples.push({ h: target, w: "", kids: [newId] });
+          const targetPerson = idx.byId[target];
+          couples.push(
+            targetPerson?.g === "F"
+              ? { h: "", w: target, kids: [newId] }
+              : { h: target, w: "", kids: [newId] }
+          );
         }
-      } else if (rel === "parent") {
+      } else if (rel === "parent" && target) {
         const existingCouple = couples.find(c => c.kids.includes(target));
         if (existingCouple) {
-          if (person.g === "M" && !existingCouple.h) existingCouple.h = newId;
-          else if (person.g === "F" && !existingCouple.w) existingCouple.w = newId;
-          else {
-            couples.push(
-              person.g === "F"
-                ? { h: "", w: newId, kids: [target] }
-                : { h: newId, w: "", kids: [target] }
-            );
+          if (newPerson.g === "M" && !existingCouple.h) {
+            existingCouple.h = newId;
+          } else if (newPerson.g === "F" && !existingCouple.w) {
+            existingCouple.w = newId;
+          } else if (!existingCouple.h) {
+            existingCouple.h = newId;
+          } else if (!existingCouple.w) {
+            existingCouple.w = newId;
           }
         } else {
           couples.push(
-            person.g === "F"
+            newPerson.g === "F"
               ? { h: "", w: newId, kids: [target] }
               : { h: newId, w: "", kids: [target] }
           );
         }
-      } else if (rel === "sibling") {
+      } else if (rel === "sibling" && target) {
         let placed = false;
         couples = couples.map(c => {
+          if (placed) return c;
           const kidIdx = c.kids.indexOf(target);
           if (kidIdx < 0) return c;
           placed = true;
@@ -1077,7 +1123,7 @@ export function App() {
           const match2 = c.h === spouseId && c.w === personId;
           if (match1 || match2) {
             if (c.kids?.length) {
-              return { ...c, w: "" };
+              return match1 ? { ...c, w: "" } : { ...c, h: "" };
             }
             return null;
           }
@@ -1100,15 +1146,17 @@ export function App() {
     recordHistorySnapshot();
     isLocalMutationRef.current = true;
     setTreeState(prev => {
-      const updatedCouples = prev.data.couples.map(c => {
-        if (c.kids?.includes(personId)) {
-          return {
-            ...c,
-            kids: c.kids.filter(k => k !== personId)
-          };
-        }
-        return c;
-      });
+      const updatedCouples = prev.data.couples
+        .map(c => {
+          if (c.kids?.includes(personId)) {
+            return {
+              ...c,
+              kids: c.kids.filter(k => k !== personId)
+            };
+          }
+          return c;
+        })
+        .filter(c => c.h || c.w || (Array.isArray(c.kids) && c.kids.length > 0));
 
       return {
         ...prev,
@@ -1177,6 +1225,7 @@ export function App() {
   };
 
   const openDemoTree = () => {
+    flushPendingCloudSave();
     if (hasPrivateTree) {
       handleNavigateMyTree();
       return;
@@ -1194,6 +1243,7 @@ export function App() {
   };
 
   const handleSelectTree = (treeId, treeDoc) => {
+    flushPendingCloudSave();
     if (!treeId) {
       openDemoTree();
       return;
@@ -1213,6 +1263,10 @@ export function App() {
         treeDoc.photos || {},
         treeDoc.lang
       );
+      const hasUnsyncedLocalAdditions =
+        (merged.data?.people?.length || 0) > (treeDoc.data?.people?.length || 0) ||
+        (merged.data?.couples?.length || 0) > (treeDoc.data?.couples?.length || 0);
+      isLocalMutationRef.current = hasUnsyncedLocalAdditions;
       setTreeState(prev => ({
         ...prev,
         data: merged.data,
@@ -1302,6 +1356,7 @@ export function App() {
       setIsAuthOpen(true);
       return;
     }
+    flushPendingCloudSave();
     const hi = await transliterateToHindi(rootName);
     const newData = {
       people: [{ id: "p" + Date.now().toString(36), name: rootName, hi, g: "M" }],
@@ -1334,6 +1389,7 @@ export function App() {
       setIsAuthOpen(true);
       return;
     }
+    flushPendingCloudSave();
     const deduped = dedup({
       data: newData,
       photos: newPhotos || {},
@@ -1369,6 +1425,7 @@ export function App() {
   };
 
   const handleCreateRestore = () => {
+    flushPendingCloudSave();
     setTreeAccessDenied(false);
     setActiveTreeId("");
     setActiveTreeMeta(null);
@@ -1380,11 +1437,12 @@ export function App() {
   };
 
   const handleSignOut = async () => {
+    flushPendingCloudSave();
     await signOutUser();
     saveLocalAuthUser(null);
     setUser(null);
     setUserPrivateTreeId("");
-    setLastPrivateTreeId("");
+    clearLastPrivateTreeId();
     setSaveError(false);
     if (activeTreeId && (!activeTreeMeta || !activeTreeMeta.isPublic)) {
       isLocalMutationRef.current = false;

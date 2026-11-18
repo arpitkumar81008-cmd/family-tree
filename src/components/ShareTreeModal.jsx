@@ -20,8 +20,10 @@ export function ShareTreeModal({
   onUpdateTreeMeta,
   onSelectTree,
   onOpenAuth,
-  close
+  close,
+  onClose
 }) {
+  const handleClose = close || onClose || (() => {});
   const isOwner = Boolean(
     user?.uid && activeTreeId && activeTreeMeta && activeTreeMeta.ownerUid === user.uid
   );
@@ -52,6 +54,19 @@ export function ShareTreeModal({
 
   const ref = useRef(null);
   const firstRef = useRef(null);
+  const mountedRef = useRef(true);
+  const copyLinkTimerRef = useRef(null);
+  const copyCodeTimerRef = useRef(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    firstRef.current?.focus();
+    return () => {
+      mountedRef.current = false;
+      if (copyLinkTimerRef.current) clearTimeout(copyLinkTimerRef.current);
+      if (copyCodeTimerRef.current) clearTimeout(copyCodeTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     setIsPublic(Boolean(activeTreeMeta?.isPublic));
@@ -64,15 +79,19 @@ export function ShareTreeModal({
   useEffect(() => {
     let cancelled = false;
     if (!isOwner || !activeTreeId) return undefined;
-    getTreeSharingSettings(activeTreeId).then(settings => {
-      if (cancelled || !settings) return;
-      setShareCode(settings.shareCode || '');
-      setShareCodeRole(settings.shareCodeRole === 'editor' ? 'editor' : 'viewer');
-      setViewerEmails(Array.isArray(settings.viewerEmails) ? settings.viewerEmails : []);
-      setEditorEmails(Array.isArray(settings.editorEmails) ? settings.editorEmails : []);
-    });
+    getTreeSharingSettings(activeTreeId)
+      .then(settings => {
+        if (cancelled || !mountedRef.current || !settings) return;
+        setShareCode(settings.shareCode || '');
+        setShareCodeRole(settings.shareCodeRole === 'editor' ? 'editor' : 'viewer');
+        setViewerEmails(Array.isArray(settings.viewerEmails) ? settings.viewerEmails : []);
+        setEditorEmails(Array.isArray(settings.editorEmails) ? settings.editorEmails : []);
+      })
+      .catch(() => {});
     const unsubRequests = subscribePendingJoinRequests(activeTreeId, list => {
-      if (!cancelled) setPendingRequests(list);
+      if (!cancelled && mountedRef.current) {
+        setPendingRequests(Array.isArray(list) ? list : []);
+      }
     });
     return () => {
       cancelled = true;
@@ -81,13 +100,31 @@ export function ShareTreeModal({
   }, [isOwner, activeTreeId]);
 
   useEffect(() => {
-    firstRef.current?.focus();
     const onKey = e => {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape') {
+        handleClose();
+      } else if (e.key === 'Tab' && ref.current) {
+        const focusable = Array.from(
+          ref.current.querySelectorAll(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => el.offsetParent !== null || el.offsetWidth > 0);
+        if (focusable.length) {
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [close]);
+  }, [handleClose]);
 
   const applySharingPatch = async patch => {
     if (!isOwner || !activeTreeId) return;
@@ -95,13 +132,17 @@ export function ShareTreeModal({
     setMsg('');
     try {
       const updated = await updateTreeSharingSettings(activeTreeId, patch, user);
-      if (updated) {
+      if (updated && mountedRef.current) {
         onUpdateTreeMeta?.(updated);
       }
     } catch (err) {
-      setMsg(err?.message || 'Could not update sharing settings.');
+      if (mountedRef.current) {
+        setMsg(err?.message || 'Could not update sharing settings.');
+      }
     } finally {
-      setBusy(false);
+      if (mountedRef.current) {
+        setBusy(false);
+      }
     }
   };
 
@@ -126,7 +167,9 @@ export function ShareTreeModal({
       shareCode: clean,
       shareCodeRole
     });
-    setMsg(t('shareCodeSavedMsg'));
+    if (mountedRef.current) {
+      setMsg(t('shareCodeSavedMsg'));
+    }
   };
 
   const handleCopyInviteLink = async () => {
@@ -142,8 +185,12 @@ export function ShareTreeModal({
       }
       const shareUrl = buildPrivateShareUrl(activeTreeId, cleanCode);
       await navigator.clipboard.writeText(shareUrl);
+      if (!mountedRef.current) return;
       setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2000);
+      if (copyLinkTimerRef.current) clearTimeout(copyLinkTimerRef.current);
+      copyLinkTimerRef.current = setTimeout(() => {
+        if (mountedRef.current) setCopiedLink(false);
+      }, 2000);
     } catch {}
   };
 
@@ -152,8 +199,12 @@ export function ShareTreeModal({
       const cleanCode = shareCode.trim().toUpperCase();
       if (!cleanCode) return;
       await navigator.clipboard.writeText(cleanCode);
+      if (!mountedRef.current) return;
       setCopiedCode(true);
-      setTimeout(() => setCopiedCode(false), 2000);
+      if (copyCodeTimerRef.current) clearTimeout(copyCodeTimerRef.current);
+      copyCodeTimerRef.current = setTimeout(() => {
+        if (mountedRef.current) setCopiedCode(false);
+      }, 2000);
     } catch {}
   };
 
@@ -178,7 +229,9 @@ export function ShareTreeModal({
       viewerEmails: nextViewers,
       editorEmails: nextEditors
     });
-    setMsg(t('shareInviteAddedMsg'));
+    if (mountedRef.current) {
+      setMsg(t('shareInviteAddedMsg'));
+    }
   };
 
   const handleRemoveEmail = async targetEmail => {
@@ -198,12 +251,17 @@ export function ShareTreeModal({
     setRequestActionMsg('');
     try {
       await respondToJoinRequest(activeTreeId, reqItem.requesterUid, { approve, role }, user);
+      if (!mountedRef.current) return;
       setPendingRequests(prev => prev.filter(r => r.requesterUid !== reqItem.requesterUid));
       setRequestActionMsg(approve ? t('requestApprovedMsg') : t('requestDeclinedMsg'));
     } catch (err) {
-      setRequestActionMsg(err?.message || 'Could not update request.');
+      if (mountedRef.current) {
+        setRequestActionMsg(err?.message || 'Could not update request.');
+      }
     } finally {
-      setBusy(false);
+      if (mountedRef.current) {
+        setBusy(false);
+      }
     }
   };
 
@@ -216,13 +274,15 @@ export function ShareTreeModal({
     setJoinNotifyLinks(null);
     try {
       const found = await findTreeByShareCode(raw);
+      if (!mountedRef.current) return;
       if (found) {
         onSelectTree?.(found.id, found);
-        close();
+        handleClose();
       } else {
         setJoinMsg(t('joinByCodeNotFound'));
       }
     } catch (err) {
+      if (!mountedRef.current) return;
       if (err?.code === 'AUTH_REQUIRED') {
         setJoinMsg('Please sign in first to request access or open a shared tree.');
       } else if (err?.code === 'APPROVAL_REQUIRED' && err?.treeId) {
@@ -239,6 +299,7 @@ export function ShareTreeModal({
             requesterEmail: user.email || '',
             requestedRole: 'viewer'
           });
+          if (!mountedRef.current) return;
           setJoinNotifyLinks(notifyRes);
           setJoinMsg(
             notifyRes.sent
@@ -246,7 +307,9 @@ export function ShareTreeModal({
               : t('requestAccessSuccess')
           );
         } catch (reqErr) {
-          setJoinMsg(reqErr?.message || t('joinByCodeNotFound'));
+          if (mountedRef.current) {
+            setJoinMsg(reqErr?.message || t('joinByCodeNotFound'));
+          }
         }
       } else if (err?.code === 'functions/resource-exhausted') {
         setJoinMsg('Too many attempts. Please wait a few minutes and try again.');
@@ -254,7 +317,9 @@ export function ShareTreeModal({
         setJoinMsg(t('joinByCodeNotFound'));
       }
     } finally {
-      setBusy(false);
+      if (mountedRef.current) {
+        setBusy(false);
+      }
     }
   };
 
@@ -264,7 +329,7 @@ export function ShareTreeModal({
   ];
 
   return (
-    <div className="overlay" onMouseDown={e => e.target === e.currentTarget && close()}>
+    <div className="overlay" onMouseDown={e => e.target === e.currentTarget && handleClose()}>
       <div
         ref={ref}
         className="sheet create-sheet"
@@ -272,7 +337,7 @@ export function ShareTreeModal({
         aria-modal="true"
         aria-labelledby="share-modal-title"
       >
-        <button className="x" type="button" aria-label={t('close')} onClick={close}>
+        <button className="x" type="button" aria-label={t('close')} onClick={handleClose}>
           ×
         </button>
         <h2 id="share-modal-title">{t('shareModalTitle')}</h2>
@@ -581,7 +646,7 @@ export function ShareTreeModal({
                   type="button"
                   className="zbtn"
                   onClick={() => {
-                    close();
+                    handleClose();
                     onOpenAuth?.();
                   }}
                 >

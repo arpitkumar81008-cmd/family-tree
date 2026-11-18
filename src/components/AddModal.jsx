@@ -27,9 +27,20 @@ export function AddModal({
   const modalRef = useRef(null);
   const closeBtnRef = useRef(null);
   const nameInputRef = useRef(null);
+  const mountedRef = useRef(true);
+  const translitSeqRef = useRef(0);
+  const hiAutoRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     nameInputRef.current?.focus();
+    return () => {
+      mountedRef.current = false;
+      translitSeqRef.current += 1;
+    };
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = e => {
       if (e.key === "Tab") {
         const focusable = modalRef.current
@@ -68,14 +79,19 @@ export function AddModal({
   }, [name, hiName]);
 
   useEffect(() => {
+    const safeCouples = Array.isArray(couples) ? couples : [];
+    const safePeople = Array.isArray(people) ? people : [];
     if (rel === "child") {
-      const c = couples[0];
-      setTarget(c ? c.h || c.w : people[0]?.id || "");
+      const c = safeCouples[0];
+      setTarget(c ? c.h || c.w : safePeople[0]?.id || "");
     } else if (rel === "spouse") {
-      const p = people.find(p => !familyIndex.spouse[p.id]);
-      setTarget(p ? p.id : people[0]?.id || "");
+      const p = safePeople.find(p => !familyIndex?.spouse?.[p.id]);
+      setTarget(p ? p.id : safePeople[0]?.id || "");
+    } else if (rel === "parent") {
+      const p = safePeople.find(p => (familyIndex?.parOf?.(p.id)?.length || 0) < 2);
+      setTarget(p ? p.id : safePeople[0]?.id || "");
     } else if (rel !== "root") {
-      setTarget(people[0]?.id || "");
+      setTarget(safePeople[0]?.id || "");
     } else {
       setTarget("");
     }
@@ -91,9 +107,19 @@ export function AddModal({
       return;
     }
 
-    const match = people.find(
+    if (rel === "parent" && target && (familyIndex?.parOf?.(target)?.length || 0) >= 2) {
+      setErrorMsg(
+        lang === "hi"
+          ? "इस सदस्य के माता-पिता दोनों पहले से जुड़े हुए हैं"
+          : "This member already has two parents linked"
+      );
+      return;
+    }
+
+    const safePeople = Array.isArray(people) ? people : [];
+    const match = safePeople.find(
       p =>
-        p.name.trim().toLowerCase() === trimmedName.toLowerCase() ||
+        (p.name || "").trim().toLowerCase() === trimmedName.toLowerCase() ||
         (hiName.trim() && p.hi && p.hi.trim() === hiName.trim())
     );
 
@@ -103,6 +129,7 @@ export function AddModal({
       return;
     }
 
+    translitSeqRef.current += 1;
     setSubmitting(true);
     onAdd({
       rel,
@@ -196,14 +223,22 @@ export function AddModal({
                       </option>
                     ))
                   : rel === "spouse"
-                  ? people
-                      .filter(p => !familyIndex.spouse[p.id] || p.id === target)
+                  ? (people || [])
+                      .filter(p => !familyIndex?.spouse?.[p.id] || p.id === target)
                       .map(p => (
                         <option key={p.id} value={p.id}>
                           {displayName(p.id)}
                         </option>
                       ))
-                  : people.map(p => (
+                  : rel === "parent"
+                  ? (people || [])
+                      .filter(p => (familyIndex?.parOf?.(p.id)?.length || 0) < 2 || p.id === target)
+                      .map(p => (
+                        <option key={p.id} value={p.id}>
+                          {displayName(p.id)}
+                        </option>
+                      ))
+                  : (people || []).map(p => (
                       <option key={p.id} value={p.id}>
                         {displayName(p.id)}
                       </option>
@@ -223,7 +258,28 @@ export function AddModal({
               onChange={e => {
                 const val = e.target.value;
                 setName(val);
-                transliterateToHindi(val).then(hi => setHiName(hi));
+                if (!hiName.trim() || hiAutoRef.current) {
+                  hiAutoRef.current = true;
+                  const seq = ++translitSeqRef.current;
+                  if (!val.trim()) {
+                    setHiName("");
+                    setIsTranslating(false);
+                  } else {
+                    setIsTranslating(true);
+                    transliterateToHindi(val)
+                      .then(hi => {
+                        if (mountedRef.current && seq === translitSeqRef.current) {
+                          setHiName(hi);
+                          setIsTranslating(false);
+                        }
+                      })
+                      .catch(() => {
+                        if (mountedRef.current && seq === translitSeqRef.current) {
+                          setIsTranslating(false);
+                        }
+                      });
+                  }
+                }
               }}
             />
           </div>
@@ -236,7 +292,12 @@ export function AddModal({
                 id="am-hi"
                 value={hiName}
                 placeholder={isTranslating ? t("translating") : "उदा. रमेश गुप्ता"}
-                onChange={e => setHiName(e.target.value)}
+                onChange={e => {
+                  hiAutoRef.current = false;
+                  translitSeqRef.current += 1;
+                  setIsTranslating(false);
+                  setHiName(e.target.value);
+                }}
               />
               <button
                 type="button"
@@ -244,11 +305,20 @@ export function AddModal({
                 title={t("autoHindi")}
                 aria-label={t("autoHindi")}
                 onClick={async () => {
-                  if (name) {
+                  if (name.trim()) {
+                    const seq = ++translitSeqRef.current;
                     setIsTranslating(true);
-                    const hi = await transliterateToHindi(name);
-                    setHiName(hi);
-                    setIsTranslating(false);
+                    try {
+                      const hi = await transliterateToHindi(name);
+                      if (mountedRef.current && seq === translitSeqRef.current) {
+                        setHiName(hi);
+                        hiAutoRef.current = true;
+                      }
+                    } finally {
+                      if (mountedRef.current && seq === translitSeqRef.current) {
+                        setIsTranslating(false);
+                      }
+                    }
                   }
                 }}
               >

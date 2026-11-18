@@ -46,11 +46,31 @@ export function Sheet({
 
   const sheetRef = useRef(null);
   const fileInputRef = useRef(null);
+  const mountedRef = useRef(true);
+  const editTranslitSeqRef = useRef(0);
+  const subTranslitSeqRef = useRef(0);
+  const editHiAutoRef = useRef(true);
+  const subHiAutoRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      editTranslitSeqRef.current += 1;
+      subTranslitSeqRef.current += 1;
+    };
+  }, []);
+
+  useEffect(() => {
+    editTranslitSeqRef.current += 1;
+    subTranslitSeqRef.current += 1;
+    editHiAutoRef.current = true;
+    subHiAutoRef.current = true;
     setNoteVal(person?.note || "");
     setEditingNote(false);
     setAddMode(null);
+    setSubName("");
+    setSubHi("");
     setPhotoMsg("");
     setConfirmRemove(false);
     setErrMsg("");
@@ -66,7 +86,26 @@ export function Sheet({
 
   useEffect(() => {
     const handleKeyDown = e => {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape") {
+        close();
+      } else if (e.key === "Tab" && sheetRef.current) {
+        const focusable = Array.from(
+          sheetRef.current.querySelectorAll(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => el.offsetParent !== null || el.offsetWidth > 0);
+        if (focusable.length) {
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
@@ -105,9 +144,13 @@ export function Sheet({
         throw new Error("EMPTY_IMAGE");
       }
       const ok = await Promise.race([setPhoto(person.id, dataUrl), timeoutGuard]);
-      setPhotoMsg(ok ? t("added") : t("noSpace"));
+      if (mountedRef.current) {
+        setPhotoMsg(ok ? t("added") : t("noSpace"));
+      }
     } catch {
-      setPhotoMsg(t("badImg"));
+      if (mountedRef.current) {
+        setPhotoMsg(t("badImg"));
+      }
     } finally {
       if (guardTimer !== null) clearTimeout(guardTimer);
       input.value = "";
@@ -116,11 +159,14 @@ export function Sheet({
 
   const handleSubAdd = e => {
     e.preventDefault();
-    if (!subName.trim()) {
+    const cleanSubName = typeof subName === "string" ? subName.trim() : "";
+    if (!cleanSubName) {
       setErrMsg(t("needName"));
       return;
     }
-    add(person.id, addMode, subName.trim(), subHi.trim() || undefined, subGender);
+    const cleanSubHi = typeof subHi === "string" ? subHi.trim() : "";
+    subTranslitSeqRef.current += 1;
+    add(person.id, addMode, cleanSubName, cleanSubHi || undefined, subGender);
     setAddMode(null);
     setSubName("");
     setSubHi("");
@@ -189,8 +235,22 @@ export function Sheet({
                     onChange={e => {
                       const val = e.target.value;
                       setEditName(val);
-                      if (!editHi || editHi === transliterateToHindi(editName)) {
-                        setEditHi(transliterateToHindi(val));
+                      if (errMsg) setErrMsg("");
+                      const currHi = typeof editHi === "string" ? editHi.trim() : "";
+                      if (!currHi || editHiAutoRef.current) {
+                        editHiAutoRef.current = true;
+                        const seq = ++editTranslitSeqRef.current;
+                        if (!val.trim()) {
+                          setEditHi("");
+                        } else {
+                          transliterateToHindi(val)
+                            .then(hi => {
+                              if (mountedRef.current && seq === editTranslitSeqRef.current) {
+                                setEditHi(hi);
+                              }
+                            })
+                            .catch(() => {});
+                        }
                       }
                     }}
                     style={{ width: "100%", padding: "6px 8px", fontSize: "14px", marginTop: "4px" }}
@@ -206,14 +266,29 @@ export function Sheet({
                       id="edit-hi"
                       type="text"
                       value={editHi}
-                      onChange={e => setEditHi(e.target.value)}
+                      onChange={e => {
+                        editHiAutoRef.current = false;
+                        editTranslitSeqRef.current += 1;
+                        setEditHi(e.target.value);
+                      }}
                       style={{ flex: 1, padding: "6px 8px", fontSize: "14px" }}
                     />
                     <button
                       type="button"
                       className="btn ghost"
                       style={{ fontSize: "11px", padding: "0 8px" }}
-                      onClick={() => setEditHi(transliterateToHindi(editName))}
+                      onClick={async () => {
+                        const seq = ++editTranslitSeqRef.current;
+                        if (!editName.trim()) {
+                          setEditHi("");
+                          return;
+                        }
+                        const hi = await transliterateToHindi(editName);
+                        if (mountedRef.current && seq === editTranslitSeqRef.current) {
+                          setEditHi(hi);
+                          editHiAutoRef.current = true;
+                        }
+                      }}
                       title={lang === "hi" ? "अंग्रेज़ी से हिंदी में बदलें" : "Auto-transliterate to Hindi"}
                     >
                       अ→A
@@ -287,22 +362,37 @@ export function Sheet({
                   <span>{lang === "hi" ? "स्वर्गवासी (Late)" : "Late (Deceased)"}</span>
                 </label>
 
+                {errMsg && (
+                  <p className="msg" role="alert" style={{ margin: 0 }}>
+                    {errMsg}
+                  </p>
+                )}
+
                 <div style={{ display: "flex", gap: "8px", marginTop: "6px" }}>
                   <button
                     type="button"
                     className="btn"
                     onClick={() => {
-                      const trimmed = editName.trim();
-                      if (!trimmed) return;
+                      const trimmed = typeof editName === "string" ? editName.trim() : "";
+                      if (!trimmed) {
+                        setErrMsg(t("needName"));
+                        return;
+                      }
+                      const cleanHi = typeof editHi === "string" ? editHi.trim() : "";
+                      const cleanDob = typeof editDob === "string" ? editDob.trim() : "";
+                      const cleanCity = typeof editCity === "string" ? editCity.trim() : "";
+                      const cleanAnniversary = typeof editAnniversary === "string" ? editAnniversary.trim() : "";
+                      editTranslitSeqRef.current += 1;
                       patch(person.id, {
                         name: trimmed,
-                        hi: editHi.trim() || undefined,
-                        g: editGender,
-                        dob: editDob || undefined,
-                        city: editCity.trim() || undefined,
-                        anniversary: editAnniversary || undefined,
-                        late: editLate || undefined
+                        hi: cleanHi || undefined,
+                        g: editGender === "F" ? "F" : "M",
+                        dob: cleanDob || undefined,
+                        city: cleanCity || undefined,
+                        anniversary: cleanAnniversary || undefined,
+                        late: Boolean(editLate) || undefined
                       });
+                      setErrMsg("");
                       setIsEditingDetails(false);
                     }}
                   >
@@ -312,6 +402,8 @@ export function Sheet({
                     type="button"
                     className="btn ghost"
                     onClick={() => {
+                      editTranslitSeqRef.current += 1;
+                      editHiAutoRef.current = true;
                       setEditName(person.name || "");
                       setEditHi(person.hi || "");
                       setEditGender(person.g || "M");
@@ -319,6 +411,7 @@ export function Sheet({
                       setEditCity(person.city || "");
                       setEditAnniversary(person.anniversary || "");
                       setEditLate(Boolean(person.late));
+                      setErrMsg("");
                       setIsEditingDetails(false);
                     }}
                   >
@@ -623,7 +716,22 @@ export function Sheet({
                     onChange={e => {
                       const val = e.target.value;
                       setSubName(val);
-                      transliterateToHindi(val).then(hi => setSubHi(hi));
+                      if (errMsg) setErrMsg("");
+                      if (!subHi.trim() || subHiAutoRef.current) {
+                        subHiAutoRef.current = true;
+                        const seq = ++subTranslitSeqRef.current;
+                        if (!val.trim()) {
+                          setSubHi("");
+                        } else {
+                          transliterateToHindi(val)
+                            .then(hi => {
+                              if (mountedRef.current && seq === subTranslitSeqRef.current) {
+                                setSubHi(hi);
+                              }
+                            })
+                            .catch(() => {});
+                        }
+                      }
                     }}
                   />
                 </div>
@@ -633,7 +741,11 @@ export function Sheet({
                     <input
                       id="sub-hi"
                       value={subHi}
-                      onChange={e => setSubHi(e.target.value)}
+                      onChange={e => {
+                        subHiAutoRef.current = false;
+                        subTranslitSeqRef.current += 1;
+                        setSubHi(e.target.value);
+                      }}
                     />
                     <button
                       type="button"
@@ -641,7 +753,14 @@ export function Sheet({
                       title={t("autoHindi")}
                       aria-label={t("autoHindi")}
                       onClick={async () => {
-                        if (subName) setSubHi(await transliterateToHindi(subName));
+                        if (subName.trim()) {
+                          const seq = ++subTranslitSeqRef.current;
+                          const hi = await transliterateToHindi(subName);
+                          if (mountedRef.current && seq === subTranslitSeqRef.current) {
+                            setSubHi(hi);
+                            subHiAutoRef.current = true;
+                          }
+                        }
                       }}
                     >
                       अ
