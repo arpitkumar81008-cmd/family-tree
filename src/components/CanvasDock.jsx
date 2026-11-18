@@ -1,29 +1,31 @@
 import React, { useState } from 'react';
 
 export function CanvasDock({
-  zoom,
+  zoom = 1,
   onZoomIn,
   onZoomOut,
   onFit,
   onPan,
-  viewerName,
+  viewerName = '',
   onReset,
   isFullscreen = false,
   onToggleFullscreen,
   t,
-  lang
+  lang = 'en'
 }) {
   const isHi = lang === 'hi';
   const [isPinned, setIsPinned] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
+  const translate = typeof t === 'function' ? t : (key => key);
+  const safeZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
   const isExpanded = isPinned || isHovered;
 
   return (
     <div
       className={`canvas-dock collapsible-dock${isExpanded ? ' is-expanded' : ''}`}
       role="group"
-      aria-label={t('zoomGroup')}
+      aria-label={translate('zoomGroup')}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -38,7 +40,7 @@ export function CanvasDock({
             onFit?.();
           }}
         >
-          {viewerName ? `✕ ${t('dockViewing', viewerName)}` : `⟲ ${t('dockMode')}`}
+          {viewerName ? `✕ ${translate('dockViewing', viewerName)}` : `⟲ ${translate('dockMode')}`}
         </button>
 
         <span className="dock-sep" aria-hidden="true" />
@@ -93,20 +95,20 @@ export function CanvasDock({
           type="button"
           className="dock-btn"
           tabIndex={isExpanded ? 0 : -1}
-          aria-label={t('zoomOut')}
-          onClick={onZoomOut}
+          aria-label={translate('zoomOut')}
+          onClick={() => onZoomOut?.()}
         >
           −
         </button>
         <span className="dock-zoom" aria-live="polite">
-          {Math.round(zoom * 100)}%
+          {Math.round(safeZoom * 100)}%
         </span>
         <button
           type="button"
           className="dock-btn"
           tabIndex={isExpanded ? 0 : -1}
-          aria-label={t('zoomIn')}
-          onClick={onZoomIn}
+          aria-label={translate('zoomIn')}
+          onClick={() => onZoomIn?.()}
         >
           +
         </button>
@@ -114,9 +116,9 @@ export function CanvasDock({
           type="button"
           className="dock-btn text"
           tabIndex={isExpanded ? 0 : -1}
-          onClick={onFit}
+          onClick={() => onFit?.()}
         >
-          ⛶ {t('fit')}
+          ⛶ {translate('fit')}
         </button>
 
         <span className="dock-sep" aria-hidden="true" />
@@ -125,18 +127,18 @@ export function CanvasDock({
           type="button"
           className={`dock-btn text dock-fullscreen-btn${isFullscreen ? ' active' : ''}`}
           tabIndex={isExpanded ? 0 : -1}
-          aria-label={isFullscreen ? t('fullscreenExit') : t('fullscreenEnter')}
-          aria-pressed={isFullscreen}
+          aria-label={isFullscreen ? translate('fullscreenExit') : translate('fullscreenEnter')}
+          aria-pressed={Boolean(isFullscreen)}
           title={
             isFullscreen
               ? (isHi ? 'पूर्ण-स्क्रीन से बाहर निकलें' : 'Exit Full-Screen')
               : (isHi ? 'पूर्ण-स्क्रीन दृश्य' : 'Full-Screen View')
           }
-          onClick={onToggleFullscreen}
+          onClick={() => onToggleFullscreen?.()}
         >
           {isFullscreen
-            ? `✕ ${t('fullscreenExitShort') || 'Exit'}`
-            : `⛶ ${t('fullscreenEnterShort') || 'Full'}`}
+            ? `✕ ${translate('fullscreenExitShort') || 'Exit'}`
+            : `⛶ ${translate('fullscreenEnterShort') || 'Full'}`}
         </button>
       </div>
 
@@ -144,7 +146,7 @@ export function CanvasDock({
       <button
         type="button"
         className={`dock-star-trigger${isPinned ? ' is-pinned' : ''}`}
-        aria-label={t('dockToggleAria')}
+        aria-label={translate('dockToggleAria')}
         aria-expanded={isExpanded}
         title={
           isHi

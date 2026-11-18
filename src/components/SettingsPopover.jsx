@@ -1,32 +1,33 @@
 import React, { useEffect, useRef } from 'react';
 
 export function SettingsPopover({
-  isOpen,
+  isOpen = false,
   onClose,
-  theme,
+  theme = 'system',
   setTheme,
-  textSize,
+  textSize = 'normal',
   setTextSize,
-  contrast,
+  contrast = 'normal',
   setContrast,
-  motion,
+  motion = 'normal',
   setMotion,
   viewportMode = 'auto',
   setViewportMode,
-  lang,
+  lang = 'en',
   setLang,
   t
 }) {
   const popoverRef = useRef(null);
+  const translate = typeof t === 'function' ? t : (key => key);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || typeof document === 'undefined') return;
     const handleKeyDown = e => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onClose?.();
     };
     const handleClickOutside = e => {
       if (popoverRef.current && !popoverRef.current.contains(e.target)) {
-        onClose();
+        onClose?.();
       }
     };
     document.addEventListener("keydown", handleKeyDown);
@@ -61,18 +62,18 @@ export function SettingsPopover({
       className="settings-popover"
       role="dialog"
       aria-modal="true"
-      aria-label={t("settingsTitle")}
+      aria-label={translate("settingsTitle")}
     >
       <div className="settings-head">
         <div className="settings-head-title">
           <span className="settings-head-icon" aria-hidden="true">⚙</span>
-          <h3>{t("settingsTitle")}</h3>
+          <h3>{translate("settingsTitle")}</h3>
         </div>
         <button
           className="settings-close"
           type="button"
-          aria-label={t("close")}
-          onClick={onClose}
+          aria-label={translate("close")}
+          onClick={() => onClose?.()}
         >
           ×
         </button>
@@ -85,13 +86,13 @@ export function SettingsPopover({
 
         {/* Language */}
         <div className="settings-group">
-          <span className="lbl">{t("langLabel")}</span>
+          <span className="lbl">{translate("langLabel")}</span>
           <div className="settings-seg">
             <button
               type="button"
               className="zbtn"
               aria-pressed={lang === "en"}
-              onClick={() => setLang("en")}
+              onClick={() => setLang?.("en")}
             >
               English
             </button>
@@ -99,7 +100,7 @@ export function SettingsPopover({
               type="button"
               className="zbtn"
               aria-pressed={lang === "hi"}
-              onClick={() => setLang("hi")}
+              onClick={() => setLang?.("hi")}
             >
               हिन्दी
             </button>
@@ -109,7 +110,7 @@ export function SettingsPopover({
         {/* Display / Visibility Mode (Laptop vs Mobile Optimization) */}
         {setViewportMode && (
           <div className="settings-group">
-            <span className="lbl">{t("viewportLabel")}</span>
+            <span className="lbl">{translate("viewportLabel")}</span>
             <div className="settings-seg">
               <button
                 type="button"
@@ -117,7 +118,7 @@ export function SettingsPopover({
                 aria-pressed={viewportMode === "auto"}
                 onClick={() => setViewportMode("auto")}
               >
-                {t("viewAuto")}
+                {translate("viewAuto")}
               </button>
               <button
                 type="button"
@@ -125,7 +126,7 @@ export function SettingsPopover({
                 aria-pressed={viewportMode === "laptop"}
                 onClick={() => setViewportMode("laptop")}
               >
-                💻 {t("viewLaptop")}
+                💻 {translate("viewLaptop")}
               </button>
               <button
                 type="button"
@@ -133,7 +134,7 @@ export function SettingsPopover({
                 aria-pressed={viewportMode === "mobile"}
                 onClick={() => setViewportMode("mobile")}
               >
-                📱 {t("viewMobile")}
+                📱 {translate("viewMobile")}
               </button>
             </div>
           </div>
@@ -141,31 +142,31 @@ export function SettingsPopover({
 
         {/* Theme */}
         <div className="settings-group">
-          <span className="lbl">{t("themeLabel")}</span>
+          <span className="lbl">{translate("themeLabel")}</span>
           <div className="settings-seg">
             <button
               type="button"
               className="zbtn"
               aria-pressed={theme === "light"}
-              onClick={() => setTheme("light")}
+              onClick={() => setTheme?.("light")}
             >
-              {t("themeLight")}
+              {translate("themeLight")}
             </button>
             <button
               type="button"
               className="zbtn"
               aria-pressed={theme === "dark"}
-              onClick={() => setTheme("dark")}
+              onClick={() => setTheme?.("dark")}
             >
-              {t("themeDark")}
+              {translate("themeDark")}
             </button>
             <button
               type="button"
               className="zbtn"
               aria-pressed={theme === "system"}
-              onClick={() => setTheme("system")}
+              onClick={() => setTheme?.("system")}
             >
-              {t("themeSystem")}
+              {translate("themeSystem")}
             </button>
           </div>
         </div>
@@ -178,31 +179,31 @@ export function SettingsPopover({
 
         {/* Text Size */}
         <div className="settings-group">
-          <span className="lbl">{t("textSizeLabel")}</span>
+          <span className="lbl">{translate("textSizeLabel")}</span>
           <div className="settings-seg">
             <button
               type="button"
               className="zbtn"
               aria-pressed={textSize === "normal"}
-              onClick={() => setTextSize("normal")}
+              onClick={() => setTextSize?.("normal")}
             >
-              {t("textDefault")}
+              {translate("textDefault")}
             </button>
             <button
               type="button"
               className="zbtn"
               aria-pressed={textSize === "large"}
-              onClick={() => setTextSize("large")}
+              onClick={() => setTextSize?.("large")}
             >
-              {t("textLarge")}
+              {translate("textLarge")}
             </button>
             <button
               type="button"
               className="zbtn"
               aria-pressed={textSize === "xlarge"}
-              onClick={() => setTextSize("xlarge")}
+              onClick={() => setTextSize?.("xlarge")}
             >
-              {t("textXLarge")}
+              {translate("textXLarge")}
             </button>
           </div>
         </div>
@@ -210,45 +211,45 @@ export function SettingsPopover({
         {/* High Contrast & Reduced Motion */}
         <div className="settings-a11y-pair">
           <div className="settings-group">
-            <span className="lbl">{t("contrastLabel")}</span>
+            <span className="lbl">{translate("contrastLabel")}</span>
             <div className="settings-seg">
               <button
                 type="button"
                 className="zbtn"
                 aria-pressed={contrast === "normal"}
-                onClick={() => setContrast("normal")}
+                onClick={() => setContrast?.("normal")}
               >
-                {t("off")}
+                {translate("off")}
               </button>
               <button
                 type="button"
                 className="zbtn"
                 aria-pressed={contrast === "high"}
-                onClick={() => setContrast("high")}
+                onClick={() => setContrast?.("high")}
               >
-                {t("on")}
+                {translate("on")}
               </button>
             </div>
           </div>
 
           <div className="settings-group">
-            <span className="lbl">{t("motionLabel")}</span>
+            <span className="lbl">{translate("motionLabel")}</span>
             <div className="settings-seg">
               <button
                 type="button"
                 className="zbtn"
                 aria-pressed={motion === "normal"}
-                onClick={() => setMotion("normal")}
+                onClick={() => setMotion?.("normal")}
               >
-                {t("off")}
+                {translate("off")}
               </button>
               <button
                 type="button"
                 className="zbtn"
                 aria-pressed={motion === "reduce"}
-                onClick={() => setMotion("reduce")}
+                onClick={() => setMotion?.("reduce")}
               >
-                {t("on")}
+                {translate("on")}
               </button>
             </div>
           </div>

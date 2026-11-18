@@ -10,14 +10,14 @@ export function Canvas({
   treeState,
   familyIndex,
   layout,
-  cardHeight,
-  zoom,
+  cardHeight = 138,
+  zoom = 1,
   setZoom,
   fitView,
-  searchQuery,
-  searchMatches,
-  viewer,
-  lang,
+  searchQuery = '',
+  searchMatches = [],
+  viewer = '',
+  lang = 'en',
   t,
   displayName,
   onCardClick,
@@ -35,7 +35,18 @@ export function Canvas({
   const containerRef = useRef(null);
   const stageRef = useRef(null);
   const hostRef = useRef(null);
-  const panRef = useRef({ active: false, hasDragged: false, sx: 0, sy: 0, sl: 0, st: 0 });
+  const focusRafRef = useRef(null);
+  const panTimerRef = useRef(null);
+  const wheelStateRef = useRef({ rafId: null, saveTimer: null, pending: null });
+  const panRef = useRef({
+    active: false,
+    hasDragged: false,
+    sx: 0,
+    sy: 0,
+    sl: 0,
+    st: 0,
+    resetTimer: null
+  });
   const pinchRef = useRef({
     active: false,
     hasPinched: false,
@@ -48,11 +59,51 @@ export function Canvas({
     debounceTimer: null
   });
 
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
+  const safeZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+  const safeCardHeight = Number.isFinite(cardHeight) && cardHeight > 0 ? cardHeight : 138;
+
+  const zoomRef = useRef(safeZoom);
+  zoomRef.current = safeZoom;
 
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
+
+  const people = useMemo(
+    () => (Array.isArray(treeState?.data?.people) ? treeState.data.people : []),
+    [treeState?.data?.people]
+  );
+  const photos = useMemo(
+    () => (treeState?.photos && typeof treeState.photos === 'object' ? treeState.photos : {}),
+    [treeState?.photos]
+  );
+
+  const searchMatchesList = useMemo(() => {
+    if (!searchMatches) return [];
+    const raw = Array.isArray(searchMatches)
+      ? searchMatches
+      : searchMatches instanceof Set
+      ? Array.from(searchMatches)
+      : [];
+    return raw
+      .map(item => (typeof item === 'string' ? { id: item } : item))
+      .filter(item => item && item.id);
+  }, [searchMatches]);
+
+  const translate = useCallback(
+    (key, ...args) => (typeof t === 'function' ? t(key, ...args) : key),
+    [t]
+  );
+
+  const resolveDisplayName = useCallback(
+    (id) => {
+      if (!id) return '';
+      if (typeof displayName === 'function') return displayName(id) || '';
+      const p = familyIndex?.byId?.[id];
+      if (!p) return String(id);
+      return (lang === 'hi' ? p.hi || p.name : p.name) || String(id);
+    },
+    [displayName, familyIndex, lang]
+  );
 
   const [internalFullscreen, setInternalFullscreen] = useState(false);
   const isFullscreen = isFullscreenProp !== undefined ? isFullscreenProp : internalFullscreen;
@@ -66,7 +117,10 @@ export function Canvas({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
 
-  const subTrees = layout?.subTrees || [];
+  const subTrees = useMemo(
+    () => (Array.isArray(layout?.subTrees) ? layout.subTrees.filter(Boolean) : []),
+    [layout?.subTrees]
+  );
 
   const isSubTreeCollapsed = useCallback((id) => {
     return collapsedSubTrees instanceof Set
@@ -77,7 +131,22 @@ export function Canvas({
   const lastToggledIdRef = useRef(null);
   const prevCollapsedKeyRef = useRef(null);
 
+  // Clean up shared focus RAF and pan timer on unmount
+  useEffect(() => {
+    return () => {
+      if (focusRafRef.current !== null) {
+        cancelAnimationFrame(focusRafRef.current);
+        focusRafRef.current = null;
+      }
+      if (panTimerRef.current !== null) {
+        clearTimeout(panTimerRef.current);
+        panTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const handleToggleSubTree = useCallback((subTreeId) => {
+    if (!subTreeId) return;
     lastToggledIdRef.current = subTreeId;
     if (onToggleSubTreeProp) {
       onToggleSubTreeProp(subTreeId);
@@ -199,19 +268,40 @@ export function Canvas({
 
   const focusBoundingBox = useCallback((bb) => {
     const el = containerRef.current;
-    if (!el || !bb || bb.w <= 0 || bb.h <= 0) return;
+    if (!el || !bb) return;
+    const bw = Number(bb.w) || 0;
+    const bh = Number(bb.h) || 0;
+    const bx = Number(bb.x) || 0;
+    const by = Number(bb.y) || 0;
+    if (bw <= 0 || bh <= 0) return;
+
+    const cw = el.clientWidth || 0;
+    const ch = el.clientHeight || 0;
+    if (cw <= 0 || ch <= 0) return;
+
     const pad = 64;
+    const denomW = bw + pad * 2;
+    const denomH = bh + pad * 2;
+    if (denomW <= 0 || denomH <= 0) return;
+
     const fitZoom = Math.min(
       1.1,
-      Math.max(0.45, Math.min(el.clientWidth / (bb.w + pad * 2), el.clientHeight / (bb.h + pad * 2)))
+      Math.max(0.45, Math.min(cw / denomW, ch / denomH))
     );
-    const nextZoom = Number(fitZoom.toFixed(2));
+    const nextZoom = Number.isFinite(fitZoom) && fitZoom > 0 ? Number(fitZoom.toFixed(2)) : 1;
     setZoom?.(nextZoom);
     saveCanvasZoom(nextZoom);
-    requestAnimationFrame(() => {
-      const targetLeft = Math.max(0, (bb.x + bb.w / 2) * nextZoom - el.clientWidth / 2);
-      const targetTop = Math.max(0, (bb.y + bb.h / 2) * nextZoom - el.clientHeight / 2);
-      el.scrollTo({ left: targetLeft, top: targetTop, behavior: 'smooth' });
+
+    if (focusRafRef.current !== null) {
+      cancelAnimationFrame(focusRafRef.current);
+    }
+    focusRafRef.current = requestAnimationFrame(() => {
+      focusRafRef.current = null;
+      const curEl = containerRef.current;
+      if (!curEl) return;
+      const targetLeft = Math.max(0, (bx + bw / 2) * nextZoom - (curEl.clientWidth || 0) / 2);
+      const targetTop = Math.max(0, (by + bh / 2) * nextZoom - (curEl.clientHeight || 0) / 2);
+      curEl.scrollTo?.({ left: targetLeft, top: targetTop, behavior: 'smooth' });
       saveCanvasPan({ scrollLeft: targetLeft, scrollTop: targetTop });
     });
   }, [setZoom]);
@@ -258,15 +348,16 @@ export function Canvas({
     } else {
       setZoom?.(1);
       saveCanvasZoom(1);
-      requestAnimationFrame(() => {
+      const rafId = requestAnimationFrame(() => {
         if (containerRef.current) {
-          containerRef.current.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+          containerRef.current.scrollTo?.({ left: 0, top: 0, behavior: 'smooth' });
         }
         saveCanvasPan({ scrollLeft: 0, scrollTop: 0 });
-        if (typeof window !== 'undefined' && window.scrollTo) {
+        if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }
       });
+      return () => cancelAnimationFrame(rafId);
     }
   }, [collapsedKey, subTrees, isSubTreeCollapsed, focusBoundingBox, setZoom]);
 
@@ -278,22 +369,28 @@ export function Canvas({
     }
     const el = containerRef.current;
     const pPos = layoutRef.current?.pos?.[personId];
-    if (el && pPos) {
-      const curZoom = zoomRef.current || 1;
+    if (el && pPos && Number.isFinite(pPos.x) && Number.isFinite(pPos.y)) {
+      const curZoom = Number.isFinite(zoomRef.current) && zoomRef.current > 0 ? zoomRef.current : 1;
       const targetZoom = curZoom < 0.8 ? 0.95 : curZoom;
       if (targetZoom !== curZoom) {
         setZoom?.(targetZoom);
         saveCanvasZoom(targetZoom);
       }
-      requestAnimationFrame(() => {
-        const targetLeft = Math.max(0, (pPos.x + 48) * targetZoom - el.clientWidth / 2);
-        const targetTop = Math.max(0, (pPos.y + (cardHeight || 138) / 2) * targetZoom - el.clientHeight / 2);
-        el.scrollTo({ left: targetLeft, top: targetTop, behavior: 'smooth' });
+      if (focusRafRef.current !== null) {
+        cancelAnimationFrame(focusRafRef.current);
+      }
+      focusRafRef.current = requestAnimationFrame(() => {
+        focusRafRef.current = null;
+        const curEl = containerRef.current;
+        if (!curEl) return;
+        const targetLeft = Math.max(0, (pPos.x + 48) * targetZoom - (curEl.clientWidth || 0) / 2);
+        const targetTop = Math.max(0, (pPos.y + safeCardHeight / 2) * targetZoom - (curEl.clientHeight || 0) / 2);
+        curEl.scrollTo?.({ left: targetLeft, top: targetTop, behavior: 'smooth' });
         saveCanvasPan({ scrollLeft: targetLeft, scrollTop: targetTop });
       });
     }
     setIsSidebarOpen(false);
-  }, [subTrees, isSubTreeCollapsed, handleToggleSubTree, setZoom, cardHeight]);
+  }, [subTrees, isSubTreeCollapsed, handleToggleSubTree, setZoom, safeCardHeight]);
 
   const handleToggleFullscreen = useCallback(async () => {
     const next = !isFullscreen;
@@ -308,7 +405,7 @@ export function Canvas({
         const el = hostRef.current;
         if (el?.requestFullscreen) {
           await el.requestFullscreen();
-        } else if (document.documentElement?.requestFullscreen) {
+        } else if (typeof document !== 'undefined' && document.documentElement?.requestFullscreen) {
           await document.documentElement.requestFullscreen();
         }
       } catch {
@@ -316,7 +413,7 @@ export function Canvas({
       }
     } else {
       try {
-        if (document.fullscreenElement && document.exitFullscreen) {
+        if (typeof document !== 'undefined' && document.fullscreenElement && document.exitFullscreen) {
           await document.exitFullscreen();
         }
       } catch {
@@ -327,6 +424,7 @@ export function Canvas({
 
   // Synchronize native fullscreen change events
   useEffect(() => {
+    if (typeof document === 'undefined') return;
     const onFullscreenChange = () => {
       const isDocFullscreen = Boolean(document.fullscreenElement);
       if (!isDocFullscreen && isFullscreen) {
@@ -346,7 +444,7 @@ export function Canvas({
 
   // Escape key handler when in full-screen mode (guarded against active modals)
   useEffect(() => {
-    if (!isFullscreen) return;
+    if (!isFullscreen || typeof window === 'undefined') return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         const hasOpenModal = document.querySelector('.overlay, .settings-popover');
@@ -367,13 +465,14 @@ export function Canvas({
       if (el) {
         const sl = el.scrollLeft;
         const st = el.scrollTop;
-        requestAnimationFrame(() => {
+        const rafId = requestAnimationFrame(() => {
           if (containerRef.current) {
             containerRef.current.scrollLeft = sl;
             containerRef.current.scrollTop = st;
             saveCanvasPan({ scrollLeft: sl, scrollTop: st });
           }
         });
+        return () => cancelAnimationFrame(rafId);
       }
     }
   }, [isFullscreen]);
@@ -381,16 +480,19 @@ export function Canvas({
   // Clean staggered card & SVG line entrance when switching perspective or loading tree
   useEffect(() => {
     const stageEl = stageRef.current;
-    if (!stageEl) return;
+    if (!stageEl || typeof document === 'undefined') return;
 
     const isReduced =
       document.documentElement.getAttribute('data-motion') === 'reduce' ||
       window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
     if (isReduced) return;
 
+    let cardAnim = null;
+    let lineAnim = null;
+
     const cards = stageEl.querySelectorAll('.card');
     if (cards.length) {
-      animate(
+      cardAnim = animate(
         cards,
         { opacity: [0, 1] },
         { delay: stagger(0.008), duration: 0.28, easing: [0.22, 1, 0.36, 1] }
@@ -399,16 +501,22 @@ export function Canvas({
 
     const lines = stageEl.querySelectorAll('.lines path');
     if (lines.length) {
-      animate(
+      lineAnim = animate(
         lines,
         { opacity: [0, 1] },
         { duration: 0.35, easing: 'ease-out' }
       );
     }
-  }, [viewer, treeState.data.people.length]);
+
+    return () => {
+      cardAnim?.stop?.();
+      lineAnim?.stop?.();
+    };
+  }, [viewer, people.length]);
 
   // Pan interaction with mouse drag
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const handleMouseMove = e => {
       if (!panRef.current.active || !containerRef.current) return;
       const dx = e.clientX - panRef.current.sx;
@@ -435,8 +543,12 @@ export function Canvas({
             scrollTop: containerRef.current.scrollTop
           });
         }
-        setTimeout(() => {
+        if (panRef.current.resetTimer) {
+          clearTimeout(panRef.current.resetTimer);
+        }
+        panRef.current.resetTimer = setTimeout(() => {
           panRef.current.hasDragged = false;
+          panRef.current.resetTimer = null;
         }, 60);
       }
     };
@@ -444,6 +556,10 @@ export function Canvas({
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
     return () => {
+      if (panRef.current.resetTimer) {
+        clearTimeout(panRef.current.resetTimer);
+        panRef.current.resetTimer = null;
+      }
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
@@ -458,10 +574,12 @@ export function Canvas({
     const onScroll = () => {
       if (timeoutId) clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
-        saveCanvasPan({
-          scrollLeft: el.scrollLeft,
-          scrollTop: el.scrollTop
-        });
+        if (containerRef.current) {
+          saveCanvasPan({
+            scrollLeft: containerRef.current.scrollLeft,
+            scrollTop: containerRef.current.scrollTop
+          });
+        }
       }, 150);
     };
 
@@ -471,6 +589,91 @@ export function Canvas({
       el.removeEventListener('scroll', onScroll);
     };
   }, []);
+
+  // Desktop Ctrl/Meta + Wheel & Trackpad Pinch-Zoom Engine
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const handleWheel = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+
+      const curZoom = Number.isFinite(zoomRef.current) && zoomRef.current > 0 ? zoomRef.current : 1.0;
+      const deltaY = Number.isFinite(e.deltaY) ? e.deltaY : 0;
+      if (deltaY === 0) return;
+
+      const scaleFactor = Math.exp(-deltaY * 0.0025);
+      const rawZoom = curZoom * scaleFactor;
+      const nextZoom = Math.min(1.4, Math.max(0.4, Number(rawZoom.toFixed(3))));
+      if (!Number.isFinite(nextZoom) || nextZoom === curZoom) return;
+
+      const rect = el.getBoundingClientRect();
+      const mx = (Number.isFinite(e.clientX) ? e.clientX : rect.left) - rect.left;
+      const my = (Number.isFinite(e.clientY) ? e.clientY : rect.top) - rect.top;
+      const anchorX = (el.scrollLeft + mx) / curZoom;
+      const anchorY = (el.scrollTop + my) / curZoom;
+
+      const nextSL = Math.max(0, anchorX * nextZoom - mx);
+      const nextST = Math.max(0, anchorY * nextZoom - my);
+
+      zoomRef.current = nextZoom;
+      wheelStateRef.current.pending = { zoom: nextZoom, sl: nextSL, st: nextST };
+
+      if (!wheelStateRef.current.rafId) {
+        wheelStateRef.current.rafId = requestAnimationFrame(() => {
+          wheelStateRef.current.rafId = null;
+          const pending = wheelStateRef.current.pending;
+          if (!pending) return;
+
+          const containerEl = containerRef.current;
+          const stageEl = stageRef.current;
+          const sizerEl = containerEl?.querySelector('.sizer');
+          const curLayout = layoutRef.current;
+          const w = Number(curLayout?.W || curLayout?.totalWidth) || 0;
+          const h = Number(curLayout?.H || curLayout?.totalHeight) || 0;
+
+          if (sizerEl && w > 0 && h > 0) {
+            sizerEl.style.width = `${w * pending.zoom}px`;
+            sizerEl.style.height = `${h * pending.zoom}px`;
+          }
+          if (stageEl) {
+            stageEl.style.transform = `scale(${pending.zoom})`;
+          }
+          if (containerEl) {
+            containerEl.scrollLeft = pending.sl;
+            containerEl.scrollTop = pending.st;
+          }
+          setZoom?.(pending.zoom);
+        });
+      }
+
+      if (wheelStateRef.current.saveTimer) {
+        clearTimeout(wheelStateRef.current.saveTimer);
+      }
+      wheelStateRef.current.saveTimer = setTimeout(() => {
+        wheelStateRef.current.saveTimer = null;
+        const latest = wheelStateRef.current.pending;
+        if (latest) {
+          saveCanvasZoom(latest.zoom);
+          saveCanvasPan({ scrollLeft: latest.sl, scrollTop: latest.st });
+        }
+      }, 150);
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      if (wheelStateRef.current.rafId) {
+        cancelAnimationFrame(wheelStateRef.current.rafId);
+        wheelStateRef.current.rafId = null;
+      }
+      if (wheelStateRef.current.saveTimer) {
+        clearTimeout(wheelStateRef.current.saveTimer);
+        wheelStateRef.current.saveTimer = null;
+      }
+      el.removeEventListener('wheel', handleWheel);
+    };
+  }, [setZoom]);
 
   // Touch Pinch-to-Zoom & Pan Engine (Milestone M3)
   useEffect(() => {
@@ -488,7 +691,7 @@ export function Canvas({
         const rect = el.getBoundingClientRect();
         const mx = (t0.clientX + t1.clientX) / 2 - rect.left;
         const my = (t0.clientY + t1.clientY) / 2 - rect.top;
-        const initialZ = zoomRef.current || 1.0;
+        const initialZ = (Number.isFinite(zoomRef.current) && zoomRef.current > 0) ? zoomRef.current : 1.0;
         const sl = el.scrollLeft;
         const st = el.scrollTop;
 
@@ -529,7 +732,7 @@ export function Canvas({
             clearTimeout(pinchRef.current.debounceTimer);
             pinchRef.current.debounceTimer = null;
           }
-          const initialZ = zoomRef.current || 1.0;
+          const initialZ = (Number.isFinite(zoomRef.current) && zoomRef.current > 0) ? zoomRef.current : 1.0;
           const sl = el.scrollLeft;
           const st = el.scrollTop;
 
@@ -575,7 +778,7 @@ export function Canvas({
             const w = curLayout?.W || curLayout?.totalWidth || 0;
             const h = curLayout?.H || curLayout?.totalHeight || 0;
 
-            if (sizerEl && w && h) {
+            if (sizerEl && w > 0 && h > 0) {
               sizerEl.style.width = `${w * pending.zoom}px`;
               sizerEl.style.height = `${h * pending.zoom}px`;
             }
@@ -587,7 +790,7 @@ export function Canvas({
               containerEl.scrollTop = pending.st;
             }
 
-            setZoom(pending.zoom);
+            setZoom?.(pending.zoom);
           });
         }
       }
@@ -601,7 +804,7 @@ export function Canvas({
         }
 
         const pending = pinchRef.current.pending;
-        let finalZoom = zoomRef.current;
+        let finalZoom = (Number.isFinite(zoomRef.current) && zoomRef.current > 0) ? zoomRef.current : 1;
         let finalSL = el.scrollLeft;
         let finalST = el.scrollTop;
 
@@ -617,7 +820,7 @@ export function Canvas({
           const w = curLayout?.W || curLayout?.totalWidth || 0;
           const h = curLayout?.H || curLayout?.totalHeight || 0;
 
-          if (sizerEl && w && h) {
+          if (sizerEl && w > 0 && h > 0) {
             sizerEl.style.width = `${w * finalZoom}px`;
             sizerEl.style.height = `${h * finalZoom}px`;
           }
@@ -629,7 +832,7 @@ export function Canvas({
             containerEl.scrollTop = finalST;
           }
 
-          setZoom(finalZoom);
+          setZoom?.(finalZoom);
         }
 
         // Persistence: sync with saveCanvasZoom(finalZoom) and saveCanvasPan({ scrollLeft, scrollTop }) in touchend
@@ -704,15 +907,16 @@ export function Canvas({
   // Smooth scroll to search target
   useEffect(() => {
     const el = containerRef.current;
-    const targetPos = searchMatches[0] && layout.pos[searchMatches[0].id];
-    if (el && targetPos) {
-      el.scrollTo({
-        left: Math.max(0, (targetPos.x + 48) * zoom - el.clientWidth / 2),
-        top: Math.max(0, (targetPos.y + 60) * zoom - el.clientHeight / 2),
+    const firstMatchId = searchMatchesList[0]?.id;
+    const targetPos = firstMatchId ? layout?.pos?.[firstMatchId] : null;
+    if (el && targetPos && Number.isFinite(targetPos.x) && Number.isFinite(targetPos.y)) {
+      el.scrollTo?.({
+        left: Math.max(0, (targetPos.x + 48) * safeZoom - (el.clientWidth || 0) / 2),
+        top: Math.max(0, (targetPos.y + 60) * safeZoom - (el.clientHeight || 0) / 2),
         behavior: "smooth"
       });
     }
-  }, [searchQuery, searchMatches, layout, zoom]);
+  }, [searchQuery, searchMatchesList, layout, safeZoom]);
 
   const highlightedPathKey = Array.isArray(highlightedPathIds) ? highlightedPathIds.join('|') : '';
   const hasHighlightedPath = Array.isArray(highlightedPathIds) && highlightedPathIds.length > 0;
@@ -730,7 +934,7 @@ export function Canvas({
       cardEl.classList.toggle('is-path-active', inPath);
       cardEl.classList.toggle('is-path-dimmed', active && !inPath);
     });
-  }, [highlightedPathKey, highlightedPathIds, treeState.data.people, hiddenMemberIds, layout]);
+  }, [highlightedPathKey, highlightedPathIds, people, hiddenMemberIds, layout]);
 
   // Center on middle/first node when highlightedPathIds changes
   useEffect(() => {
@@ -746,16 +950,19 @@ export function Canvas({
 
     const el = containerRef.current;
     const pos = layoutRef.current?.pos?.[targetId];
-    if (el && pos) {
-      const curZoom = zoomRef.current || 1;
-      requestAnimationFrame(() => {
-        const targetLeft = Math.max(0, (pos.x + 48) * curZoom - el.clientWidth / 2);
-        const targetTop = Math.max(0, (pos.y + (cardHeight || 138) / 2) * curZoom - el.clientHeight / 2);
-        el.scrollTo({ left: targetLeft, top: targetTop, behavior: 'smooth' });
+    if (el && pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) {
+      const curZoom = (Number.isFinite(zoomRef.current) && zoomRef.current > 0) ? zoomRef.current : 1;
+      const rafId = requestAnimationFrame(() => {
+        const curEl = containerRef.current;
+        if (!curEl) return;
+        const targetLeft = Math.max(0, (pos.x + 48) * curZoom - (curEl.clientWidth || 0) / 2);
+        const targetTop = Math.max(0, (pos.y + safeCardHeight / 2) * curZoom - (curEl.clientHeight || 0) / 2);
+        curEl.scrollTo?.({ left: targetLeft, top: targetTop, behavior: 'smooth' });
         saveCanvasPan({ scrollLeft: targetLeft, scrollTop: targetTop });
       });
+      return () => cancelAnimationFrame(rafId);
     }
-  }, [highlightedPathKey, cardHeight, subTrees, isSubTreeCollapsed, handleToggleSubTree]);
+  }, [highlightedPathKey, safeCardHeight, subTrees, isSubTreeCollapsed, handleToggleSubTree]);
 
   // Smooth scroll/pan & brief pulse when focusedSearchId changes
   useEffect(() => {
@@ -765,14 +972,20 @@ export function Canvas({
       handleToggleSubTree(ownerSubTree.id);
     }
 
+    let rafId = null;
+    let timer = null;
+
     const el = containerRef.current;
     const pos = layoutRef.current?.pos?.[focusedSearchId];
-    if (el && pos) {
-      const curZoom = zoomRef.current || 1;
-      requestAnimationFrame(() => {
-        const targetLeft = Math.max(0, (pos.x + 48) * curZoom - el.clientWidth / 2);
-        const targetTop = Math.max(0, (pos.y + (cardHeight || 138) / 2) * curZoom - el.clientHeight / 2);
-        el.scrollTo({ left: targetLeft, top: targetTop, behavior: 'smooth' });
+    if (el && pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) {
+      const curZoom = (Number.isFinite(zoomRef.current) && zoomRef.current > 0) ? zoomRef.current : 1;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const curEl = containerRef.current;
+        if (!curEl) return;
+        const targetLeft = Math.max(0, (pos.x + 48) * curZoom - (curEl.clientWidth || 0) / 2);
+        const targetTop = Math.max(0, (pos.y + safeCardHeight / 2) * curZoom - (curEl.clientHeight || 0) / 2);
+        curEl.scrollTo?.({ left: targetLeft, top: targetTop, behavior: 'smooth' });
         saveCanvasPan({ scrollLeft: targetLeft, scrollTop: targetTop });
       });
     }
@@ -783,22 +996,28 @@ export function Canvas({
       cardEl.classList.remove('is-search-focus');
       void cardEl.offsetWidth;
       cardEl.classList.add('is-search-focus');
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
+        timer = null;
         cardEl.classList.remove('is-search-focus');
       }, 1600);
-      return () => clearTimeout(timer);
     }
-  }, [focusedSearchId, cardHeight, subTrees, isSubTreeCollapsed, handleToggleSubTree]);
+
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      if (timer !== null) clearTimeout(timer);
+      cardEl?.classList.remove('is-search-focus');
+    };
+  }, [focusedSearchId, safeCardHeight, subTrees, isSubTreeCollapsed, handleToggleSubTree]);
 
   const highlightedSvgPath = useMemo(() => {
     if (!Array.isArray(highlightedPathIds) || highlightedPathIds.length < 2) return '';
     const posMap = layout?.pos || {};
-    const hHalf = (cardHeight || 138) / 2;
+    const hHalf = safeCardHeight / 2;
     const parts = [];
     for (let i = 0; i < highlightedPathIds.length - 1; i++) {
       const a = posMap[highlightedPathIds[i]];
       const b = posMap[highlightedPathIds[i + 1]];
-      if (!a || !b) continue;
+      if (!a || !b || !Number.isFinite(a.x) || !Number.isFinite(a.y) || !Number.isFinite(b.x) || !Number.isFinite(b.y)) continue;
       const ax = a.x + 48;
       const ay = a.y + hHalf;
       const bx = b.x + 48;
@@ -811,19 +1030,25 @@ export function Canvas({
       }
     }
     return parts.join(' ');
-  }, [highlightedPathIds, layout, cardHeight]);
+  }, [highlightedPathIds, layout, safeCardHeight]);
 
-  const handlePanBy = (dx, dy) => {
+  const handlePanBy = useCallback((dx, dy) => {
     const el = containerRef.current;
     if (!el) return;
-    el.scrollBy({ left: dx, top: dy, behavior: "smooth" });
-    setTimeout(() => {
-      saveCanvasPan({
-        scrollLeft: el.scrollLeft,
-        scrollTop: el.scrollTop
-      });
+    el.scrollBy?.({ left: dx, top: dy, behavior: "smooth" });
+    if (panTimerRef.current !== null) {
+      clearTimeout(panTimerRef.current);
+    }
+    panTimerRef.current = setTimeout(() => {
+      panTimerRef.current = null;
+      if (containerRef.current) {
+        saveCanvasPan({
+          scrollLeft: containerRef.current.scrollLeft,
+          scrollTop: containerRef.current.scrollTop
+        });
+      }
     }, 200);
-  };
+  }, []);
 
   // Spatial keyboard navigation
   const handleCardKeyDown = (e, personId) => {
@@ -836,17 +1061,17 @@ export function Canvas({
 
     if (vector) {
       e.preventDefault();
-      const currentPos = layout.pos[personId];
+      const currentPos = layout?.pos?.[personId];
       if (!currentPos) return;
 
       let bestId = null;
       let minDistance = Infinity;
 
-      treeState.data.people.forEach(target => {
-        if (target.id === personId) return;
+      people.forEach(target => {
+        if (!target || target.id === personId) return;
         if (hiddenMemberIds.has(target.id)) return;
-        if (searchQuery && !searchMatches.some(m => m.id === target.id)) return;
-        const targetPos = layout.pos[target.id];
+        if (searchQuery && !searchMatchesList.some(m => m.id === target.id)) return;
+        const targetPos = layout?.pos?.[target.id];
         if (!targetPos) return;
 
         const dx = targetPos.x - currentPos.x;
@@ -873,9 +1098,9 @@ export function Canvas({
     }
   };
 
-  const isSearchActive = !!searchQuery.trim();
-  const rawLayoutW = layout?.W || layout?.totalWidth || 0;
-  const rawLayoutH = layout?.H || layout?.totalHeight || 0;
+  const isSearchActive = Boolean(typeof searchQuery === 'string' && searchQuery.trim());
+  const rawLayoutW = Math.max(0, Number(layout?.W || layout?.totalWidth) || 0);
+  const rawLayoutH = Math.max(0, Number(layout?.H || layout?.totalHeight) || 0);
   const openSubTreesList = useMemo(
     () => subTrees.filter(st => !isSubTreeCollapsed(st.id)),
     [subTrees, isSubTreeCollapsed]
@@ -887,17 +1112,21 @@ export function Canvas({
   const allSubTreesCollapsed = subTrees.length > 0 && openSubTreesList.length === 0;
   const layoutW = allSubTreesCollapsed ? Math.min(rawLayoutW || 720, 720) : rawLayoutW;
   const layoutH = allSubTreesCollapsed ? 240 : rawLayoutH;
+  const svgW = Math.max(1, layoutW);
+  const svgH = Math.max(1, layoutH);
+
   const collapsedDockPos = useMemo(() => {
     if (!openSubTreesList.length) return { left: 16, top: 62 };
     const anchor = openSubTreesList.find(st => st.isMain || st.id === 'main') || openSubTreesList[0];
     const bb = anchor?.boundingBox || { x: 16, y: 62 };
     return {
-      left: Math.max(16, bb.x - 16),
-      top: Math.max(12, bb.y - 84)
+      left: Math.max(16, (Number(bb.x) || 16) - 16),
+      top: Math.max(12, (Number(bb.y) || 62) - 84)
     };
   }, [openSubTreesList]);
+
   const visibleGenLabels = useMemo(() => {
-    const labels = layout?.genLabels || [];
+    const labels = Array.isArray(layout?.genLabels) ? layout.genLabels : [];
     if (!subTrees.length) return labels;
     if (allSubTreesCollapsed) return [];
     const ys = openSubTreesList.map(st => st.boundingBox).filter(Boolean);
@@ -906,6 +1135,7 @@ export function Canvas({
     const maxY = Math.max(...ys.map(b => b.y + b.h)) + 60;
     return labels.filter(g => g.labelY >= minY && g.labelY <= maxY);
   }, [layout, subTrees, openSubTreesList, allSubTreesCollapsed]);
+
   const subTreesLabel = (() => {
     const val = typeof t === 'function' ? t('subTreesTitle') : 'subTreesTitle';
     if (val && val !== 'subTreesTitle') return val;
@@ -930,7 +1160,7 @@ export function Canvas({
             const isMobileMode =
               typeof document !== 'undefined' &&
               (document.documentElement.getAttribute('data-viewport') === 'mobile' ||
-                window.innerWidth <= 900);
+                (typeof window !== 'undefined' && window.innerWidth <= 900));
             if (isFullscreen || isMobileMode) {
               setIsSidebarOpen(prev => !prev);
             } else {
@@ -944,12 +1174,12 @@ export function Canvas({
         <button
           type="button"
           className="canvas-fullscreen-toggle"
-          aria-label={isFullscreen ? t('fullscreenExit') : t('fullscreenEnter')}
-          title={isFullscreen ? t('fullscreenExit') : t('fullscreenEnter')}
+          aria-label={isFullscreen ? translate('fullscreenExit') : translate('fullscreenEnter')}
+          title={isFullscreen ? translate('fullscreenExit') : translate('fullscreenEnter')}
           onClick={handleToggleFullscreen}
         >
           <span aria-hidden="true">{isFullscreen ? '✕' : '⛶'}</span>
-          <span>{isFullscreen ? t('fullscreenExitShort') : t('fullscreenEnterShort')}</span>
+          <span>{isFullscreen ? translate('fullscreenExitShort') : translate('fullscreenEnterShort')}</span>
         </button>
       </div>
       {hasHighlightedPath && (
@@ -984,7 +1214,7 @@ export function Canvas({
           onFocusSubTree={handleFocusSubTree}
           onFocusMember={handleFocusMember}
           familyIndex={familyIndex}
-          displayName={displayName}
+          displayName={resolveDisplayName}
           viewer={viewer}
           t={t}
           lang={lang}
@@ -1001,16 +1231,21 @@ export function Canvas({
           className="treewrap"
           tabIndex={0}
           role="region"
-          aria-label={t("treeRegion")}
+          aria-label={translate("treeRegion")}
           onMouseDown={e => {
             if (e.button === 0 && containerRef.current) {
+              if (panRef.current.resetTimer) {
+                clearTimeout(panRef.current.resetTimer);
+                panRef.current.resetTimer = null;
+              }
               panRef.current = {
                 active: true,
                 hasDragged: false,
                 sx: e.clientX,
                 sy: e.clientY,
                 sl: containerRef.current.scrollLeft,
-                st: containerRef.current.scrollTop
+                st: containerRef.current.scrollTop,
+                resetTimer: null
               };
             }
           }}
@@ -1018,8 +1253,8 @@ export function Canvas({
           <div
             className="sizer"
             style={{
-              width: layoutW * zoom,
-              height: layoutH * zoom
+              width: layoutW * safeZoom,
+              height: layoutH * safeZoom
             }}
           >
             <div
@@ -1028,7 +1263,7 @@ export function Canvas({
               style={{
                 width: layoutW,
                 height: layoutH,
-                transform: `scale(${zoom})`
+                transform: `scale(${safeZoom})`
               }}
             >
               {/* SVG Connector Lines */}
@@ -1036,7 +1271,7 @@ export function Canvas({
                 className={`lines${hasHighlightedPath ? ' is-path-dimmed' : ''}`}
                 width={layoutW}
                 height={layoutH}
-                viewBox={`0 0 ${layoutW} ${layoutH}`}
+                viewBox={`0 0 ${svgW} ${svgH}`}
                 aria-hidden="true"
               >
                 {layout?.guideLines && (
@@ -1067,10 +1302,10 @@ export function Canvas({
                     key={st.id}
                     className={`canvas-subtree-box${st.isMain ? ' is-main' : ''}`}
                     style={{
-                      left: `${Math.max(12, bb.x - 16)}px`,
-                      top: `${Math.max(8, bb.y - 44)}px`,
-                      width: `${Math.max(bb.w + 32, 240)}px`,
-                      height: `${bb.h + 60}px`
+                      left: `${Math.max(12, (Number(bb.x) || 0) - 16)}px`,
+                      top: `${Math.max(8, (Number(bb.y) || 0) - 44)}px`,
+                      width: `${Math.max((Number(bb.w) || 0) + 32, 240)}px`,
+                      height: `${Math.max(0, Number(bb.h) || 0) + 60}px`
                     }}
                   >
                     <div className="canvas-subtree-header">
@@ -1157,17 +1392,17 @@ export function Canvas({
               ))}
 
               {/* Member Cards */}
-              {treeState.data.people.map(person => {
-                if (hiddenMemberIds.has(person.id)) return null;
+              {people.map(person => {
+                if (!person || !person.id || hiddenMemberIds.has(person.id)) return null;
                 const pos = layout?.pos?.[person.id];
                 if (!pos) return null;
 
                 const isMe = viewer === person.id;
-                const isHit = isSearchActive && searchMatches.some(m => m.id === person.id);
+                const isHit = isSearchActive && searchMatchesList.some(m => m.id === person.id);
                 const isDim = isSearchActive && !isHit;
 
                 const relLabel = viewer
-                  ? calculateKinship(familyIndex, viewer, person.id, lang)[0]
+                  ? calculateKinship(familyIndex, viewer, person.id, lang)?.[0] || ""
                   : "";
 
                 return (
@@ -1175,17 +1410,18 @@ export function Canvas({
                     key={person.id}
                     person={person}
                     pos={pos}
-                    cardHeight={cardHeight}
+                    cardHeight={safeCardHeight}
                     relationLabel={relLabel}
-                    photo={treeState.photos[person.id]}
+                    photo={photos[person.id]}
                     isMe={isMe}
                     isHit={isHit}
                     isDim={isDim}
-                    t={t}
-                    displayName={displayName}
+                    t={translate}
+                    displayName={resolveDisplayName}
+                    zoom={safeZoom}
                     onClick={() => {
                       if (!panRef.current.hasDragged && !pinchRef.current.hasPinched) {
-                        onCardClick(person.id);
+                        onCardClick?.(person.id);
                       }
                     }}
                     onKeyDown={e => handleCardKeyDown(e, person.id)}
@@ -1197,16 +1433,16 @@ export function Canvas({
         </div>
       </div>
       <CanvasDock
-        zoom={zoom}
-        onZoomIn={() => onZoom(0.1)}
-        onZoomOut={() => onZoom(-0.1)}
+        zoom={safeZoom}
+        onZoomIn={() => onZoom?.(0.1)}
+        onZoomOut={() => onZoom?.(-0.1)}
         onFit={fitView}
         onPan={handlePanBy}
-        viewerName={viewer ? displayName(viewer) : ""}
+        viewerName={viewer ? resolveDisplayName(viewer) : ""}
         onReset={onResetViewer}
         isFullscreen={isFullscreen}
         onToggleFullscreen={handleToggleFullscreen}
-        t={t}
+        t={translate}
         lang={lang}
       />
     </div>

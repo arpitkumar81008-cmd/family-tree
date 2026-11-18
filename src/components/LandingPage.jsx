@@ -18,6 +18,8 @@ function isMotionReduced() {
 }
 
 function useMobileCarousel(slideCount, dotCount = 4) {
+  const safeSlideCount = Math.max(1, Number(slideCount) || 1);
+  const safeDotCount = Math.max(1, Number(dotCount) || 1);
   const trackRef = useRef(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const activeSlideRef = useRef(0);
@@ -29,15 +31,18 @@ function useMobileCarousel(slideCount, dotCount = 4) {
   }, [activeSlide]);
 
   const activeDot =
-    slideCount <= 1
+    safeSlideCount <= 1 || safeDotCount <= 1
       ? 0
-      : Math.min(dotCount - 1, Math.round((activeSlide / (slideCount - 1)) * (dotCount - 1)));
+      : Math.min(
+          safeDotCount - 1,
+          Math.round((activeSlide / (safeSlideCount - 1)) * (safeDotCount - 1))
+        );
 
   const scrollToSlide = useCallback(
     index => {
       const track = trackRef.current;
       if (!track) return;
-      const clamped = Math.max(0, Math.min(slideCount - 1, index));
+      const clamped = Math.max(0, Math.min(safeSlideCount - 1, index));
       const slides = track.children;
       const target = slides[clamped];
       if (!target) return;
@@ -50,7 +55,7 @@ function useMobileCarousel(slideCount, dotCount = 4) {
       activeSlideRef.current = clamped;
       setActiveSlide(clamped);
     },
-    [slideCount]
+    [safeSlideCount]
   );
 
   const handleDotClick = useCallback(
@@ -58,15 +63,15 @@ function useMobileCarousel(slideCount, dotCount = 4) {
       pausedRef.current = true;
       if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
       const targetSlide =
-        slideCount <= dotCount
+        safeSlideCount <= safeDotCount || safeDotCount <= 1
           ? dotIndex
-          : Math.round((dotIndex / (dotCount - 1)) * (slideCount - 1));
+          : Math.round((dotIndex / (safeDotCount - 1)) * (safeSlideCount - 1));
       scrollToSlide(targetSlide);
       resumeTimerRef.current = setTimeout(() => {
         pausedRef.current = false;
       }, 5000);
     },
-    [dotCount, scrollToSlide, slideCount]
+    [safeDotCount, scrollToSlide, safeSlideCount]
   );
 
   const handleScroll = useCallback(() => {
@@ -104,7 +109,7 @@ function useMobileCarousel(slideCount, dotCount = 4) {
     if (typeof window === 'undefined') return undefined;
     const timer = setInterval(() => {
       if (pausedRef.current || !isMobileCarouselActive() || isMotionReduced()) return;
-      const next = (activeSlideRef.current + 1) % slideCount;
+      const next = (activeSlideRef.current + 1) % safeSlideCount;
       activeSlideRef.current = next;
       setActiveSlide(next);
       const track = trackRef.current;
@@ -122,7 +127,7 @@ function useMobileCarousel(slideCount, dotCount = 4) {
       clearInterval(timer);
       if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
     };
-  }, [slideCount]);
+  }, [safeSlideCount]);
 
   return {
     trackRef,
@@ -145,6 +150,7 @@ export function LandingPage({
   onCreate,
   onNavigateMyTree
 }) {
+  const translate = typeof t === 'function' ? t : (key => key);
   const tr = (key, fallback) => {
     if (typeof t !== 'function') return fallback;
     const res = t(key);
@@ -210,6 +216,7 @@ export function LandingPage({
 
   const handleScrollToTutorials = useCallback(e => {
     if (e) e.preventDefault();
+    if (typeof document === 'undefined') return;
     const target = document.getElementById('quick-start-tutorials');
     if (target && typeof target.scrollIntoView === 'function') {
       target.scrollIntoView({ behavior: isMotionReduced() ? 'auto' : 'smooth', block: 'start' });
@@ -218,16 +225,17 @@ export function LandingPage({
 
   useEffect(() => {
     const el = rootRef.current;
-    if (!el) return;
+    if (!el || typeof document === 'undefined') return;
 
     const isReduced =
       document.documentElement.getAttribute('data-motion') === 'reduce' ||
       window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
+    let heroAnimControls = null;
     if (!isReduced) {
       const heroNodes = el.querySelectorAll('.hero .eyebrow, .hero .hero-title, .hero .hero-lede, .hero .hero-cta');
       if (heroNodes.length) {
-        animate(
+        heroAnimControls = animate(
           heroNodes,
           { opacity: [0, 1], transform: ['translateY(12px)', 'translateY(0px)'] },
           { delay: stagger(0.06), duration: 0.42, easing: [0.22, 1, 0.36, 1] }
@@ -235,20 +243,26 @@ export function LandingPage({
       }
     }
 
-    if (typeof IntersectionObserver === 'undefined') return;
-    const targets = el.querySelectorAll('.reveal-on-scroll');
-    const io = new IntersectionObserver(
-      entries => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-visible');
-          }
-        });
-      },
-      { threshold: 0.35, rootMargin: '0px 0px -10% 0px' }
-    );
-    targets.forEach(node => io.observe(node));
-    return () => io.disconnect();
+    let io = null;
+    if (typeof IntersectionObserver !== 'undefined') {
+      const targets = el.querySelectorAll('.reveal-on-scroll');
+      io = new IntersectionObserver(
+        entries => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('is-visible');
+            }
+          });
+        },
+        { threshold: 0.35, rootMargin: '0px 0px -10% 0px' }
+      );
+      targets.forEach(node => io.observe(node));
+    }
+
+    return () => {
+      heroAnimControls?.stop?.();
+      io?.disconnect?.();
+    };
   }, []);
 
   const features = [
@@ -257,32 +271,32 @@ export function LandingPage({
       image: '/images/features/feat-lineage.jpg',
       alt: lang === 'hi' ? 'स्पष्ट पारिवारिक वंश वृक्ष चित्रण' : 'Family tree lineage diagram illustration',
       tag: lang === 'hi' ? 'वंश वृक्ष' : 'Family Tree',
-      title: t('feat1Title'),
-      body: t('feat1Body')
+      title: translate('feat1Title'),
+      body: translate('feat1Body')
     },
     {
       num: '02',
       image: '/images/features/feat-kinship.jpg',
       alt: lang === 'hi' ? 'भारतीय रिश्ते और पारिवारिक जुड़ाव चित्रण' : 'Indian kinship bond medallions illustration',
       tag: lang === 'hi' ? 'रिश्ता खोजक' : 'Relations',
-      title: t('feat2Title'),
-      body: t('feat2Body')
+      title: translate('feat2Title'),
+      body: translate('feat2Body')
     },
     {
       num: '03',
       image: '/images/features/feat-bilingual.jpg',
       alt: lang === 'hi' ? 'अंग्रेज़ी और देवनागरी द्विभाषी लेखन चित्रण' : 'Bilingual English and Devanagari calligraphy illustration',
       tag: lang === 'hi' ? 'द्विभाषी' : 'EN · HI',
-      title: t('feat3Title'),
-      body: t('feat3Body')
+      title: translate('feat3Title'),
+      body: translate('feat3Body')
     },
     {
       num: '04',
       image: '/images/features/feat-vault.jpg',
       alt: lang === 'hi' ? 'निजी और सुरक्षित पारिवारिक तिजोरी चित्रण' : 'Private heirloom family archive vault illustration',
       tag: lang === 'hi' ? 'निजी साझाकरण' : 'Private Share',
-      title: t('feat4Title'),
-      body: t('feat4Body')
+      title: translate('feat4Title'),
+      body: translate('feat4Body')
     }
   ];
 
@@ -384,9 +398,9 @@ export function LandingPage({
   return (
     <div className="landing" ref={rootRef}>
       <section className="hero reveal-parent" tabIndex={0}>
-        <p className="eyebrow">{t('landEyebrow')}</p>
-        <h1 className="hero-title">{t('landTitle')}</h1>
-        <p className="hero-lede">{t('landLede')}</p>
+        <p className="eyebrow">{translate('landEyebrow')}</p>
+        <h1 className="hero-title">{translate('landTitle')}</h1>
+        <p className="hero-lede">{translate('landLede')}</p>
         <div className="hero-cta">
           {hasPrivateTree ? (
             <>
@@ -415,7 +429,7 @@ export function LandingPage({
           ) : (
             <>
               <button type="button" className="btn btn-lg land-cta-primary" onClick={onExplore}>
-                {t('landCtaExplore')}
+                {translate('landCtaExplore')}
               </button>
               <button type="button" className="btn ghost btn-lg land-cta-create" onClick={onCreate}>
                 {tr('navCreatePrivateCta', lang === 'hi' ? 'अपना वृक्ष बनाएँ' : 'Build your own tree')}
@@ -434,7 +448,7 @@ export function LandingPage({
 
       <section className="features">
         <div className="features-header">
-          <h2 className="section-title">{t('featuresTitle')}</h2>
+          <h2 className="section-title">{translate('featuresTitle')}</h2>
         </div>
         <div
           className="feature-grid mobile-carousel-track"
@@ -467,7 +481,7 @@ export function LandingPage({
             </article>
           ))}
         </div>
-        <div className="carousel-dots" role="tablist" aria-label={t('featuresTitle')}>
+        <div className="carousel-dots" role="tablist" aria-label={translate('featuresTitle')}>
           {[0, 1, 2, 3].map(dotIdx => (
             <button
               key={dotIdx}
@@ -536,7 +550,7 @@ export function LandingPage({
       </section>
 
       <section className="tutorials-section" id="quick-start-tutorials">
-        <h2 className="section-title">{t('tutorialsTitle')}</h2>
+        <h2 className="section-title">{translate('tutorialsTitle')}</h2>
         <div
           className="feature-grid tutorials-grid mobile-carousel-track"
           ref={tutorialsCarousel.trackRef}
@@ -556,13 +570,13 @@ export function LandingPage({
               key={stepKey}
               tabIndex={0}
             >
-              <span className="feature-num" aria-hidden="true">{t(stepKey)}</span>
-              <h3>{t(titleKey)}</h3>
-              <p className="fac-desc">{t(bodyKey)}</p>
+              <span className="feature-num" aria-hidden="true">{translate(stepKey)}</span>
+              <h3>{translate(titleKey)}</h3>
+              <p className="fac-desc">{translate(bodyKey)}</p>
             </article>
           ))}
         </div>
-        <div className="carousel-dots" role="tablist" aria-label={t('tutorialsTitle')}>
+        <div className="carousel-dots" role="tablist" aria-label={translate('tutorialsTitle')}>
           {[0, 1, 2, 3].map(dotIdx => (
             <button
               key={dotIdx}
@@ -578,7 +592,7 @@ export function LandingPage({
       </section>
 
       <footer className="site-footer">
-        <span>{t('foot')}</span>
+        <span>{translate('foot')}</span>
         <span className="footer-links">
           <a
             href="https://www.linkedin.com/in/arpit-kumar-gupta-0320a4335/"

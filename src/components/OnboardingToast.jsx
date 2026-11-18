@@ -5,7 +5,8 @@ const ONBOARD_KEY = 'gupta_onboard_steps_v2';
 function loadDismissedSteps() {
   if (typeof window === 'undefined' || !window.localStorage) return {};
   try {
-    return JSON.parse(localStorage.getItem(ONBOARD_KEY) || '{}') || {};
+    const parsed = JSON.parse(window.localStorage.getItem(ONBOARD_KEY) || '{}');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
   } catch {
     return {};
   }
@@ -14,14 +15,16 @@ function loadDismissedSteps() {
 function saveDismissedSteps(map) {
   if (typeof window === 'undefined' || !window.localStorage) return;
   try {
-    localStorage.setItem(ONBOARD_KEY, JSON.stringify(map));
-  } catch {}
+    window.localStorage.setItem(ONBOARD_KEY, JSON.stringify(map));
+  } catch {
+    // Ignore storage quota or security errors
+  }
 }
 
 export function OnboardingToast({
-  currentView,
-  activeTab,
-  lang,
+  currentView = 'home',
+  activeTab = 'rel',
+  lang = 'en',
   onOpenHelpModal
 }) {
   const [dismissed, setDismissed] = useState(loadDismissedSteps);
@@ -123,7 +126,7 @@ export function OnboardingToast({
             <button
               type="button"
               className="onboard-link-btn"
-              onClick={onOpenHelpModal}
+              onClick={() => onOpenHelpModal?.()}
             >
               {isHi ? 'शॉर्टकट (?)' : 'Shortcuts (?)'}
             </button>
