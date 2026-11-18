@@ -26,6 +26,12 @@ import { getFunctions } from 'firebase/functions';
 
 const RUNTIME_CONFIG_KEY = 'gupta_firebase_config';
 
+/**
+ * Loads the active Firebase client configuration from Vite environment variables
+ * or falls back to runtime configuration stored in localStorage.
+ *
+ * @returns {object}
+ */
 export function loadFirebaseConfig() {
   const envConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCMrukS1JDWCudcEuvHlp0nUP2zWrXuxu4',
@@ -49,7 +55,7 @@ export function loadFirebaseConfig() {
       const raw = localStorage.getItem(RUNTIME_CONFIG_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed && parsed.apiKey && parsed.projectId) {
+        if (parsed && typeof parsed === 'object' && parsed.apiKey && parsed.projectId) {
           return {
             databaseId: '(default)',
             ...parsed
@@ -62,8 +68,16 @@ export function loadFirebaseConfig() {
   return envConfig;
 }
 
+/**
+ * Persists a runtime Firebase configuration object to localStorage and resets cached clients.
+ *
+ * @param {object} configObj
+ * @returns {boolean}
+ */
 export function saveRuntimeFirebaseConfig(configObj) {
-  if (typeof window === 'undefined' || !window.localStorage) return false;
+  if (typeof window === 'undefined' || !window.localStorage || !configObj || typeof configObj !== 'object') {
+    return false;
+  }
   try {
     localStorage.setItem(RUNTIME_CONFIG_KEY, JSON.stringify(configObj));
     cachedClients = null;
@@ -73,6 +87,11 @@ export function saveRuntimeFirebaseConfig(configObj) {
   }
 }
 
+/**
+ * Returns true if a valid Firebase apiKey and projectId are available.
+ *
+ * @returns {boolean}
+ */
 export function isFirebaseConfigured() {
   const cfg = loadFirebaseConfig();
   return Boolean(cfg.apiKey && cfg.projectId);
@@ -80,6 +99,11 @@ export function isFirebaseConfigured() {
 
 let cachedClients = null;
 
+/**
+ * Lazily initializes and returns the singleton Firebase App, Auth, Firestore, and Cloud Functions clients.
+ *
+ * @returns {{ app: object|null, auth: object|null, db: object|null, functions: object|null }}
+ */
 export function getFirebaseClients() {
   if (cachedClients) return cachedClients;
   const cfg = loadFirebaseConfig();
@@ -136,6 +160,12 @@ function initAnalyticsIfSupported(app) {
     .catch(() => {});
 }
 
+/**
+ * Emits a custom Google Analytics 4 event if supported in the current browser environment.
+ *
+ * @param {string} eventName
+ * @param {object} [params={}]
+ */
 export async function trackAnalyticsEvent(eventName, params = {}) {
   if (typeof window === 'undefined' || !eventName) return;
   try {
@@ -150,7 +180,14 @@ export async function trackAnalyticsEvent(eventName, params = {}) {
   } catch {}
 }
 
+/**
+ * Subscribes to Firebase Authentication state changes and invokes `callback` with a normalized user profile or null.
+ *
+ * @param {(user: { uid: string, email: string, displayName: string, photoURL: string } | null) => void} callback
+ * @returns {() => void}
+ */
 export function subscribeToAuth(callback) {
+  if (typeof callback !== 'function') return () => {};
   const { auth } = getFirebaseClients();
   if (!auth) {
     callback(null);
@@ -170,6 +207,11 @@ export function subscribeToAuth(callback) {
   });
 }
 
+/**
+ * Opens the Google OAuth sign-in popup with explicit account selection.
+ *
+ * @returns {Promise<object>}
+ */
 export async function signInWithGoogle() {
   const { auth } = getFirebaseClients();
   if (!auth) throw new Error('FIREBASE_NOT_CONFIGURED');
@@ -179,20 +221,38 @@ export async function signInWithGoogle() {
   return cred.user;
 }
 
+/**
+ * Authenticates a user with email and password.
+ *
+ * @param {string} email
+ * @param {string} password
+ * @returns {Promise<object>}
+ */
 export async function signInWithEmail(email, password) {
   const { auth } = getFirebaseClients();
   if (!auth) throw new Error('FIREBASE_NOT_CONFIGURED');
-  const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+  const cleanEmail = String(email || '').trim();
+  const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
   return cred.user;
 }
 
+/**
+ * Creates a new email/password account, updates displayName, and dispatches a verification email.
+ *
+ * @param {string} email
+ * @param {string} password
+ * @param {string} [displayName='']
+ * @returns {Promise<object>}
+ */
 export async function signUpWithEmail(email, password, displayName = '') {
   const { auth } = getFirebaseClients();
   if (!auth) throw new Error('FIREBASE_NOT_CONFIGURED');
-  const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-  if (displayName.trim()) {
+  const cleanEmail = String(email || '').trim();
+  const cleanName = String(displayName || '').trim();
+  const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+  if (cleanName) {
     try {
-      await updateProfile(cred.user, { displayName: displayName.trim() });
+      await updateProfile(cred.user, { displayName: cleanName });
     } catch {}
   }
   try {
@@ -201,6 +261,12 @@ export async function signUpWithEmail(email, password, displayName = '') {
   return cred.user;
 }
 
+/**
+ * Sends a password reset email for the specified address.
+ *
+ * @param {string} email
+ * @returns {Promise<void>}
+ */
 export async function resetPassword(email) {
   const { auth } = getFirebaseClients();
   if (!auth) throw new Error('FIREBASE_NOT_CONFIGURED');
@@ -209,6 +275,11 @@ export async function resetPassword(email) {
   await sendPasswordResetEmail(auth, cleanEmail);
 }
 
+/**
+ * Signs out the current Firebase user.
+ *
+ * @returns {Promise<void>}
+ */
 export async function signOutUser() {
   const { auth } = getFirebaseClients();
   if (!auth) return;

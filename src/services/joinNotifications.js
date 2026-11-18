@@ -8,7 +8,9 @@
 const TRUSTED_APP_ORIGIN = 'https://vanshvriksha.web.app';
 
 function sanitizeId(value) {
-  return String(value || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 128);
+  return String(value || '')
+    .replace(/[^A-Za-z0-9_-]/g, '')
+    .slice(0, 128);
 }
 
 function sanitizeText(value, maxLen = 120) {
@@ -18,6 +20,20 @@ function sanitizeText(value, maxLen = 120) {
     .slice(0, maxLen);
 }
 
+/**
+ * Builds a pre-filled `mailto:` URL instructing the tree owner to review a join request
+ * via the trusted application origin.
+ *
+ * @param {{
+ *   ownerEmail?: string,
+ *   treeId?: string,
+ *   treeTitle?: string,
+ *   requesterName?: string,
+ *   requesterEmail?: string,
+ *   requestedRole?: 'viewer' | 'editor'
+ * }} [options={}]
+ * @returns {string}
+ */
 export function buildJoinRequestMailtoUrl({
   ownerEmail = '',
   treeId,
@@ -25,7 +41,7 @@ export function buildJoinRequestMailtoUrl({
   requesterName = '',
   requesterEmail = '',
   requestedRole = 'viewer'
-}) {
+} = {}) {
   const safeTreeId = sanitizeId(treeId);
   const safeTitle = sanitizeText(treeTitle, 120) || `Family Tree (${safeTreeId})`;
   const safeRequester =
@@ -46,6 +62,11 @@ export function buildJoinRequestMailtoUrl({
   return `mailto:${toPart}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines.join('\n'))}`;
 }
 
+/**
+ * Checks whether EmailJS environment variables are configured for automated client-side emails.
+ *
+ * @returns {boolean}
+ */
 export function isEmailJsConfigured() {
   return Boolean(
     import.meta.env?.VITE_EMAILJS_SERVICE_ID &&
@@ -54,6 +75,21 @@ export function isEmailJsConfigured() {
   );
 }
 
+/**
+ * Sends a join-request notification to the tree owner via EmailJS if configured,
+ * always returning a fallback `mailtoUrl`.
+ *
+ * @param {{
+ *   treeId?: string,
+ *   treeTitle?: string,
+ *   requesterUid?: string,
+ *   requesterName?: string,
+ *   requesterEmail?: string,
+ *   requestedRole?: 'viewer' | 'editor',
+ *   ownerEmail?: string
+ * }} [options={}]
+ * @returns {Promise<{ sent: boolean, method: 'emailjs' | 'mailto', mailtoUrl: string }>}
+ */
 export async function sendOwnerJoinRequestEmail({
   treeId,
   treeTitle = '',
@@ -62,7 +98,7 @@ export async function sendOwnerJoinRequestEmail({
   requesterEmail = '',
   requestedRole = 'viewer',
   ownerEmail = ''
-}) {
+} = {}) {
   const safeTreeId = sanitizeId(treeId);
   const safeRequesterUid = sanitizeId(requesterUid);
   const mailtoUrl = buildJoinRequestMailtoUrl({

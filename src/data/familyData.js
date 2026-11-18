@@ -67,22 +67,33 @@ export const INITIAL_DATA = {
 
 /**
  * Builds fast index lookup maps for family tree queries.
+ *
+ * @param {{ people?: Array<object>, couples?: Array<object> }} data
+ * @returns {object}
  */
 export function buildFamilyIndex(data) {
+  const safePeople = Array.isArray(data?.people) ? data.people : [];
+  const safeCouples = Array.isArray(data?.couples) ? data.couples : [];
+
   const byId = {};
-  data.people.forEach(p => { byId[p.id] = p; });
+  safePeople.forEach(p => {
+    if (p && p.id) {
+      byId[p.id] = p;
+    }
+  });
 
   const spouse = {};
   const parents = {};
   const children = {};
   const cok = {};
 
-  data.couples.forEach(c => {
+  safeCouples.forEach(c => {
+    if (!c || typeof c !== 'object') return;
     if (c.h && c.w) {
       spouse[c.h] = c.w;
       spouse[c.w] = c.h;
     }
-    const kids = c.kids || [];
+    const kids = Array.isArray(c.kids) ? c.kids : [];
     if (c.h) {
       children[c.h] = Array.from(new Set([...(children[c.h] || []), ...kids]));
     }
@@ -90,6 +101,7 @@ export function buildFamilyIndex(data) {
       children[c.w] = Array.from(new Set([...(children[c.w] || []), ...kids]));
     }
     kids.forEach(k => {
+      if (!k) return;
       parents[k] = [c.h, c.w].filter(Boolean);
       cok[k] = c;
     });
@@ -103,21 +115,26 @@ export function buildFamilyIndex(data) {
     cok,
     kidsOf: id => children[id] || [],
     parOf: id => parents[id] || [],
-    sibsOf: id => (cok[id] ? cok[id].kids.filter(k => k !== id) : []),
+    sibsOf: id => (cok[id] && Array.isArray(cok[id].kids) ? cok[id].kids.filter(k => k !== id) : []),
     male: id => byId[id]?.g === 'M',
     elder: (a, b) => {
       const kids = cok[a]?.kids;
-      return kids ? kids.indexOf(a) < kids.indexOf(b) : false;
+      return Array.isArray(kids) ? kids.indexOf(a) < kids.indexOf(b) : false;
     }
   };
 }
 
 /**
- * Extracts 1-2 letter initials from a person's display name.
+ * Extracts 1-2 letter initials from a person's display name, stripping common honorifics.
+ *
+ * @param {string} [name='']
+ * @returns {string}
  */
 export function getInitials(name = '') {
+  if (typeof name !== 'string' || !name.trim()) return '';
   return name
-    .split(' ')
+    .trim()
+    .split(/\s+/)
     .filter(w => w && !['Shri', 'Smt', 'श्री', 'श्रीमती'].includes(w))
     .slice(0, 2)
     .map(w => Array.from(w)[0])

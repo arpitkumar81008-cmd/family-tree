@@ -1,3 +1,8 @@
+/**
+ * Daily Usage Analytics & Admin Verification Service.
+ * - Tracks anonymized daily counters in `analytics_daily/{YYYY-MM-DD}` and Google Analytics 4.
+ * - Provides admin role checks against `admins/{uid}` and daily metrics querying.
+ */
 import {
   collection,
   doc,
@@ -8,7 +13,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
+  setDoc
 } from 'firebase/firestore';
 import { getFirebaseClients, isFirebaseConfigured, trackAnalyticsEvent } from './firebase.js';
 
@@ -17,7 +22,7 @@ export const ALLOWED_METRICS = new Set([
   'treesCreated',
   'photosUploaded',
   'relationsSolved',
-  'joinRequests',
+  'joinRequests'
 ]);
 
 const METRIC_TO_GA_EVENT = {
@@ -25,16 +30,30 @@ const METRIC_TO_GA_EVENT = {
   treesCreated: 'tree_created',
   photosUploaded: 'photo_uploaded',
   relationsSolved: 'relation_solved',
-  joinRequests: 'join_request_sent',
+  joinRequests: 'join_request_sent'
 };
 
+/**
+ * Formats a Date instance into a `YYYY-MM-DD` key for daily analytics buckets.
+ *
+ * @param {Date} [date=new Date()]
+ * @returns {string}
+ */
 export function getTodayDateKey(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  const d = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * Increments an allowed application usage metric in `analytics_daily/{dayId}` and fires a GA4 event.
+ *
+ * @param {string} metricKey
+ * @param {object} [params={}]
+ * @returns {Promise<boolean>}
+ */
 export async function recordAppMetric(metricKey, params = {}) {
   if (!ALLOWED_METRICS.has(metricKey)) return false;
 
@@ -54,19 +73,25 @@ export async function recordAppMetric(metricKey, params = {}) {
       {
         date: dayId,
         [metricKey]: increment(1),
-        updatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       },
       { merge: true }
     );
     return true;
   } catch (err) {
-    if (import.meta.env.DEV) {
+    if (import.meta.env?.DEV) {
       console.warn('Analytics metric write skipped:', err?.message || err);
     }
     return false;
   }
 }
 
+/**
+ * Checks whether the given user has an admin document under `admins/{uid}`.
+ *
+ * @param {{ uid?: string } | null} user
+ * @returns {Promise<boolean>}
+ */
 export async function isUserAdmin(user) {
   if (!user?.uid || !isFirebaseConfigured()) return false;
   const { db } = getFirebaseClients();
@@ -79,18 +104,32 @@ export async function isUserAdmin(user) {
   }
 }
 
+/**
+ * Fetches up to `maxDays` daily analytics records ordered newest-first.
+ *
+ * @param {number} [maxDays=30]
+ * @returns {Promise<Array<{
+ *   date: string,
+ *   pageViews: number,
+ *   treesCreated: number,
+ *   photosUploaded: number,
+ *   relationsSolved: number,
+ *   joinRequests: number
+ * }>>}
+ */
 export async function fetchAnalyticsDaily(maxDays = 30) {
   if (!isFirebaseConfigured()) return [];
   const { db } = getFirebaseClients();
   if (!db) return [];
 
+  const safeLimit = Math.max(1, Math.min(90, Number(maxDays) || 30));
   const q = query(
     collection(db, 'analytics_daily'),
     orderBy('date', 'desc'),
-    limit(Math.max(1, Math.min(90, maxDays)))
+    limit(safeLimit)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((docSnap) => {
+  return snap.docs.map(docSnap => {
     const data = docSnap.data() || {};
     return {
       date: data.date || docSnap.id,
@@ -98,7 +137,7 @@ export async function fetchAnalyticsDaily(maxDays = 30) {
       treesCreated: Number(data.treesCreated) || 0,
       photosUploaded: Number(data.photosUploaded) || 0,
       relationsSolved: Number(data.relationsSolved) || 0,
-      joinRequests: Number(data.joinRequests) || 0,
+      joinRequests: Number(data.joinRequests) || 0
     };
   });
 }

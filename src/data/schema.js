@@ -30,17 +30,29 @@ const SAFE_LOCAL_IMAGE_RE = /^\/images\/[A-Za-z0-9._/-]+$/;
 const SAFE_REMOTE_IMAGE_RE =
   /^https:\/\/(?:[a-z0-9-]+\.)*(?:googleusercontent\.com|firebasestorage\.googleapis\.com)\/[^\s"'<>]+$/i;
 
+/**
+ * Validates whether a photo URL is a safe raster data URL, local image path, or trusted cloud storage URL.
+ * Rejects SVG/HTML data URLs, javascript: URIs, path traversal, and untrusted external origins.
+ *
+ * @param {string} url
+ * @returns {boolean}
+ */
 export function isSafePhotoUrl(url) {
   if (typeof url !== "string") return false;
   const trimmed = url.trim();
   if (!trimmed || trimmed.length > MAX_PHOTO_URL_LEN) return false;
-  return (
-    SAFE_DATA_IMAGE_RE.test(trimmed) ||
-    SAFE_LOCAL_IMAGE_RE.test(trimmed) ||
-    SAFE_REMOTE_IMAGE_RE.test(trimmed)
-  );
+  if (SAFE_DATA_IMAGE_RE.test(trimmed)) return true;
+  if (SAFE_LOCAL_IMAGE_RE.test(trimmed) && !trimmed.includes("..")) return true;
+  if (SAFE_REMOTE_IMAGE_RE.test(trimmed)) return true;
+  return false;
 }
 
+/**
+ * Sanitizes a personId -> photoUrl map, removing prototype-pollution keys and unsafe URLs.
+ *
+ * @param {Record<string, string>} photos
+ * @returns {Record<string, string>}
+ */
 export function sanitizePhotosMap(photos) {
   if (!photos || typeof photos !== "object" || Array.isArray(photos)) {
     return {};
@@ -49,15 +61,26 @@ export function sanitizePhotosMap(photos) {
   let count = 0;
   for (const [key, val] of Object.entries(photos)) {
     if (count >= MAX_PHOTOS_COUNT) break;
-    if (!key || FORBIDDEN_KEYS.has(key) || key.length > MAX_ID_LEN) continue;
+    if (typeof key !== "string") continue;
+    const cleanKey = key.trim();
+    if (!cleanKey || FORBIDDEN_KEYS.has(key) || FORBIDDEN_KEYS.has(cleanKey) || cleanKey.length > MAX_ID_LEN) {
+      continue;
+    }
     if (isSafePhotoUrl(val)) {
-      clean[key] = val.trim();
+      clean[cleanKey] = val.trim();
       count += 1;
     }
   }
   return clean;
 }
 
+/**
+ * Validates a family tree data structure (`{ people, couples }`) for structural integrity,
+ * field bounds, referential integrity, single-parentage invariant, and absence of ancestor cycles.
+ *
+ * @param {object} data
+ * @returns {{ valid: boolean, error?: string }}
+ */
 export function validateTreeData(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     return { valid: false, error: "Data is not an object" };
@@ -100,13 +123,17 @@ export function validateTreeData(data) {
     if (!person.id || typeof person.id !== "string" || !person.id.trim()) {
       return { valid: false, error: "Invalid person ID" };
     }
-    if (FORBIDDEN_KEYS.has(person.id)) {
+    const trimmedId = person.id.trim();
+    if (FORBIDDEN_KEYS.has(person.id) || FORBIDDEN_KEYS.has(trimmedId)) {
       return { valid: false, error: `Forbidden person ID: ${person.id}` };
     }
     if (person.id.length > MAX_ID_LEN) {
-      return { valid: false, error: `Person ID exceeds ${MAX_ID_LEN} characters: ${person.id.slice(0, 30)}...` };
+      return {
+        valid: false,
+        error: `Person ID exceeds ${MAX_ID_LEN} characters: ${person.id.slice(0, 30)}...`
+      };
     }
-    if (idSet.has(person.id)) {
+    if (idSet.has(person.id) || idSet.has(trimmedId)) {
       return { valid: false, error: `Duplicate person ID: ${person.id}` };
     }
     if (!person.name || typeof person.name !== "string" || !person.name.trim()) {
@@ -159,6 +186,7 @@ export function validateTreeData(data) {
       return { valid: false, error: `Person gender must be 'M' or 'F' for ID: ${person.id}` };
     }
     idSet.add(person.id);
+    idSet.add(trimmedId);
   }
 
   const coupleIdSet = new Set();
@@ -174,7 +202,7 @@ export function validateTreeData(data) {
       if (typeof couple.id !== "string" || !couple.id.trim()) {
         return { valid: false, error: "Invalid couple ID" };
       }
-      if (FORBIDDEN_KEYS.has(couple.id)) {
+      if (FORBIDDEN_KEYS.has(couple.id) || FORBIDDEN_KEYS.has(couple.id.trim())) {
         return { valid: false, error: `Forbidden couple ID: ${couple.id}` };
       }
       if (couple.id.length > MAX_ID_LEN) {
@@ -209,7 +237,7 @@ export function validateTreeData(data) {
     }
 
     const pairKey = `${h}|${w}`;
-    if (couplePairSet.has(pairKey)) {
+    if (couplePairSet.has(pairKey) || (h && w && couplePairSet.has(`${w}|${h}`))) {
       return { valid: false, error: `Duplicate couple entry for (${h || "none"}, ${w || "none"})` };
     }
     couplePairSet.add(pairKey);
