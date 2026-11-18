@@ -41,8 +41,14 @@ export function Breadcrumbs({
     return fallback[key] || key;
   });
 
-  const isDemo = !activeTreeId || activeTreeId === '';
-  const resolvedTreeTitle = activeTreeTitle || treeTitle || (isDemo ? translate('breadcrumbDemo') : (translate('badgePrivateTree') || 'Private Tree'));
+  const cleanTreeId = typeof activeTreeId === 'string' ? activeTreeId.trim() : '';
+  const isDemo = !cleanTreeId;
+  const cleanActiveTitle = typeof activeTreeTitle === 'string' ? activeTreeTitle.trim() : '';
+  const cleanTreeTitle = typeof treeTitle === 'string' ? treeTitle.trim() : '';
+  const resolvedTreeTitle =
+    cleanActiveTitle ||
+    cleanTreeTitle ||
+    (isDemo ? translate('breadcrumbDemo') : (translate('badgePrivateTree') || 'Private Tree'));
   const hasViewer = Boolean(viewerName && typeof viewerName === 'string' && viewerName.trim().length > 0);
 
   // If on Home view, render single leaf Home breadcrumb
@@ -117,7 +123,7 @@ export function Breadcrumbs({
                 <button
                   type="button"
                   className="breadcrumb-link"
-                  onClick={segment.onClick}
+                  onClick={() => segment.onClick?.()}
                   title={segment.label}
                 >
                   {segment.label}

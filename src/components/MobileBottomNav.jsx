@@ -18,9 +18,10 @@ export function MobileBottomNav({
     return !res || res === key ? fallback : res;
   };
 
+  const cleanTreeId = typeof activeTreeId === 'string' ? activeTreeId.trim() : '';
   const isHomeActive = currentView === 'home';
-  const isDemoActive = currentView === 'tree' && !activeTreeId;
-  const isMyTreeActive = currentView === 'tree' && Boolean(activeTreeId);
+  const isDemoActive = currentView === 'tree' && !cleanTreeId;
+  const isMyTreeActive = currentView === 'tree' && Boolean(cleanTreeId);
 
   const showDemoBtn = hasPrivateTree !== true;
   const showMyTreeBtn = hasPrivateTree !== false;
@@ -35,7 +36,7 @@ export function MobileBottomNav({
         type="button"
         className={`mobile-nav-btn ${isHomeActive ? 'active' : ''}`}
         aria-current={isHomeActive ? 'page' : undefined}
-        onClick={() => onNavigateHome && onNavigateHome()}
+        onClick={() => onNavigateHome?.()}
       >
         <span className="mobile-nav-icon" aria-hidden="true">⌂</span>
         <span className="mobile-nav-label">{tr('mobileNavHome', 'Home')}</span>
@@ -46,7 +47,7 @@ export function MobileBottomNav({
           type="button"
           className={`mobile-nav-btn ${isDemoActive ? 'active' : ''}`}
           aria-current={isDemoActive ? 'page' : undefined}
-          onClick={() => onNavigateDemo && onNavigateDemo()}
+          onClick={() => onNavigateDemo?.()}
         >
           <span className="mobile-nav-icon" aria-hidden="true">❖</span>
           <span className="mobile-nav-label">{tr('mobileNavDemo', 'Demo')}</span>
@@ -58,7 +59,7 @@ export function MobileBottomNav({
           type="button"
           className={`mobile-nav-btn ${isMyTreeActive ? 'active' : ''}`}
           aria-current={isMyTreeActive ? 'page' : undefined}
-          onClick={() => onNavigateMyTree && onNavigateMyTree()}
+          onClick={() => onNavigateMyTree?.()}
         >
           <span className="mobile-nav-icon" aria-hidden="true">◈</span>
           <span className="mobile-nav-label">{tr('mobileNavMyTree', 'My Tree')}</span>
@@ -69,7 +70,7 @@ export function MobileBottomNav({
         <button
           type="button"
           className="mobile-nav-btn mobile-nav-create-btn"
-          onClick={() => (onCreatePrivateTree ? onCreatePrivateTree() : onNavigateMyTree && onNavigateMyTree())}
+          onClick={() => (onCreatePrivateTree ? onCreatePrivateTree() : onNavigateMyTree?.())}
         >
           <span className="mobile-nav-icon" aria-hidden="true">＋</span>
           <span className="mobile-nav-label">{tr('mobileNavCreatePrivate', 'Create')}</span>
@@ -79,8 +80,8 @@ export function MobileBottomNav({
       <button
         type="button"
         className={`mobile-nav-btn ${isMenuOpen ? 'active' : ''}`}
-        aria-expanded={isMenuOpen}
-        onClick={() => onToggleMenu && onToggleMenu()}
+        aria-expanded={Boolean(isMenuOpen)}
+        onClick={() => onToggleMenu?.()}
       >
         <span className="mobile-nav-icon" aria-hidden="true">⚙</span>
         <span className="mobile-nav-label">{tr('mobileNavMenu', 'Menu')}</span>

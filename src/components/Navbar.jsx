@@ -30,7 +30,7 @@ export function Navbar({
   onNavigateMyTree,
   onSwitchView,
   t,
-  lang,
+  lang = 'en',
   setLang,
   theme,
   setTheme,
@@ -51,6 +51,7 @@ export function Navbar({
   const lastScrollYRef = useRef(0);
   const tickingRef = useRef(false);
   const rafIdRef = useRef(null);
+  const copyTimerRef = useRef(null);
   const navRef = useRef(null);
   const isCollapsedRef = useRef(isCollapsed);
   const isSettingsOpenRef = useRef(isSettingsOpen);
@@ -62,6 +63,27 @@ export function Navbar({
   viewportModeRef.current = viewportMode;
 
   const cloudConfigured = isFirebaseConfigured();
+
+  // Clean up copied feedback timer on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current !== null) {
+        clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const triggerCopiedFeedback = () => {
+    setCopied(true);
+    if (copyTimerRef.current !== null) {
+      clearTimeout(copyTimerRef.current);
+    }
+    copyTimerRef.current = setTimeout(() => {
+      copyTimerRef.current = null;
+      setCopied(false);
+    }, 2000);
+  };
 
   // Helper to determine mobile viewport status
   const checkIsMobile = () => {
@@ -118,7 +140,7 @@ export function Navbar({
         ? window.scrollY
         : (window.pageYOffset !== undefined
           ? window.pageYOffset
-          : (document.documentElement ? document.documentElement.scrollTop : 0))
+          : (typeof document !== 'undefined' && document.documentElement ? document.documentElement.scrollTop : 0))
     );
 
     const handleScroll = () => {
@@ -162,7 +184,7 @@ export function Navbar({
           ? window.scrollY
           : (window.pageYOffset !== undefined
             ? window.pageYOffset
-            : (document.documentElement ? document.documentElement.scrollTop : 0));
+            : (typeof document !== 'undefined' && document.documentElement ? document.documentElement.scrollTop : 0));
 
         const maxScroll = typeof document !== 'undefined' && document.documentElement
           ? Math.max(0, document.documentElement.scrollHeight - (window.innerHeight || 0))
@@ -216,8 +238,9 @@ export function Navbar({
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);
-      if (rafIdRef.current) {
+      if (rafIdRef.current !== null) {
         cancelAnimFrame(rafIdRef.current);
+        rafIdRef.current = null;
       }
     };
   }, []);
@@ -237,10 +260,10 @@ export function Navbar({
     return !res || res === key ? fallback : res;
   };
 
+  const cleanActiveTreeId = typeof activeTreeId === 'string' ? activeTreeId.trim() : '';
   const isHome = currentView === 'home';
-  const isDemo = currentView === 'tree' && (!activeTreeId || activeTreeId === '');
-  const isMyTree = currentView === 'tree' && Boolean(activeTreeId && activeTreeId.trim() !== '');
-  const isPrivateTreePage = currentView === 'tree' && Boolean(activeTreeId && activeTreeId.trim() !== '');
+  const isDemo = currentView === 'tree' && !cleanActiveTreeId;
+  const isMyTree = currentView === 'tree' && Boolean(cleanActiveTreeId);
 
   const handleHomeClick = () => {
     if (isHome) return;
@@ -271,8 +294,9 @@ export function Navbar({
     }
   };
 
-  const isDemoTree = !activeTreeId || activeTreeId === '';
-  const resolvedTitle = (activeTreeMeta?.title || activeTreeTitle || '').trim();
+  const isDemoTree = !cleanActiveTreeId;
+  const rawTitle = activeTreeMeta?.title || activeTreeTitle || '';
+  const resolvedTitle = typeof rawTitle === 'string' ? rawTitle.trim() : '';
   const isOwnerTree = Boolean(
     !isDemoTree && (isOwner ?? (user && activeTreeMeta && (activeTreeMeta.ownerUid === user.uid || activeTreeMeta.ownerId === user.uid)))
   );
@@ -300,42 +324,46 @@ export function Navbar({
       return;
     }
 
-    if (isPrivate && activeTreeId) {
+    if (isPrivate && cleanActiveTreeId) {
       try {
         let shareUrl = '';
         if (onEnsurePrivateShareLink) {
-          const res = await onEnsurePrivateShareLink(activeTreeId);
+          const res = await onEnsurePrivateShareLink(cleanActiveTreeId);
           if (typeof res === 'string') {
-            shareUrl = res.includes('view=tree') ? res : buildPrivateShareUrl(activeTreeId, res);
+            shareUrl = res.includes('view=tree') ? res : buildPrivateShareUrl(cleanActiveTreeId, res);
           } else if (res && typeof res === 'object') {
-            shareUrl = res.url || buildPrivateShareUrl(activeTreeId, res.shareCode || '');
+            shareUrl = res.url || buildPrivateShareUrl(cleanActiveTreeId, res.shareCode || '');
           }
         } else {
           let code = (activeTreeMeta?.shareCode || '').trim().toUpperCase();
           if (!code && isOwnerTree && user?.uid) {
             code = generatePrivateShareToken();
             await updateTreeSharingSettings(
-              activeTreeId,
+              cleanActiveTreeId,
               { shareCode: code, shareCodeRole: activeTreeMeta?.shareCodeRole || 'viewer' },
               user
             );
           }
-          shareUrl = buildPrivateShareUrl(activeTreeId, code);
+          shareUrl = buildPrivateShareUrl(cleanActiveTreeId, code);
         }
-        if (shareUrl && navigator?.clipboard?.writeText) {
+        if (shareUrl && typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
           await navigator.clipboard.writeText(shareUrl);
         }
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch {}
+        triggerCopiedFeedback();
+      } catch {
+        // Ignore clipboard errors in restricted contexts
+      }
       return;
     }
 
     try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {}
+      if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText && typeof window !== 'undefined') {
+        await navigator.clipboard.writeText(window.location.href);
+        triggerCopiedFeedback();
+      }
+    } catch {
+      // Ignore clipboard errors in restricted contexts
+    }
   };
 
   return (
@@ -505,15 +533,15 @@ export function Navbar({
 
         {user ? (
           <div className="nav-user">
-            <span className="user-pill" title={user.email}>
-              {user.displayName}
+            <span className="user-pill" title={user.email || ''}>
+              {user.displayName || user.email || ''}
             </span>
-            <button type="button" className="zbtn nav-action-btn" onClick={onSignOut}>
+            <button type="button" className="zbtn nav-action-btn" onClick={() => onSignOut?.()}>
               {translate('signOut')}
             </button>
           </div>
         ) : (
-          <button type="button" className="btn nav-action-btn" onClick={onOpenAuth}>
+          <button type="button" className="btn nav-action-btn" onClick={() => onOpenAuth?.()}>
             {translate('signIn')}
           </button>
         )}
@@ -525,13 +553,13 @@ export function Navbar({
             aria-label={translate('settingsBtnAria')}
             aria-expanded={isSettingsOpen}
             aria-haspopup="dialog"
-            onClick={() => setIsSettingsOpen && setIsSettingsOpen(prev => !prev)}
+            onClick={() => setIsSettingsOpen?.(prev => !prev)}
           >
             ⋮
           </button>
           <SettingsPopover
             isOpen={isSettingsOpen}
-            onClose={() => setIsSettingsOpen && setIsSettingsOpen(false)}
+            onClose={() => setIsSettingsOpen?.(false)}
             theme={theme}
             setTheme={setTheme}
             textSize={textSize}

@@ -1,25 +1,47 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { computeUpcomingMilestones } from '../utils/milestones.js';
 
 export function MilestonesModal({
   isOpen = true,
   onClose,
+  close,
   people,
   displayName,
   lang = 'en',
   onSelectPerson
 }) {
+  const handleClose = onClose || close || (() => {});
   const [filter, setFilter] = useState('all'); // 'all' | 'birthday' | 'anniversary'
   const isHi = lang === 'hi';
+  const modalRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = e => {
-      if (e.key === 'Escape' && onClose) onClose();
+      if (e.key === 'Escape') {
+        handleClose();
+      } else if (e.key === 'Tab' && modalRef.current) {
+        const focusable = Array.from(
+          modalRef.current.querySelectorAll(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => el.offsetParent !== null || el.offsetWidth > 0);
+        if (focusable.length) {
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, handleClose]);
 
   const milestones = useMemo(() => {
     if (!isOpen) return [];
@@ -34,6 +56,7 @@ export function MilestonesModal({
   if (!isOpen) return null;
 
   const getPersonName = person => {
+    if (!person) return '';
     if (typeof displayName === 'function') return displayName(person.id);
     return isHi ? (person.hi || person.name || person.n || person.id) : (person.name || person.n || person.id);
   };
@@ -56,22 +79,21 @@ export function MilestonesModal({
     if (typeof onSelectPerson === 'function') {
       onSelectPerson(personId);
     }
-    if (typeof onClose === 'function') {
-      onClose();
-    }
+    handleClose();
   };
 
   return (
     <div
       className="overlay"
       onClick={e => {
-        if (e.target === e.currentTarget && onClose) onClose();
+        if (e.target === e.currentTarget) handleClose();
       }}
       onMouseDown={e => {
-        if (e.target === e.currentTarget && onClose) onClose();
+        if (e.target === e.currentTarget) handleClose();
       }}
     >
       <div
+        ref={modalRef}
         className="sheet"
         role="dialog"
         aria-modal="true"
@@ -83,7 +105,7 @@ export function MilestonesModal({
           className="x"
           type="button"
           aria-label={isHi ? 'बंद करें' : 'Close'}
-          onClick={onClose}
+          onClick={handleClose}
         >
           ×
         </button>
@@ -211,7 +233,7 @@ export function MilestonesModal({
         <button
           className="btn"
           type="button"
-          onClick={onClose}
+          onClick={handleClose}
           style={{ marginTop: '16px', width: '100%' }}
         >
           {isHi ? 'बंद करें' : 'Close'}

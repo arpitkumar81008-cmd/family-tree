@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchAnalyticsDaily, getTodayDateKey, isUserAdmin } from '../services/analyticsStats';
 
 const FIREBASE_PROJECT_ID = 'gupta-family-tree-akg';
@@ -39,19 +39,38 @@ export default function AdminPanel({
   const [statsError, setStatsError] = useState('');
   const [dailyRows, setDailyRows] = useState([]);
   const [copiedUid, setCopiedUid] = useState(false);
+  const mountedRef = useRef(true);
+  const copyTimerRef = useRef(null);
+  const analyticsSeqRef = useRef(0);
 
-  const loadAnalytics = async () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      analyticsSeqRef.current += 1;
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
+
+  const loadAnalytics = useCallback(async () => {
+    const seq = ++analyticsSeqRef.current;
     setLoadingStats(true);
     setStatsError('');
     try {
       const rows = await fetchAnalyticsDaily(30);
-      setDailyRows(rows);
+      if (mountedRef.current && seq === analyticsSeqRef.current) {
+        setDailyRows(Array.isArray(rows) ? rows : []);
+      }
     } catch (err) {
-      setStatsError(err?.message || 'Unable to load analytics data.');
+      if (mountedRef.current && seq === analyticsSeqRef.current) {
+        setStatsError(err?.message || 'Unable to load analytics data.');
+      }
     } finally {
-      setLoadingStats(false);
+      if (mountedRef.current && seq === analyticsSeqRef.current) {
+        setLoadingStats(false);
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -66,29 +85,34 @@ export default function AdminPanel({
     setCheckingAdmin(true);
     isUserAdmin(user)
       .then((ok) => {
-        if (!active) return;
+        if (!active || !mountedRef.current) return;
         setAdminAuthorized(ok);
         if (ok) {
           loadAnalytics();
         }
       })
+      .catch(() => {
+        if (active && mountedRef.current) {
+          setAdminAuthorized(false);
+        }
+      })
       .finally(() => {
-        if (active) setCheckingAdmin(false);
+        if (active && mountedRef.current) setCheckingAdmin(false);
       });
 
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [user, loadAnalytics]);
 
   const totals = useMemo(() => {
     return dailyRows.reduce(
       (acc, row) => ({
-        pageViews: acc.pageViews + row.pageViews,
-        treesCreated: acc.treesCreated + row.treesCreated,
-        photosUploaded: acc.photosUploaded + row.photosUploaded,
-        relationsSolved: acc.relationsSolved + row.relationsSolved,
-        joinRequests: acc.joinRequests + row.joinRequests,
+        pageViews: acc.pageViews + (Number(row?.pageViews) || 0),
+        treesCreated: acc.treesCreated + (Number(row?.treesCreated) || 0),
+        photosUploaded: acc.photosUploaded + (Number(row?.photosUploaded) || 0),
+        relationsSolved: acc.relationsSolved + (Number(row?.relationsSolved) || 0),
+        joinRequests: acc.joinRequests + (Number(row?.joinRequests) || 0),
       }),
       {
         pageViews: 0,
@@ -103,14 +127,20 @@ export default function AdminPanel({
   const chartData = useMemo(() => {
     if (!dailyRows.length) return [];
     return [...dailyRows]
-      .sort((a, b) => a.date.localeCompare(b.date))
+      .sort((a, b) => String(a?.date || '').localeCompare(String(b?.date || '')))
       .map((row) => ({
         ...row,
+        date: String(row?.date || ''),
+        pageViews: Number(row?.pageViews) || 0,
+        treesCreated: Number(row?.treesCreated) || 0,
+        photosUploaded: Number(row?.photosUploaded) || 0,
+        relationsSolved: Number(row?.relationsSolved) || 0,
+        joinRequests: Number(row?.joinRequests) || 0,
         actions:
-          row.treesCreated +
-          row.photosUploaded +
-          row.relationsSolved +
-          row.joinRequests,
+          (Number(row?.treesCreated) || 0) +
+          (Number(row?.photosUploaded) || 0) +
+          (Number(row?.relationsSolved) || 0) +
+          (Number(row?.joinRequests) || 0),
       }));
   }, [dailyRows]);
 
@@ -163,10 +193,14 @@ export default function AdminPanel({
     if (!user?.uid) return;
     try {
       await navigator.clipboard.writeText(user.uid);
+      if (!mountedRef.current) return;
       setCopiedUid(true);
-      setTimeout(() => setCopiedUid(false), 2000);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => {
+        if (mountedRef.current) setCopiedUid(false);
+      }, 2000);
     } catch {
-      setCopiedUid(false);
+      if (mountedRef.current) setCopiedUid(false);
     }
   };
 

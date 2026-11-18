@@ -14,6 +14,7 @@ export function CreateTreeModal({
   activeTreeId,
   hasPrivateTree = false,
   close,
+  onClose,
   onOpenAuth,
   onSelectTree,
   onCreateBlank,
@@ -21,6 +22,7 @@ export function CreateTreeModal({
   onRestore,
   onOpenShareModal
 }) {
+  const handleClose = close || onClose || (() => {});
   const [treeTitle, setTreeTitle] = useState('');
   const [name, setName] = useState('');
   // Default to Private (false) to protect living family members' PII by default
@@ -33,14 +35,25 @@ export function CreateTreeModal({
   const [publicTrees, setPublicTrees] = useState([]);
   const ref = useRef(null);
   const firstRef = useRef(null);
+  const mountedRef = useRef(true);
   const directoryListRef = useSmartAutoAnimate();
 
   useEffect(() => {
+    mountedRef.current = true;
     firstRef.current?.focus();
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     listAvailableTrees(user)
       .then(list => {
+        if (cancelled || !mountedRef.current) return;
+        const safeList = Array.isArray(list) ? list : [];
         // Sort private/owned/shared trees first so the signed-in user immediately sees their family tree
-        const sorted = [...list].sort((a, b) => {
+        const sorted = [...safeList].sort((a, b) => {
           const aOwned = Boolean(user && (a.ownerUid === user.uid || canUserEditTree(a, user)));
           const bOwned = Boolean(user && (b.ownerUid === user.uid || canUserEditTree(b, user)));
           if (aOwned !== bOwned) return aOwned ? -1 : 1;
@@ -49,12 +62,20 @@ export function CreateTreeModal({
         setPublicTrees(sorted);
       })
       .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  useEffect(() => {
     const onKey = e => {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape') handleClose();
       if (e.key === 'Tab' && ref.current) {
         const f = Array.from(
-          ref.current.querySelectorAll('button:not([disabled]), input, textarea, select')
-        );
+          ref.current.querySelectorAll(
+            'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => el.offsetParent !== null || el.offsetWidth > 0);
         if (!f.length) return;
         const first = f[0];
         const last = f[f.length - 1];
@@ -69,7 +90,7 @@ export function CreateTreeModal({
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [close, user]);
+  }, [handleClose]);
 
   const handleJoinByCode = async e => {
     e.preventDefault();
@@ -79,16 +100,17 @@ export function CreateTreeModal({
     setMsg('');
     try {
       const found = await findTreeByShareCode(clean);
+      if (!mountedRef.current) return;
       if (found) {
         onSelectTree?.(found.id, found);
-        close();
+        handleClose();
       } else {
         setMsg(t('joinByCodeNotFound'));
       }
     } catch {
-      setMsg(t('joinByCodeNotFound'));
+      if (mountedRef.current) setMsg(t('joinByCodeNotFound'));
     } finally {
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
     }
   };
 
@@ -111,9 +133,11 @@ export function CreateTreeModal({
         isPublic
       });
     } catch (err) {
-      setMsg(err?.message || 'Could not create tree. Please try again.');
+      if (mountedRef.current) {
+        setMsg(err?.message || 'Could not create tree. Please try again.');
+      }
     } finally {
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
     }
   };
 
@@ -141,7 +165,7 @@ export function CreateTreeModal({
 
       const photos = sanitizePhotosMap(parsed.photos);
       if (!isPhotosPayloadWithinLimit(photos)) {
-        setMsg(t('noSpace'));
+        if (mountedRef.current) setMsg(t('noSpace'));
         return;
       }
 
@@ -152,14 +176,16 @@ export function CreateTreeModal({
         isPublic
       });
     } catch (err) {
-      setMsg(err?.message || t('importBad'));
+      if (mountedRef.current) {
+        setMsg(err?.message || t('importBad'));
+      }
     } finally {
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
     }
   };
 
   return (
-    <div className="overlay" onMouseDown={e => e.target === e.currentTarget && close()}>
+    <div className="overlay" onMouseDown={e => e.target === e.currentTarget && handleClose()}>
       <div
         ref={ref}
         className="sheet create-sheet"
@@ -167,7 +193,7 @@ export function CreateTreeModal({
         aria-modal="true"
         aria-labelledby="create-title"
       >
-        <button className="x" type="button" aria-label={t('close')} onClick={close}>
+        <button className="x" type="button" aria-label={t('close')} onClick={handleClose}>
           ×
         </button>
         <h2 id="create-title">{t('createTitle')}</h2>
@@ -210,7 +236,7 @@ export function CreateTreeModal({
                   className="chip"
                   onClick={() => {
                     onSelectTree?.('');
-                    close();
+                    handleClose();
                   }}
                 >
                   {activeTreeId === '' ? '✓ ' : ''}
@@ -257,7 +283,7 @@ export function CreateTreeModal({
                         className="chip"
                         onClick={() => {
                           onSelectTree?.(tr.id, tr);
-                          close();
+                          handleClose();
                         }}
                       >
                         {activeTreeId === tr.id ? '✓ ' : ''}

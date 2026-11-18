@@ -61,6 +61,9 @@ function loadImage(src) {
 }
 
 function renderCompressedDataUrl(drawable, maxDim, quality) {
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+    throw new Error('CANVAS_UNAVAILABLE');
+  }
   const canvas = document.createElement('canvas');
   let w = drawable.naturalWidth || drawable.videoWidth || drawable.width || maxDim;
   let h = drawable.naturalHeight || drawable.videoHeight || drawable.height || maxDim;
@@ -191,10 +194,14 @@ export async function compressDataUrl(rawDataUrl, { targetBytes = 8192, timeoutM
 }
 
 export async function compactPhotosMap(photosMap, { targetBytes = 8192 } = {}) {
-  if (!photosMap || typeof photosMap !== 'object') return { photos: {}, changed: false };
-  const next = { ...photosMap };
+  if (!photosMap || typeof photosMap !== 'object' || Array.isArray(photosMap)) {
+    return { photos: {}, changed: false };
+  }
+  const next = {};
   let changed = false;
   for (const [id, val] of Object.entries(photosMap)) {
+    if (id === '__proto__' || id === 'constructor' || id === 'prototype') continue;
+    next[id] = val;
     if (typeof val === 'string' && val.startsWith('data:image/') && val.length > targetBytes) {
       try {
         const compressed = await compressDataUrl(val, { targetBytes });

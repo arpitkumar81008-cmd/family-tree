@@ -15,7 +15,8 @@ import {
 
 export { LOCAL_AUTH_KEY, loadLocalAuthUser, saveLocalAuthUser };
 
-export function AuthModal({ t, close, onSignedIn }) {
+export function AuthModal({ t, close, onClose, onSignedIn }) {
+  const handleClose = close || onClose || (() => {});
   const cloudConfigured = isFirebaseConfigured();
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'reset'
   const [email, setEmail] = useState('');
@@ -26,16 +27,43 @@ export function AuthModal({ t, close, onSignedIn }) {
   const [infoMsg, setInfoMsg] = useState('');
   const ref = useRef(null);
   const firstRef = useRef(null);
+  const mountedRef = useRef(true);
   const formAnimRef = useSmartAutoAnimate();
 
   useEffect(() => {
+    mountedRef.current = true;
     firstRef.current?.focus();
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const onKey = e => {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape') {
+        handleClose();
+      } else if (e.key === 'Tab' && ref.current) {
+        const focusable = Array.from(
+          ref.current.querySelectorAll(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => el.offsetParent !== null || el.offsetWidth > 0);
+        if (focusable.length) {
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [close]);
+  }, [handleClose]);
 
   const finishLocalDemoProfile = (emailAddr, nameStr) => {
     const cleanEmail = emailAddr.trim().toLowerCase();
@@ -53,7 +81,7 @@ export function AuthModal({ t, close, onSignedIn }) {
     };
     saveLocalAuthUser(userObj);
     onSignedIn?.(userObj);
-    close();
+    handleClose();
   };
 
   const handleGoogle = async () => {
@@ -65,17 +93,22 @@ export function AuthModal({ t, close, onSignedIn }) {
     setBusy(true);
     try {
       const u = await signInWithGoogle();
+      if (!mountedRef.current) return;
       onSignedIn?.({
         uid: u.uid,
         email: u.email || '',
         displayName: u.displayName || u.email?.split('@')[0] || 'Member',
         photoURL: u.photoURL || ''
       });
-      close();
+      handleClose();
     } catch (e) {
-      setErr(e?.message || 'Sign-in failed');
+      if (mountedRef.current) {
+        setErr(e?.message || 'Sign-in failed');
+      }
     } finally {
-      setBusy(false);
+      if (mountedRef.current) {
+        setBusy(false);
+      }
     }
   };
 
@@ -91,11 +124,17 @@ export function AuthModal({ t, close, onSignedIn }) {
       setBusy(true);
       try {
         await resetPassword(email);
-        setInfoMsg('Password reset email sent! Check your inbox (and spam folder).');
+        if (mountedRef.current) {
+          setInfoMsg('Password reset email sent! Check your inbox (and spam folder).');
+        }
       } catch (e) {
-        setErr(e?.message || 'Could not send password reset email.');
+        if (mountedRef.current) {
+          setErr(e?.message || 'Could not send password reset email.');
+        }
       } finally {
-        setBusy(false);
+        if (mountedRef.current) {
+          setBusy(false);
+        }
       }
       return;
     }
@@ -111,24 +150,29 @@ export function AuthModal({ t, close, onSignedIn }) {
           mode === 'signup'
             ? await signUpWithEmail(email, password, displayName)
             : await signInWithEmail(email, password);
+        if (!mountedRef.current) return;
         onSignedIn?.({
           uid: u.uid,
           email: u.email || email.trim(),
           displayName: u.displayName || displayName.trim() || email.split('@')[0]
         });
-        close();
+        handleClose();
       } else {
         finishLocalDemoProfile(email, displayName);
       }
     } catch (e) {
-      setErr(e?.message || 'Authentication failed');
+      if (mountedRef.current) {
+        setErr(e?.message || 'Authentication failed');
+      }
     } finally {
-      setBusy(false);
+      if (mountedRef.current) {
+        setBusy(false);
+      }
     }
   };
 
   return (
-    <div className="overlay" onMouseDown={e => e.target === e.currentTarget && close()}>
+    <div className="overlay" onMouseDown={e => e.target === e.currentTarget && handleClose()}>
       <div
         ref={ref}
         className="sheet auth-sheet reveal-parent"
@@ -136,7 +180,7 @@ export function AuthModal({ t, close, onSignedIn }) {
         aria-modal="true"
         aria-labelledby="auth-title"
       >
-        <button className="x" type="button" aria-label={t('close')} onClick={close}>
+        <button className="x" type="button" aria-label={t('close')} onClick={handleClose}>
           ×
         </button>
         <h2 id="auth-title">{t('authTitle')}</h2>

@@ -14,6 +14,8 @@ export function SubTreesSidebar({
   isOpen = false,
   onClose
 }) {
+  const safeSubTrees = Array.isArray(subTrees) ? subTrees.filter(st => st && st.id) : [];
+
   const tr = (key, enFallback, hiFallback) => {
     const val = typeof t === 'function' ? t(key) : key;
     if (val && val !== key) return val;
@@ -26,21 +28,24 @@ export function SubTreesSidebar({
       : Boolean(collapsedSubTrees?.[id]);
 
   const resolveName = (id) => {
+    if (!id) return '';
     if (typeof displayName === 'function') {
       const n = displayName(id);
       if (n) return n;
     }
     const p = familyIndex?.byId?.[id];
-    if (!p) return id;
-    return lang === 'hi' ? (p.hi || p.name) : p.name;
+    if (!p) return String(id);
+    return (lang === 'hi' ? (p.hi || p.name) : p.name) || String(id);
   };
 
   const getInitials = (name) => {
-    if (!name) return '?';
-    const parts = name.trim().split(/\s+/);
+    if (!name || typeof name !== 'string') return '?';
+    const trimmed = name.trim();
+    if (!trimmed) return '?';
+    const parts = trimmed.split(/\s+/).filter(Boolean);
     return parts.length > 1
       ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-      : name.slice(0, 2).toUpperCase();
+      : trimmed.slice(0, 2).toUpperCase();
   };
 
   return (
@@ -54,9 +59,9 @@ export function SubTreesSidebar({
           <h2 className="subtrees-sidebar-title">
             {tr('subTreesTitle', 'Sub-Trees', 'उप-वंश')}
           </h2>
-          {subTrees.length > 0 && (
+          {safeSubTrees.length > 0 && (
             <span className="subtrees-sidebar-count" aria-label={tr('subTreesCount', 'Count', 'संख्या')}>
-              {subTrees.length}
+              {safeSubTrees.length}
             </span>
           )}
         </div>
@@ -72,7 +77,7 @@ export function SubTreesSidebar({
         )}
       </div>
 
-      {subTrees.length === 0 ? (
+      {safeSubTrees.length === 0 ? (
         <div className="subtrees-empty">
           <p>
             {tr(
@@ -84,9 +89,11 @@ export function SubTreesSidebar({
         </div>
       ) : (
         <div className="subtrees-list" role="list">
-          {subTrees.map((st) => {
+          {safeSubTrees.map((st) => {
             const collapsed = isCollapsed(st.id);
             const membersPanelId = `subtree-members-${st.id}`;
+            const title = st.title || st.id;
+            const memberIds = Array.isArray(st.memberIds) ? st.memberIds : [];
 
             return (
               <section
@@ -103,8 +110,8 @@ export function SubTreesSidebar({
                     aria-controls={membersPanelId}
                     aria-label={
                       collapsed
-                        ? tr('expandSubTree', `Expand ${st.title}`, `${st.title} खोलें`)
-                        : tr('collapseSubTree', `Collapse ${st.title}`, `${st.title} समेटें`)
+                        ? tr('expandSubTree', `Expand ${title}`, `${title} खोलें`)
+                        : tr('collapseSubTree', `Collapse ${title}`, `${title} समेटें`)
                     }
                     onClick={() => onToggleSubTree?.(st.id)}
                   >
@@ -120,15 +127,15 @@ export function SubTreesSidebar({
                     <span className="subtree-kind-icon" aria-hidden="true">
                       {st.isMain ? '★' : '✦'}
                     </span>
-                    <span className="subtree-title-text">{st.title}</span>
-                    <span className="subtree-count">{st.memberIds?.length || 0}</span>
+                    <span className="subtree-title-text">{title}</span>
+                    <span className="subtree-count">{memberIds.length}</span>
                   </button>
                 </div>
 
                 {/* Preview / Member container */}
                 {!collapsed && (
                   <div id={membersPanelId} className="subtree-members">
-                    {(st.memberIds || []).map((memberId) => {
+                    {memberIds.map((memberId) => {
                       const member = familyIndex?.byId?.[memberId];
                       const name = resolveName(memberId);
                       const isActive = viewer === memberId;

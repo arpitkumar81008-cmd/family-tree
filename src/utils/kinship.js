@@ -183,9 +183,52 @@ function removedSuffixEn(r) {
   return ` ${r} times removed`;
 }
 
+function hasValidPerson(familyIndex, id) {
+  if (!id || typeof id !== "string" || !familyIndex || !familyIndex.byId) return false;
+  if (!Object.prototype.hasOwnProperty.call(familyIndex.byId, id)) return false;
+  const node = familyIndex.byId[id];
+  return Boolean(node && typeof node === "object");
+}
+
+function safeParOf(familyIndex, id) {
+  if (!id || typeof familyIndex?.parOf !== "function") return [];
+  const list = familyIndex.parOf(id);
+  return Array.isArray(list) ? list.filter(pid => hasValidPerson(familyIndex, pid)) : [];
+}
+
+function safeKidsOf(familyIndex, id) {
+  if (!id || typeof familyIndex?.kidsOf !== "function") return [];
+  const list = familyIndex.kidsOf(id);
+  return Array.isArray(list) ? list.filter(cid => hasValidPerson(familyIndex, cid)) : [];
+}
+
+function safeSibsOf(familyIndex, id) {
+  if (!id || typeof familyIndex?.sibsOf !== "function") return [];
+  const list = familyIndex.sibsOf(id);
+  return Array.isArray(list) ? list.filter(sid => hasValidPerson(familyIndex, sid)) : [];
+}
+
+function safeMale(familyIndex, id) {
+  if (!hasValidPerson(familyIndex, id)) return false;
+  if (typeof familyIndex?.male === "function") return Boolean(familyIndex.male(id));
+  return familyIndex.byId[id]?.g === "M";
+}
+
+function safeElder(familyIndex, aId, bId) {
+  if (!hasValidPerson(familyIndex, aId) || !hasValidPerson(familyIndex, bId)) return false;
+  if (typeof familyIndex?.elder === "function") return Boolean(familyIndex.elder(aId, bId));
+  return false;
+}
+
+function safeSpouseOf(familyIndex, id) {
+  if (!hasValidPerson(familyIndex, id) || !familyIndex?.spouse) return null;
+  const sid = familyIndex.spouse[id];
+  return hasValidPerson(familyIndex, sid) ? sid : null;
+}
+
 function edgeLabel(familyIndex, fromId, toId, edge, lang) {
   const isHi = lang === "hi";
-  const isTargetMale = familyIndex.male(toId);
+  const isTargetMale = safeMale(familyIndex, toId);
   if (edge === "parent") {
     return isTargetMale ? (isHi ? "पिता" : "Father") : (isHi ? "माता" : "Mother");
   }
@@ -199,14 +242,17 @@ function edgeLabel(familyIndex, fromId, toId, edge, lang) {
 }
 
 function buildAncestorMap(familyIndex, startId) {
-  const map = { [startId]: { depth: 0, path: [startId] } };
+  const map = new Map([[startId, { depth: 0, path: [startId] }]]);
   const queue = [startId];
-  while (queue.length > 0) {
-    const curr = queue.shift();
-    const { depth, path } = map[curr];
-    for (const pid of familyIndex.parOf(curr)) {
-      if (!(pid in map)) {
-        map[pid] = { depth: depth + 1, path: [...path, pid] };
+  let qIdx = 0;
+  while (qIdx < queue.length) {
+    const curr = queue[qIdx++];
+    const entry = map.get(curr);
+    if (!entry) continue;
+    const { depth, path } = entry;
+    for (const pid of safeParOf(familyIndex, curr)) {
+      if (!map.has(pid)) {
+        map.set(pid, { depth: depth + 1, path: [...path, pid] });
         queue.push(pid);
       }
     }
@@ -219,13 +265,14 @@ function findBestLCA(familyIndex, originId, targetId) {
   const ancTarget = buildAncestorMap(familyIndex, targetId);
 
   let best = null;
-  for (const id of Object.keys(ancOrigin)) {
-    if (!(id in ancTarget)) continue;
-    const up = ancOrigin[id].depth;
-    const down = ancTarget[id].depth;
+  for (const [id, originEntry] of ancOrigin.entries()) {
+    const targetEntry = ancTarget.get(id);
+    if (!targetEntry) continue;
+    const up = originEntry.depth;
+    const down = targetEntry.depth;
     const total = up + down;
     const diff = Math.abs(up - down);
-    const isMale = familyIndex.male(id) ? 0 : 1;
+    const isMale = safeMale(familyIndex, id) ? 0 : 1;
 
     if (
       !best ||
@@ -240,8 +287,8 @@ function findBestLCA(familyIndex, originId, targetId) {
         total,
         diff,
         isMale,
-        originPath: ancOrigin[id].path,
-        targetPath: ancTarget[id].path
+        originPath: originEntry.path,
+        targetPath: targetEntry.path
       };
     }
   }
@@ -277,19 +324,20 @@ function buildBloodPathSteps(familyIndex, originPath, targetPath, lang) {
 function findShortestBFSPath(familyIndex, originId, targetId, lang) {
   const visited = new Set([originId]);
   const queue = [{ id: originId, steps: [] }];
+  let qIdx = 0;
 
-  while (queue.length > 0) {
-    const { id, steps } = queue.shift();
+  while (qIdx < queue.length) {
+    const { id, steps } = queue[qIdx++];
     if (id === targetId) return steps;
 
     const neighbors = [];
-    for (const pid of familyIndex.parOf(id)) {
+    for (const pid of safeParOf(familyIndex, id)) {
       neighbors.push({ nextId: pid, edge: "parent" });
     }
-    for (const cid of familyIndex.kidsOf(id)) {
+    for (const cid of safeKidsOf(familyIndex, id)) {
       neighbors.push({ nextId: cid, edge: "child" });
     }
-    const sid = familyIndex.spouse[id];
+    const sid = safeSpouseOf(familyIndex, id);
     if (sid) {
       neighbors.push({ nextId: sid, edge: "spouse" });
     }
@@ -326,7 +374,8 @@ function localizePair(shortEn, descEn, lang) {
 }
 
 function resolveBloodTerm(familyIndex, originId, targetId, lca, lang) {
-  const { male, elder } = familyIndex;
+  const male = id => safeMale(familyIndex, id);
+  const elder = (a, b) => safeElder(familyIndex, a, b);
   const { upSteps, downSteps, originPath, targetPath } = lca;
   const isTargetMale = male(targetId);
   const isHi = lang === "hi";
@@ -541,10 +590,16 @@ function formatPair(shortEn, descEn, lang) {
 }
 
 function resolveMaritalTerm(familyIndex, originId, targetId, bfsSteps, lang) {
-  const { spouse, kidsOf, parOf, sibsOf, male, elder } = familyIndex;
+  const spouse = familyIndex?.spouse || {};
+  const kidsOf = id => safeKidsOf(familyIndex, id);
+  const parOf = id => safeParOf(familyIndex, id);
+  const sibsOf = id => safeSibsOf(familyIndex, id);
+  const male = id => safeMale(familyIndex, id);
+  const elder = (a, b) => safeElder(familyIndex, a, b);
+
   const isTargetMale = male(targetId);
   const isOriginMale = male(originId);
-  const s = spouse[originId];
+  const s = safeSpouseOf(familyIndex, originId);
 
   // 1-hop Spouse
   if (s === targetId) {
@@ -641,7 +696,7 @@ function resolveMaritalTerm(familyIndex, originId, targetId, bfsSteps, lang) {
   }
 
   // Generic N-hop marital bridge fallback
-  const hops = bfsSteps.length;
+  const hops = Array.isArray(bfsSteps) ? bfsSteps.length : 0;
   if (lang === "hi") {
     return {
       shortLabel: hops <= 2 ? "ससुराल पक्ष" : `विवाह संबंध (${hops} चरण)`,
@@ -671,7 +726,7 @@ function resolveMaritalTerm(familyIndex, originId, targetId, bfsSteps, lang) {
  * }}
  */
 export function solveComplexRelation(familyIndex, originId, targetId, lang = "en") {
-  if (!familyIndex || !familyIndex.byId || !familyIndex.byId[originId] || !familyIndex.byId[targetId]) {
+  if (!hasValidPerson(familyIndex, originId) || !hasValidPerson(familyIndex, targetId)) {
     const [shortLabel, description] = localizePair("Not Related", "No family connection found", lang);
     return {
       shortLabel,
@@ -702,7 +757,7 @@ export function solveComplexRelation(familyIndex, originId, targetId, lang = "en
   }
 
   // 1. Direct spouse always takes precedence as marital
-  if (familyIndex.spouse[originId] === targetId) {
+  if (safeSpouseOf(familyIndex, originId) === targetId) {
     const { shortLabel, description } = resolveMaritalTerm(familyIndex, originId, targetId, [], lang);
     return {
       shortLabel,
@@ -778,12 +833,22 @@ export function solveComplexRelation(familyIndex, originId, targetId, lang = "en
 }
 
 /**
+ * Alias for `solveComplexRelation` for backward compatibility.
+ */
+export const solveRelationship = solveComplexRelation;
+
+/**
  * Calculates relation of target person relative to origin person.
  * Backward-compatible wrapper returning [shortLabel, description].
  */
 export function calculateKinship(familyIndex, originId, targetId, lang = "en") {
   const res = solveComplexRelation(familyIndex, originId, targetId, lang);
-  if (res.lineageSide === null && originId !== targetId) {
+  if (
+    res.lineageSide === null &&
+    originId !== targetId &&
+    hasValidPerson(familyIndex, originId) &&
+    hasValidPerson(familyIndex, targetId)
+  ) {
     return localizePair("Relative", "Family member", lang);
   }
   return [res.shortLabel, res.description];

@@ -1,5 +1,17 @@
+const DAYS_IN_MONTH = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+function isLeapYear(year) {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+function getDaysInMonth(year, month) {
+  if (month < 1 || month > 12) return 0;
+  if (month === 2 && isLeapYear(year)) return 29;
+  return DAYS_IN_MONTH[month];
+}
+
 /**
- * Parse a date string in YYYY-MM-DD, YYYY/MM/DD, DD/MM/YYYY, or MM-DD format.
+ * Parse a date string in YYYY-MM-DD, YYYY/MM/DD, DD/MM/YYYY, DD-MM-YYYY, or MM-DD format.
  * Returns { year: number | null, month: number, day: number } or null if invalid.
  */
 export function parseMilestoneDate(raw) {
@@ -24,6 +36,10 @@ export function parseMilestoneDate(raw) {
     day = Number(match[1]);
     month = Number(match[2]);
     year = Number(match[3]);
+  } else if ((match = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/))) {
+    day = Number(match[1]);
+    month = Number(match[2]);
+    year = Number(match[3]);
   } else if ((match = s.match(/^(?:--)?(\d{1,2})-(\d{1,2})$/))) {
     month = Number(match[1]);
     day = Number(match[2]);
@@ -31,23 +47,19 @@ export function parseMilestoneDate(raw) {
     return null;
   }
 
-  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  if (year !== null && (!Number.isInteger(year) || year < 1000 || year > 9999)) {
+    return null;
+  }
+  if (!Number.isInteger(month) || month < 1 || month > 12) return null;
+  if (!Number.isInteger(day) || day < 1 || day > 31) return null;
 
   const checkYear = year !== null ? year : 2000;
-  const probe = new Date(checkYear, month - 1, day);
-  if (
-    probe.getFullYear() !== checkYear ||
-    probe.getMonth() !== month - 1 ||
-    probe.getDate() !== day
-  ) {
+  const maxDay = getDaysInMonth(checkYear, month);
+  if (day > maxDay) {
     return null;
   }
 
   return { year, month, day };
-}
-
-function isLeapYear(year) {
-  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
 }
 
 function makeOccurrenceDate(year, month, day) {
@@ -64,6 +76,7 @@ export function computeUpcomingMilestones(people, { today = new Date(), limit = 
   const list = Array.isArray(people) ? people : Object.values(people || {});
   const baseDate = today instanceof Date && !Number.isNaN(today.getTime()) ? today : new Date();
   const todayStart = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+  const todayUtc = Date.UTC(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate());
   const currentYear = todayStart.getFullYear();
 
   const milestones = [];
@@ -77,7 +90,8 @@ export function computeUpcomingMilestones(people, { today = new Date(), limit = 
       nextDate = makeOccurrenceDate(currentYear + 1, parsed.month, parsed.day);
     }
 
-    const daysUntil = Math.round((nextDate.getTime() - todayStart.getTime()) / 86400000);
+    const nextUtc = Date.UTC(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate());
+    const daysUntil = Math.round((nextUtc - todayUtc) / 86400000);
     const years =
       parsed.year !== null && nextDate.getFullYear() >= parsed.year
         ? nextDate.getFullYear() - parsed.year
@@ -93,20 +107,21 @@ export function computeUpcomingMilestones(people, { today = new Date(), limit = 
   };
 
   for (const person of list) {
-    if (!person || person.late) continue;
+    if (!person || typeof person !== "object" || person.late) continue;
     if (person.dob) pushMilestone(person, person.dob, "birthday");
     if (person.anniversary) pushMilestone(person, person.anniversary, "anniversary");
   }
 
   milestones.sort((a, b) => {
     if (a.daysUntil !== b.daysUntil) return a.daysUntil - b.daysUntil;
-    const nameA = a.person?.name || a.person?.n || "";
-    const nameB = b.person?.name || b.person?.n || "";
+    const nameA = String(a.person?.name || a.person?.n || "");
+    const nameB = String(b.person?.name || b.person?.n || "");
     return nameA.localeCompare(nameB);
   });
 
-  if (typeof limit === "number" && limit > 0) {
-    return milestones.slice(0, limit);
+  if (typeof limit === "number" && Number.isFinite(limit)) {
+    if (limit <= 0) return [];
+    return milestones.slice(0, Math.floor(limit));
   }
   return milestones;
 }

@@ -8,7 +8,7 @@ export function Toolbar({
   people = [],
   displayName,
   t,
-  lang,
+  lang = 'en',
   onOpenAddModal,
   onOpenRelationSolver,
   canEdit = true,
@@ -29,7 +29,7 @@ export function Toolbar({
   const toolsRef = useRef(null);
 
   useEffect(() => {
-    if (!isToolsOpen) return;
+    if (!isToolsOpen || typeof document === 'undefined') return;
     const handleOutside = e => {
       if (toolsRef.current && !toolsRef.current.contains(e.target)) {
         setIsToolsOpen(false);
@@ -46,15 +46,32 @@ export function Toolbar({
     };
   }, [isToolsOpen]);
 
+  const translate = typeof t === 'function' ? t : (key => key);
+
   const tr = (key, fallback) => {
     if (typeof t !== 'function') return fallback;
     const res = t(key);
     return !res || res === key ? fallback : res;
   };
 
-  const showSearchMatches = Boolean(searchQuery) && searchMatchCount > 0;
+  const safePeople = Array.isArray(people) ? people.filter(p => p && p.id) : [];
+  const resolveName = (id) => {
+    if (!id) return '';
+    if (typeof displayName === 'function') return displayName(id) || id;
+    const found = safePeople.find(p => p.id === id);
+    if (!found) return String(id);
+    return (lang === 'hi' ? found.hi || found.name : found.name) || String(id);
+  };
+
+  const safeMatchCount = Number.isFinite(searchMatchCount) && searchMatchCount > 0
+    ? Math.floor(searchMatchCount)
+    : 0;
+  const safeActiveIndex = Number.isFinite(activeSearchIndex)
+    ? Math.floor(activeSearchIndex)
+    : 0;
+  const showSearchMatches = Boolean(searchQuery) && safeMatchCount > 0;
   const clampedMatchIndex = showSearchMatches
-    ? Math.min(Math.max(0, activeSearchIndex), searchMatchCount - 1)
+    ? Math.min(Math.max(0, safeActiveIndex), safeMatchCount - 1)
     : 0;
   const hasSecondaryActions = Boolean(
     onOpenRelationSolver || canEdit || onOpenMilestones || onExportPng || onPrintPoster
@@ -63,22 +80,22 @@ export function Toolbar({
   const moreLabel = lang === 'hi' ? 'टूल और फ़िल्टर' : 'Tools & filters';
 
   return (
-    <div className="bar bar-compact" role="region" aria-label={t("controlsAria")} ref={toolsRef}>
+    <div className="bar bar-compact" role="region" aria-label={translate("controlsAria")} ref={toolsRef}>
       {/* Primary Single-Row Controls: Search + Add Member + Tools Drawer Toggle */}
       <div className="bar-primary-row">
         {/* Perspective dropdown (inline on desktop, inside drawer on mobile) */}
         <div className="field bar-perspective-desktop">
-          <label htmlFor="viewer-select">{t("viewerLabel")}</label>
+          <label htmlFor="viewer-select">{translate("viewerLabel")}</label>
           <div className="viewer-wrap">
             <select
               id="viewer-select"
               value={viewer}
-              onChange={e => setViewer(e.target.value)}
+              onChange={e => setViewer?.(e.target.value)}
             >
-              <option value="">{t("none")}</option>
-              {people.map(p => (
+              <option value="">{translate("none")}</option>
+              {safePeople.map(p => (
                 <option key={p.id} value={p.id}>
-                  {displayName(p.id)}
+                  {resolveName(p.id)}
                 </option>
               ))}
             </select>
@@ -88,7 +105,7 @@ export function Toolbar({
                 className="reset-btn"
                 title={lang === "hi" ? "मूल वंश वृक्ष पर लौटें" : "Reset to full family tree"}
                 aria-label={lang === "hi" ? "मूल वंश वृक्ष पर लौटें" : "Reset to full family tree"}
-                onClick={() => setViewer("")}
+                onClick={() => setViewer?.("")}
               >
                 ✕ {lang === "hi" ? "मूल वृक्ष" : "Full Tree"}
               </button>
@@ -98,18 +115,18 @@ export function Toolbar({
 
         {/* Quick Search */}
         <div className="field grow bar-search-field">
-          <label htmlFor="search-input" className="bar-search-label">{t("searchLabel")}</label>
+          <label htmlFor="search-input" className="bar-search-label">{translate("searchLabel")}</label>
           <div className="search-controls">
             <div className="search-wrap">
               <input
                 id="search-input"
                 type="search"
-                aria-label={t("searchLabel")}
-                placeholder={t("searchPh")}
+                aria-label={translate("searchLabel")}
+                placeholder={translate("searchPh")}
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={e => setSearchQuery?.(e.target.value)}
                 onKeyDown={e => {
-                  if (e.key === 'Enter' && onStepSearchMatch && searchMatchCount > 0) {
+                  if (e.key === 'Enter' && onStepSearchMatch && safeMatchCount > 0) {
                     e.preventDefault();
                     onStepSearchMatch(e.shiftKey ? -1 : 1);
                   }
@@ -120,7 +137,7 @@ export function Toolbar({
             {showSearchMatches && (
               <div className="search-match-nav">
                 <span className="search-match-count" aria-live="polite">
-                  {`${clampedMatchIndex + 1}/${searchMatchCount}`}
+                  {`${clampedMatchIndex + 1}/${safeMatchCount}`}
                 </span>
                 <button
                   type="button"
@@ -153,10 +170,10 @@ export function Toolbar({
             <button
               type="button"
               className="btn toolbar-add-btn"
-              onClick={onOpenAddModal}
-              aria-label={t("addMember")}
+              onClick={() => onOpenAddModal?.()}
+              aria-label={translate("addMember")}
             >
-              + <span className="btn-label-full">{t("addMember")}</span>
+              + <span className="btn-label-full">{translate("addMember")}</span>
               <span className="btn-label-short">{lang === 'hi' ? 'जोड़ें' : 'Add'}</span>
             </button>
           )}
@@ -219,17 +236,17 @@ export function Toolbar({
         >
           {/* Mobile Perspective Selector */}
           <div className="field bar-perspective-mobile">
-            <label htmlFor="viewer-select-mobile">{t("viewerLabel")}</label>
+            <label htmlFor="viewer-select-mobile">{translate("viewerLabel")}</label>
             <div className="viewer-wrap">
               <select
                 id="viewer-select-mobile"
                 value={viewer}
-                onChange={e => setViewer(e.target.value)}
+                onChange={e => setViewer?.(e.target.value)}
               >
-                <option value="">{t("none")}</option>
-                {people.map(p => (
+                <option value="">{translate("none")}</option>
+                {safePeople.map(p => (
                   <option key={p.id} value={p.id}>
-                    {displayName(p.id)}
+                    {resolveName(p.id)}
                   </option>
                 ))}
               </select>
@@ -238,7 +255,7 @@ export function Toolbar({
                   type="button"
                   className="reset-btn"
                   title={lang === "hi" ? "मूल वंश वृक्ष पर लौटें" : "Reset to full family tree"}
-                  onClick={() => setViewer("")}
+                  onClick={() => setViewer?.("")}
                 >
                   ✕ {lang === "hi" ? "मूल वृक्ष" : "Full Tree"}
                 </button>

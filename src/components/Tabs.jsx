@@ -2,20 +2,50 @@ import React, { useState, useRef } from 'react';
 import { solveComplexRelation } from '../utils/kinship.js';
 import { validateTreeData, sanitizePhotosMap } from '../data/schema.js';
 import { isPhotosPayloadWithinLimit } from '../services/treeSync.js';
+import { parseMilestoneDate } from '../utils/milestones.js';
 import { useSmartAutoAnimate } from '../utils/useSmartAutoAnimate.js';
 
-export function RelationshipFinder({ familyIndex, lang, t, displayName, people, startPerson }) {
+function isLeapYear(year) {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+function makeBirthdayOccurrence(year, month, day) {
+  if (month === 2 && day === 29 && !isLeapYear(year)) {
+    return new Date(year, 1, 28);
+  }
+  return new Date(year, month - 1, day);
+}
+
+export function RelationshipFinder({
+  familyIndex,
+  lang = "en",
+  t,
+  displayName,
+  people = [],
+  startPerson = ""
+}) {
   const [firstId, setFirstId] = useState(startPerson || "");
   const [secondId, setSecondId] = useState("");
   const finderAnimRef = useSmartAutoAnimate();
   const isHi = lang === "hi";
 
-  const isValid =
+  const translate = typeof t === "function" ? t : (key => key);
+  const safePeople = Array.isArray(people) ? people.filter(p => p && p.id) : [];
+  const resolveName = (id) => {
+    if (!id) return "";
+    if (typeof displayName === "function") return displayName(id) || id;
+    const p = familyIndex?.byId?.[id];
+    if (!p) return String(id);
+    return (isHi ? p.hi || p.name : p.name) || String(id);
+  };
+
+  const isValid = Boolean(
     firstId &&
     secondId &&
     firstId !== secondId &&
-    familyIndex.byId[firstId] &&
-    familyIndex.byId[secondId];
+    familyIndex?.byId?.[firstId] &&
+    familyIndex?.byId?.[secondId]
+  );
 
   const relAB = isValid ? solveComplexRelation(familyIndex, firstId, secondId, lang) : null;
   const relBA = isValid ? solveComplexRelation(familyIndex, secondId, firstId, lang) : null;
@@ -43,7 +73,7 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
 
   const renderRelationLine = (fromName, toName, rel) => (
     <li>
-      {t("relIs", fromName, toName, rel.shortLabel)}
+      {translate("relIs", fromName, toName, rel.shortLabel)}
       {rel.description && rel.description !== rel.shortLabel && (
         <span className="muted"> ({rel.description})</span>
       )}
@@ -52,27 +82,27 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
 
   return (
     <div className="finder reveal-parent" ref={finderAnimRef}>
-      <p className="muted hover-explanation">{t("relHelpSub")}</p>
+      <p className="muted hover-explanation">{translate("relHelpSub")}</p>
       <div className="finder-grid">
         <div className="field">
-          <label htmlFor="fa">{t("first")}</label>
+          <label htmlFor="fa">{translate("first")}</label>
           <select id="fa" value={firstId} onChange={e => setFirstId(e.target.value)}>
-            <option value="">{t("none")}</option>
-            {people.map(p => (
+            <option value="">{translate("none")}</option>
+            {safePeople.map(p => (
               <option key={p.id} value={p.id}>
-                {displayName(p.id)}
+                {resolveName(p.id)}
               </option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor="fb">{t("second")}</label>
+          <label htmlFor="fb">{translate("second")}</label>
           <div className="finder-second-wrap">
             <select id="fb" value={secondId} onChange={e => setSecondId(e.target.value)}>
-              <option value="">{t("none")}</option>
-              {people.map(p => (
+              <option value="">{translate("none")}</option>
+              {safePeople.map(p => (
                 <option key={p.id} value={p.id}>
-                  {displayName(p.id)}
+                  {resolveName(p.id)}
                 </option>
               ))}
             </select>
@@ -90,7 +120,7 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
       </div>
 
       {firstId && secondId && firstId === secondId && (
-        <p className="msg" role="status">{t("samePerson")}</p>
+        <p className="msg" role="status">{translate("samePerson")}</p>
       )}
 
       {isValid && relAB && relBA && (
@@ -127,7 +157,7 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
             )}
             {relAB.commonAncestorId && (
               <span style={{ ...badgeStyle, color: "var(--ink)" }}>
-                {t("commonAnc")}: <strong>{displayName(relAB.commonAncestorId)}</strong>
+                {translate("commonAnc")}: <strong>{resolveName(relAB.commonAncestorId)}</strong>
               </span>
             )}
           </div>
@@ -144,7 +174,7 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
             </div>
             {relBA?.shortLabel && (
               <div className="finder-highlight-reciprocal">
-                {displayName(firstId)} → {displayName(secondId)}: <strong>{relBA.shortLabel}</strong>
+                {resolveName(firstId)} → {resolveName(secondId)}: <strong>{relBA.shortLabel}</strong>
                 {relBAHi?.shortLabel && relBAHi.shortLabel !== relBA.shortLabel && (
                   <span className="finder-highlight-hindi-sub" lang="hi"> ({relBAHi.shortLabel})</span>
                 )}
@@ -153,14 +183,14 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
           </div>
 
           <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
-            {renderRelationLine(displayName(secondId), displayName(firstId), relAB)}
-            {renderRelationLine(displayName(firstId), displayName(secondId), relBA)}
+            {renderRelationLine(resolveName(secondId), resolveName(firstId), relAB)}
+            {renderRelationLine(resolveName(firstId), resolveName(secondId), relBA)}
           </ul>
 
           {relAB.pathSteps && relAB.pathSteps.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "5px", paddingTop: "6px", borderTop: "1px dashed var(--line)" }}>
               <span className="chip" style={{ fontWeight: 700, borderColor: "var(--ink)" }}>
-                {displayName(firstId)}
+                {resolveName(firstId)}
               </span>
               {relAB.pathSteps.map((step, idx) => (
                 <React.Fragment key={`${step.fromId}-${step.toId}-${idx}`}>
@@ -171,7 +201,7 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
                     className="chip"
                     style={idx === relAB.pathSteps.length - 1 ? { fontWeight: 700, borderColor: "var(--accent)", color: "var(--rel)" } : undefined}
                   >
-                    {displayName(step.toId)}
+                    {resolveName(step.toId)}
                   </span>
                 </React.Fragment>
               ))}
@@ -183,45 +213,65 @@ export function RelationshipFinder({ familyIndex, lang, t, displayName, people, 
   );
 }
 
-export function BirthdaysList({ data, lang, t, displayName, openPerson }) {
+export function BirthdaysList({ data, lang = "en", t, displayName, openPerson }) {
   const bdayAnimRef = useSmartAutoAnimate();
+  const translate = typeof t === "function" ? t : (key => key);
+  const resolveName = (id) => {
+    if (!id) return "";
+    if (typeof displayName === "function") return displayName(id) || id;
+    return String(id);
+  };
+
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const people = Array.isArray(data?.people) ? data.people : [];
 
-  const upcoming = data.people
-    .filter(p => p.dob && !p.late)
+  const upcoming = people
+    .filter(p => p && p.id && typeof p.dob === "string" && p.dob.trim() && !p.late)
     .map(p => {
-      const [year, month, day] = p.dob.split("-").map(Number);
-      let nextBday = new Date(today.getFullYear(), month - 1, day);
+      const parsed = parseMilestoneDate(p.dob);
+      if (!parsed) return null;
+      const { year, month, day } = parsed;
+      let nextBday = makeBirthdayOccurrence(today.getFullYear(), month, day);
       if (nextBday < today) {
-        nextBday = new Date(today.getFullYear() + 1, month - 1, day);
+        nextBday = makeBirthdayOccurrence(today.getFullYear() + 1, month, day);
       }
-      const days = Math.round((nextBday - today) / 864e5);
-      return { p, next: nextBday, days, turns: nextBday.getFullYear() - year };
+      const timeDiff = nextBday.getTime() - today.getTime();
+      if (!Number.isFinite(timeDiff)) return null;
+      const days = Math.round(timeDiff / 864e5);
+      if (!Number.isFinite(days) || days < 0) return null;
+      const turns =
+        year !== null && Number.isFinite(year) && nextBday.getFullYear() >= year
+          ? nextBday.getFullYear() - year
+          : 0;
+      return { p, next: nextBday, days, turns };
     })
-    .filter(item => !isNaN(item.days))
-    .sort((a, b) => a.days - b.days);
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (a.days !== b.days) return a.days - b.days;
+      return resolveName(a.p.id).localeCompare(resolveName(b.p.id));
+    });
 
   if (!upcoming.length) {
     return (
       <div className="bday-panel reveal-parent">
-        <p className="muted hover-explanation">{t("noBday")}</p>
+        <p className="muted hover-explanation">{translate("noBday")}</p>
       </div>
     );
   }
 
   return (
     <div className="bday-panel reveal-parent">
-      <p className="muted hover-explanation">{t("bdayHelpSub")}</p>
+      <p className="muted hover-explanation">{translate("bdayHelpSub")}</p>
       <ul className="blist" ref={bdayAnimRef}>
         {upcoming.map(item => (
           <li key={item.p.id}>
             <button
               type="button"
               className="chip"
-              onClick={() => openPerson(item.p.id)}
+              onClick={() => openPerson?.(item.p.id)}
             >
-              {displayName(item.p.id)}
+              {resolveName(item.p.id)}
             </button>
             <span>
               {item.next.toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", {
@@ -231,11 +281,11 @@ export function BirthdaysList({ data, lang, t, displayName, openPerson }) {
             </span>
             <span className="muted">
               {item.days === 0
-                ? t("today")
+                ? translate("today")
                 : item.days === 1
-                ? t("tomorrow")
-                : t("inDays", item.days)}
-              {item.turns > 0 ? " · " + t("turns", item.turns) : ""}
+                ? translate("tomorrow")
+                : translate("inDays", item.days)}
+              {item.turns > 0 ? " · " + translate("turns", item.turns) : ""}
             </span>
           </li>
         ))}
@@ -244,7 +294,7 @@ export function BirthdaysList({ data, lang, t, displayName, openPerson }) {
   );
 }
 
-export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = true }) {
+export function BackupPanel({ treeState, t, lang = "en", onImport, onReset, canEdit = true }) {
   const [includePhotos, setIncludePhotos] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
   const [importText, setImportText] = useState("");
@@ -252,11 +302,18 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
   const exportBoxRef = useRef(null);
   const backupAnimRef = useSmartAutoAnimate();
   const isHi = lang === "hi";
+  const translate = typeof t === "function" ? t : (key => key);
+
+  const safeData = treeState?.data || { people: [], couples: [] };
+  const safePhotosMap =
+    treeState?.photos && typeof treeState.photos === "object" && !Array.isArray(treeState.photos)
+      ? treeState.photos
+      : {};
 
   const exportPayload = JSON.stringify({
     v: 2,
-    data: treeState.data,
-    ...(includePhotos ? { photos: treeState.photos } : {})
+    data: safeData,
+    ...(includePhotos ? { photos: safePhotosMap } : {})
   });
 
   const handleDownloadJson = () => {
@@ -272,56 +329,81 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
       URL.revokeObjectURL(url);
       setStatusMsg(isHi ? "JSON बैकअप डाउनलोड हो गया।" : "Backup JSON file downloaded.");
     } catch {
-      setStatusMsg(t("copyFail"));
+      setStatusMsg(translate("copyFail"));
     }
   };
 
   const handleImportJsonString = (rawText) => {
     try {
+      if (typeof rawText !== "string" || !rawText.trim()) {
+        throw new Error("Empty backup payload");
+      }
       const parsed = JSON.parse(rawText);
-      const d = parsed.data;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("Invalid backup object");
+      }
+      const d =
+        parsed.data && typeof parsed.data === "object" && !Array.isArray(parsed.data)
+          ? parsed.data
+          : parsed;
       const res = validateTreeData(d);
       if (!res.valid) {
         throw new Error(res.error);
       }
-      const hasPhotosObj = parsed.photos && typeof parsed.photos === "object" && !Array.isArray(parsed.photos);
+      const hasPhotosObj =
+        parsed.photos && typeof parsed.photos === "object" && !Array.isArray(parsed.photos);
       const safePhotos = hasPhotosObj ? sanitizePhotosMap(parsed.photos) : undefined;
       if (safePhotos && !isPhotosPayloadWithinLimit(safePhotos)) {
-        setStatusMsg(t("noSpace"));
+        setStatusMsg(translate("noSpace"));
         return;
       }
-      onImport(
+      onImport?.(
         { people: d.people, couples: d.couples },
         safePhotos
       );
-      setStatusMsg(t("importOk"));
+      setStatusMsg(translate("importOk"));
       setImportText("");
     } catch {
-      setStatusMsg(t("importBad"));
+      setStatusMsg(translate("importBad"));
     }
   };
 
   const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
+    const input = e?.target;
+    const file = input?.files?.[0];
     if (!file) return;
     try {
-      const text = await file.text();
+      const text = await new Promise((resolve, reject) => {
+        if (typeof FileReader !== "undefined") {
+          const reader = new FileReader();
+          reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+          reader.onerror = () => reject(reader.error || new Error("FILE_READ_ERROR"));
+          reader.onabort = () => reject(new Error("FILE_READ_ABORTED"));
+          reader.readAsText(file);
+        } else if (typeof file.text === "function") {
+          file.text().then(resolve, reject);
+        } else {
+          reject(new Error("FILE_READ_UNSUPPORTED"));
+        }
+      });
       handleImportJsonString(text);
     } catch {
-      setStatusMsg(t("importBad"));
+      setStatusMsg(translate("importBad"));
     } finally {
-      e.target.value = "";
+      if (input) {
+        input.value = "";
+      }
     }
   };
 
   return (
     <div className="backup reveal-parent" ref={backupAnimRef}>
-      <p className="muted hover-explanation">{t("backupHelpSub")}</p>
+      <p className="muted hover-explanation">{translate("backupHelpSub")}</p>
       <div className="backup-grid">
         {/* Export Card */}
         <div className="backup-section">
           <div className="field">
-            <label htmlFor="bx">{t("exportLbl")}</label>
+            <label htmlFor="bx">{translate("exportLbl")}</label>
             <textarea
               id="bx"
               ref={exportBoxRef}
@@ -346,14 +428,14 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(exportPayload);
-                  setStatusMsg(t("copied"));
+                  setStatusMsg(translate("copied"));
                 } catch {
                   exportBoxRef.current?.select();
-                  setStatusMsg(t("copyFail"));
+                  setStatusMsg(translate("copyFail"));
                 }
               }}
             >
-              {t("copy")}
+              {translate("copy")}
             </button>
             <label className="check">
               <input
@@ -361,7 +443,7 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
                 checked={includePhotos}
                 onChange={e => setIncludePhotos(e.target.checked)}
               />{" "}
-              {t("incl")}
+              {translate("incl")}
             </label>
           </div>
         </div>
@@ -370,12 +452,12 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
         {canEdit && (
           <div className="backup-section">
             <div className="field">
-              <label htmlFor="bi">{t("importLbl")}</label>
+              <label htmlFor="bi">{translate("importLbl")}</label>
               <textarea
                 id="bi"
                 rows={8}
                 value={importText}
-                placeholder={t("importPh")}
+                placeholder={translate("importPh")}
                 onChange={e => setImportText(e.target.value)}
               />
             </div>
@@ -400,7 +482,7 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
                 disabled={!importText.trim()}
                 onClick={() => handleImportJsonString(importText)}
               >
-                {t("importBtn")}
+                {translate("importBtn")}
               </button>
 
               <button
@@ -408,7 +490,7 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
                 className="btn ghost"
                 onClick={() => {
                   if (confirmReset) {
-                    onReset();
+                    onReset?.();
                     setConfirmReset(false);
                     setStatusMsg("");
                   } else {
@@ -417,7 +499,7 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
                 }}
                 onBlur={() => setConfirmReset(false)}
               >
-                {confirmReset ? t("resetSure") : t("reset")}
+                {confirmReset ? translate("resetSure") : translate("reset")}
               </button>
             </div>
           </div>
@@ -434,11 +516,11 @@ export function BackupPanel({ treeState, t, lang, onImport, onReset, canEdit = t
 }
 
 export function Tabs({
-  activeTab,
+  activeTab = "rel",
   setActiveTab,
   treeState,
   familyIndex,
-  lang,
+  lang = "en",
   t,
   displayName,
   openPerson,
@@ -447,6 +529,7 @@ export function Tabs({
   canEdit = true
 }) {
   const panelAnimRef = useSmartAutoAnimate();
+  const translate = typeof t === "function" ? t : (key => key);
   const tabKeys = [
     { id: "rel", labelKey: "tabRel" },
     { id: "bday", labelKey: "tabBday" },
@@ -457,27 +540,35 @@ export function Tabs({
     if (e.key === "ArrowRight") {
       e.preventDefault();
       const next = tabKeys[(idx + 1) % tabKeys.length].id;
-      setActiveTab(next);
-      document.getElementById(`tab-${next}`)?.focus();
+      setActiveTab?.(next);
+      if (typeof document !== "undefined") {
+        document.getElementById(`tab-${next}`)?.focus();
+      }
     } else if (e.key === "ArrowLeft") {
       e.preventDefault();
       const prev = tabKeys[(idx - 1 + tabKeys.length) % tabKeys.length].id;
-      setActiveTab(prev);
-      document.getElementById(`tab-${prev}`)?.focus();
+      setActiveTab?.(prev);
+      if (typeof document !== "undefined") {
+        document.getElementById(`tab-${prev}`)?.focus();
+      }
     } else if (e.key === "Home") {
       e.preventDefault();
-      setActiveTab(tabKeys[0].id);
-      document.getElementById(`tab-${tabKeys[0].id}`)?.focus();
+      setActiveTab?.(tabKeys[0].id);
+      if (typeof document !== "undefined") {
+        document.getElementById(`tab-${tabKeys[0].id}`)?.focus();
+      }
     } else if (e.key === "End") {
       e.preventDefault();
       const last = tabKeys[tabKeys.length - 1].id;
-      setActiveTab(last);
-      document.getElementById(`tab-${last}`)?.focus();
+      setActiveTab?.(last);
+      if (typeof document !== "undefined") {
+        document.getElementById(`tab-${last}`)?.focus();
+      }
     }
   };
 
   return (
-    <section className="tools" aria-label={t("toolsAria")}>
+    <section className="tools" aria-label={translate("toolsAria")}>
       <div className="tabs" role="tablist">
         {tabKeys.map(({ id, labelKey }, idx) => (
           <button
@@ -489,10 +580,10 @@ export function Tabs({
             className="tab"
             aria-selected={activeTab === id}
             tabIndex={activeTab === id ? 0 : -1}
-            onClick={() => setActiveTab(id)}
+            onClick={() => setActiveTab?.(id)}
             onKeyDown={e => handleTabKeyDown(e, idx)}
           >
-            {t(labelKey)}
+            {translate(labelKey)}
           </button>
         ))}
       </div>
@@ -509,17 +600,17 @@ export function Tabs({
           <RelationshipFinder
             familyIndex={familyIndex}
             lang={lang}
-            t={t}
+            t={translate}
             displayName={displayName}
-            people={treeState.data.people}
-            startPerson={treeState.viewer}
+            people={treeState?.data?.people || []}
+            startPerson={treeState?.viewer || ""}
           />
         )}
         {activeTab === "bday" && (
           <BirthdaysList
-            data={treeState.data}
+            data={treeState?.data}
             lang={lang}
-            t={t}
+            t={translate}
             displayName={displayName}
             openPerson={openPerson}
           />
@@ -527,7 +618,7 @@ export function Tabs({
         {activeTab === "backup" && (
           <BackupPanel
             treeState={treeState}
-            t={t}
+            t={translate}
             lang={lang}
             onImport={onImport}
             onReset={onReset}
