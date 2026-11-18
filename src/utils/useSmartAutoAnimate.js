@@ -14,22 +14,41 @@ export function useSmartAutoAnimate(options = {}) {
   });
 
   useEffect(() => {
+    if (typeof document === 'undefined' || typeof window === 'undefined') {
+      return undefined;
+    }
+
     const syncMotionPreference = () => {
       const isReduced =
-        document.documentElement.getAttribute('data-motion') === 'reduce' ||
-        window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-      setEnabled(!isReduced);
+        document.documentElement?.getAttribute('data-motion') === 'reduce' ||
+        Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+      if (typeof setEnabled === 'function') {
+        setEnabled(!isReduced);
+      }
     };
 
     syncMotionPreference();
 
-    const observer = new MutationObserver(syncMotionPreference);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-motion']
-    });
+    let observer = null;
+    if (typeof MutationObserver !== 'undefined' && document.documentElement) {
+      observer = new MutationObserver(syncMotionPreference);
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-motion']
+      });
+    }
 
-    return () => observer.disconnect();
+    const mediaQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    if (mediaQuery && typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', syncMotionPreference);
+    }
+
+    return () => {
+      if (observer) observer.disconnect();
+      if (mediaQuery && typeof mediaQuery.removeEventListener === 'function') {
+        mediaQuery.removeEventListener('change', syncMotionPreference);
+      }
+    };
   }, [setEnabled]);
 
   return parentRef;

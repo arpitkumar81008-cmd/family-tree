@@ -3,19 +3,38 @@ import { isSafePhotoUrl } from '../data/schema.js';
 
 const CARD_W = 96;
 const HEADER_H = 72;
-const MAX_CANVAS_DIM = 8192;
+const MAX_CANVAS_DIM = 16384;
+const MAX_CANVAS_AREA = 67108864;
+const AVATAR_LOAD_TIMEOUT_MS = 5000;
 
 /**
- * Loads an image from a data URL or URL, resolving to null on failure.
+ * Loads an avatar image from a safe data URL or URL, resolving to null on failure
+ * or if decoding takes longer than `timeoutMs` (default 5000ms).
  */
-function loadImage(src) {
-  if (!src || !isSafePhotoUrl(src)) return Promise.resolve(null);
+export function loadAvatarImage(src, timeoutMs = AVATAR_LOAD_TIMEOUT_MS) {
+  if (!src || typeof src !== 'string' || !isSafePhotoUrl(src) || typeof Image === 'undefined') {
+    return Promise.resolve(null);
+  }
   return new Promise((resolve) => {
+    let settled = false;
     const img = new Image();
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timerId);
+      img.onload = null;
+      img.onerror = null;
+      resolve(result);
+    };
+    const timerId = setTimeout(() => finish(null), Math.max(1, Number(timeoutMs) || AVATAR_LOAD_TIMEOUT_MS));
     img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = src;
+    img.onload = () => finish(img);
+    img.onerror = () => finish(null);
+    try {
+      img.src = src;
+    } catch {
+      finish(null);
+    }
   });
 }
 
@@ -150,7 +169,8 @@ function collectPlacedNodes(layout, people = [], displayName) {
 }
 
 /**
- * Renders the laid-out family tree onto an offscreen HTML5 canvas at 2x DPI (bounded to 8192px).
+ * Renders the laid-out family tree onto an offscreen HTML5 canvas at 2x DPI
+ * (clamped so width <= 16384, height <= 16384, and area <= 67,108,864 pixels).
  */
 export async function renderTreeToCanvas(
   layout,
@@ -160,7 +180,9 @@ export async function renderTreeToCanvas(
     photos = {},
     people = [],
     lang = 'en',
-    cardHeight = 138
+    cardHeight = 138,
+    scale: requestedScale = 2,
+    avatarTimeoutMs = AVATAR_LOAD_TIMEOUT_MS
   } = {}
 ) {
   if (typeof document === 'undefined') {
@@ -182,12 +204,23 @@ export async function renderTreeToCanvas(
   const logicalW = treeW;
   const logicalH = HEADER_H + treeH;
 
-  // 2x DPI bounded to safe maximum canvas dimensions
-  const scale = Math.min(2, MAX_CANVAS_DIM / logicalW, MAX_CANVAS_DIM / logicalH);
+  // Clamp scale so (logicalW * scale) <= 16384, (logicalH * scale) <= 16384,
+  // and (logicalW * scale * logicalH * scale) <= 67108864 (browser canvas limits)
+  let scale = Number.isFinite(requestedScale) && requestedScale > 0 ? requestedScale : 2;
+  if (logicalW * scale > MAX_CANVAS_DIM) {
+    scale = MAX_CANVAS_DIM / logicalW;
+  }
+  if (logicalH * scale > MAX_CANVAS_DIM) {
+    scale = MAX_CANVAS_DIM / logicalH;
+  }
+  if (logicalW * scale * logicalH * scale > MAX_CANVAS_AREA) {
+    scale = Math.sqrt(MAX_CANVAS_AREA / (logicalW * logicalH));
+  }
+  scale = Math.max(0.01, scale);
 
   const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(logicalW * scale));
-  canvas.height = Math.max(1, Math.round(logicalH * scale));
+  canvas.width = Math.min(MAX_CANVAS_DIM, Math.max(1, Math.floor(logicalW * scale)));
+  canvas.height = Math.min(MAX_CANVAS_DIM, Math.max(1, Math.floor(logicalH * scale)));
 
   const ctx = canvas.getContext('2d');
   if (!ctx) {
@@ -229,11 +262,11 @@ export async function renderTreeToCanvas(
   ctx.lineTo(logicalW - 24, HEADER_H - 1);
   ctx.stroke();
 
-  // Preload all available avatar photos in parallel
+  // Preload all available avatar photos in parallel with timeout guard
   const photoEntries = await Promise.all(
     nodes.map(async (n) => {
       const src = photos?.[n.id];
-      const img = src ? await loadImage(src) : null;
+      const img = src ? await loadAvatarImage(src, avatarTimeoutMs) : null;
       return [n.id, img];
     })
   );
@@ -412,10 +445,12 @@ export async function renderTreeToCanvas(
     ctx.fill();
     ctx.clip();
 
-    if (img) {
+    const imgW = img ? (img.naturalWidth || img.width || 0) : 0;
+    const imgH = img ? (img.naturalHeight || img.height || 0) : 0;
+    if (img && imgW > 0 && imgH > 0) {
       // Center-crop image into square covering the circle
       const size = avRadius * 2;
-      const aspect = img.width / (img.height || 1);
+      const aspect = imgW / imgH;
       let drawW = size;
       let drawH = size;
       if (aspect > 1) {
@@ -513,34 +548,39 @@ export async function downloadTreePng(layout, options = {}) {
   const canvas = await renderTreeToCanvas(layout, options);
   const filename = sanitizeFilename(options.title || 'Family Tree');
 
-  const blob = await new Promise((resolve) => {
-    if (typeof canvas.toBlob === 'function') {
-      canvas.toBlob((b) => resolve(b), 'image/png');
-    } else {
-      resolve(null);
+  let blob = null;
+  if (typeof canvas.toBlob === 'function') {
+    try {
+      blob = await new Promise((resolve) => {
+        canvas.toBlob((b) => resolve(b || null), 'image/png');
+      });
+    } catch {
+      blob = null;
     }
-  });
+  }
 
-  if (blob) {
+  if (blob && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    document.body?.appendChild(link);
+    link.click?.();
+    document.body?.removeChild(link);
+    if (typeof URL.revokeObjectURL === 'function') {
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
     return;
   }
 
-  // Fallback for environments without canvas.toBlob
+  // Fallback when canvas.toBlob is unavailable or returns null
   const dataUrl = canvas.toDataURL('image/png');
   const link = document.createElement('a');
   link.href = dataUrl;
   link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  document.body?.appendChild(link);
+  link.click?.();
+  document.body?.removeChild(link);
 }
 
 /**
