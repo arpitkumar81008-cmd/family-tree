@@ -193,7 +193,7 @@ export function loadInitialTreeState() {
  */
 export function mergeCloudTreeWithLocalHistory(treeId, cloudData, cloudPhotos = {}, lang = "en") {
   const globalLang = getStoredLanguage(lang || "en");
-  const state = {
+  let state = {
     data: clone(cloudData || { people: [], couples: [] }),
     photos: clone(cloudPhotos || {}),
     viewer: "",
@@ -202,6 +202,21 @@ export function mergeCloudTreeWithLocalHistory(treeId, cloudData, cloudPhotos = 
 
   if (typeof window === "undefined" || !window.localStorage) {
     return dedup(state);
+  }
+
+  if (treeId) {
+    try {
+      const multi = JSON.parse(localStorage.getItem("gupta_multi_trees_v1") || "{}") || {};
+      const localTree = multi[treeId];
+      if (localTree && typeof localTree === "object" && Array.isArray(localTree.data?.people)) {
+        state = deepMergeTree(state, {
+          data: localTree.data,
+          photos: localTree.photos || {},
+          lang: localTree.lang || globalLang
+        });
+        state.viewer = "";
+      }
+    } catch {}
   }
 
   const deletedSet = getDeletedIds(treeId || "public_demo");

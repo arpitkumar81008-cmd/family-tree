@@ -21,8 +21,20 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { getFirebaseClients, isFirebaseConfigured } from './firebase.js';
+import { deepMergeTree } from '../utils/deduplication.js';
 
 const LOCAL_TREES_KEY = 'gupta_multi_trees_v1';
+const DELETED_IDS_KEY = 'family_tree_deleted_ids_v1';
+
+function readDeletedIdsForTree(treeId) {
+  if (!treeId || typeof window === 'undefined' || !window.localStorage) return new Set();
+  try {
+    const raw = JSON.parse(localStorage.getItem(DELETED_IDS_KEY) || '{}') || {};
+    return new Set(Array.isArray(raw[treeId]) ? raw[treeId] : []);
+  } catch {
+    return new Set();
+  }
+}
 const UNLOCKED_CODES_KEY = 'gupta_unlocked_tree_codes';
 const MAX_PHOTOS_BYTES = 750 * 1024; // 750 KB safety cap to stay well below Firestore's 1 MiB limit
 
@@ -828,14 +840,26 @@ export async function saveTreeData(treeId, treeDoc, user) {
         if (!snap.exists()) throw new Error('TREE_NOT_FOUND');
         const snapData = snap.data() || {};
         const currentVersion = Number(snapData.version || 0);
-        if (expectedVersion !== null && currentVersion > expectedVersion) {
-          const err = new Error('VERSION_CONFLICT');
-          err.code = 'VERSION_CONFLICT';
-          throw err;
+        let dataToSave = nextData;
+        if (expectedVersion !== null && currentVersion > expectedVersion && snapData.data?.people) {
+          const deletedSet = readDeletedIdsForTree(treeId);
+          const merged = deepMergeTree(
+            { data: snapData.data, photos: {} },
+            { data: nextData, photos: {} }
+          );
+          dataToSave = {
+            people: (merged.data?.people || []).filter(p => !deletedSet.has(p.id)),
+            couples: (merged.data?.couples || [])
+              .filter(c => !deletedSet.has(c.h) && !deletedSet.has(c.w))
+              .map(c => ({
+                ...c,
+                kids: (c.kids || []).filter(k => !deletedSet.has(k))
+              }))
+          };
         }
         const bumped = currentVersion + 1;
         tx.update(treeRef, {
-          data: nextData,
+          data: dataToSave,
           lang: nextLang,
           version: bumped,
           updatedAt: serverTimestamp()
@@ -887,14 +911,13 @@ export async function saveTreePhotos(treeId, photos, user, treeMeta = {}) {
         if (!snap.exists()) throw new Error('TREE_NOT_FOUND');
         const snapData = snap.data() || {};
         const currentVersion = Number(snapData.version || 0);
-        if (expectedVersion !== null && currentVersion > expectedVersion) {
-          const err = new Error('VERSION_CONFLICT');
-          err.code = 'VERSION_CONFLICT';
-          throw err;
-        }
+        const photosToSave =
+          expectedVersion !== null && currentVersion > expectedVersion && snapData.photos
+            ? { ...snapData.photos, ...safePhotos }
+            : safePhotos;
         const bumped = currentVersion + 1;
         tx.update(treeRef, {
-          photos: safePhotos,
+          photos: photosToSave,
           version: bumped,
           updatedAt: serverTimestamp()
         });
@@ -911,6 +934,40 @@ export async function saveTreePhotos(treeId, photos, user, treeMeta = {}) {
 }
 
 /**
+ * Synchronously caches a user tree snapshot to localStorage (`gupta_multi_trees_v1`)
+ * at 0ms latency so page reloads before the 600ms cloud debounce timer never lose added members.
+ */
+export function cacheLocalTreeSnapshot(treeId, treeDoc, user) {
+  if (!treeId || !treeDoc) return null;
+  if (!canUserEditTree({ id: treeId, ...treeDoc }, user)) return null;
+  const nowIso = new Date().toISOString();
+  const localMap = readLocalTrees();
+  const existing = localMap[treeId] || {};
+  const updated = {
+    ...existing,
+    title: (treeDoc.title || existing.title || 'Family Tree').slice(0, 120),
+    ownerUid: treeDoc.ownerUid || existing.ownerUid || user?.uid || '',
+    ownerName: (treeDoc.ownerName || existing.ownerName || user?.displayName || 'Family Member').slice(0, 120),
+    isPublic: Boolean(treeDoc.isPublic ?? existing.isPublic ?? false),
+    collaboratorUids: Array.isArray(treeDoc.collaboratorUids)
+      ? treeDoc.collaboratorUids
+      : existing.collaboratorUids || [],
+    viewerUids: Array.isArray(treeDoc.viewerUids) ? treeDoc.viewerUids : existing.viewerUids || [],
+    data: {
+      people: Array.isArray(treeDoc.data?.people) ? treeDoc.data.people : [],
+      couples: Array.isArray(treeDoc.data?.couples) ? treeDoc.data.couples : []
+    },
+    photos: treeDoc.photos && typeof treeDoc.photos === 'object' ? treeDoc.photos : {},
+    lang: treeDoc.lang === 'hi' ? 'hi' : 'en',
+    createdAt: treeDoc.createdAt || existing.createdAt || nowIso,
+    updatedAt: nowIso
+  };
+  localMap[treeId] = updated;
+  writeLocalTrees(localMap);
+  return updated;
+}
+
+/**
  * Updates an existing tree when the current user is the owner or collaborator.
  * Uses a Firestore transaction with `version` checking and never overwrites sharing/ownership fields.
  */
@@ -924,30 +981,16 @@ export async function saveUserTree(treeId, treeDoc, user) {
     return false;
   }
 
-  const nowIso = new Date().toISOString();
   const localMap = readLocalTrees();
   const existing = localMap[treeId] || {};
-  const expectedVersion = typeof treeDoc.version === 'number' ? treeDoc.version : null;
-  const updated = {
-    ...existing,
-    title: (treeDoc.title || existing.title || 'Family Tree').slice(0, 120),
-    ownerUid: treeDoc.ownerUid || existing.ownerUid || user?.uid || '',
-    ownerName: (treeDoc.ownerName || existing.ownerName || user?.displayName || 'Family Member').slice(0, 120),
-    isPublic: Boolean(treeDoc.isPublic ?? existing.isPublic ?? false),
-    collaboratorUids: Array.isArray(treeDoc.collaboratorUids) ? treeDoc.collaboratorUids : (existing.collaboratorUids || []),
-    viewerUids: Array.isArray(treeDoc.viewerUids) ? treeDoc.viewerUids : (existing.viewerUids || []),
-    data: {
-      people: Array.isArray(treeDoc.data?.people) ? treeDoc.data.people : [],
-      couples: Array.isArray(treeDoc.data?.couples) ? treeDoc.data.couples : []
-    },
-    photos: treeDoc.photos && typeof treeDoc.photos === 'object' ? treeDoc.photos : {},
-    lang: treeDoc.lang === 'hi' ? 'hi' : 'en',
-    createdAt: treeDoc.createdAt || existing.createdAt || nowIso,
-    updatedAt: nowIso
-  };
-
-  localMap[treeId] = updated;
-  writeLocalTrees(localMap);
+  const expectedVersion =
+    typeof treeDoc.version === 'number'
+      ? treeDoc.version
+      : typeof existing.version === 'number'
+        ? existing.version
+        : null;
+  const updated = cacheLocalTreeSnapshot(treeId, treeDoc, user);
+  if (!updated) return false;
 
   const { db } = getFirebaseClients();
   if (db && isFirebaseConfigured()) {
@@ -958,23 +1001,40 @@ export async function saveUserTree(treeId, treeDoc, user) {
         if (!snap.exists()) throw new Error('TREE_NOT_FOUND');
         const snapData = snap.data() || {};
         const currentVersion = Number(snapData.version || 0);
-        if (expectedVersion !== null && currentVersion > expectedVersion) {
-          const err = new Error('VERSION_CONFLICT');
-          err.code = 'VERSION_CONFLICT';
-          throw err;
+        let dataToSave = updated.data;
+        let photosToSave = updated.photos;
+        if (expectedVersion !== null && currentVersion > expectedVersion && snapData.data?.people) {
+          const deletedSet = readDeletedIdsForTree(treeId);
+          const merged = deepMergeTree(
+            { data: snapData.data, photos: snapData.photos || {} },
+            { data: updated.data, photos: updated.photos || {} }
+          );
+          dataToSave = {
+            people: (merged.data?.people || []).filter(p => !deletedSet.has(p.id)),
+            couples: (merged.data?.couples || [])
+              .filter(c => !deletedSet.has(c.h) && !deletedSet.has(c.w))
+              .map(c => ({
+                ...c,
+                kids: (c.kids || []).filter(k => !deletedSet.has(k))
+              }))
+          };
+          photosToSave = merged.photos || updated.photos;
         }
         const bumped = currentVersion + 1;
         tx.update(treeRef, {
-          data: updated.data,
-          photos: updated.photos,
+          data: dataToSave,
+          photos: photosToSave,
           lang: updated.lang,
           version: bumped,
           updatedAt: serverTimestamp()
         });
         return bumped;
       });
-      localMap[treeId].version = nextVersion;
-      writeLocalTrees(localMap);
+      const latestMap = readLocalTrees();
+      if (latestMap[treeId]) {
+        latestMap[treeId].version = nextVersion;
+        writeLocalTrees(latestMap);
+      }
     } catch (err) {
       console.warn('Cloud tree update deferred:', err);
       return false;

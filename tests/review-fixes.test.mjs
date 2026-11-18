@@ -367,3 +367,72 @@ test('Photo compression: uses fast createImageBitmap path and rejects cleanly on
     globalThis.URL = origURL;
   }
 });
+
+test('Reload persistence: cacheLocalTreeSnapshot and mergeCloudTreeWithLocalHistory preserve newly added members on reload', async () => {
+  const { cacheLocalTreeSnapshot } = await import('../src/services/treeSync.js');
+  const { mergeCloudTreeWithLocalHistory, recordDeletedId, clearDeletedIds } = await import('../src/utils/storage.js');
+
+  const origWindow = globalThis.window;
+  const origLocalStorage = globalThis.localStorage;
+  const store = new Map();
+  const mockStorage = {
+    getItem: k => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => store.set(k, String(v)),
+    removeItem: k => store.delete(k)
+  };
+  globalThis.localStorage = mockStorage;
+  globalThis.window = { ...(origWindow || {}), localStorage: mockStorage };
+
+  try {
+    const treeId = 'tree_friend_1';
+    const user = { uid: 'u_friend', displayName: 'Friend' };
+
+    // Cloud snapshot only has the initial root member (e.g. before subsequent saves or during 600ms debounce)
+    const staleCloudData = {
+      people: [{ id: 'p_root', name: 'Rohan Sharma', hi: 'रोहन शर्मा', g: 'M' }],
+      couples: []
+    };
+
+    // Friend adds spouse and child locally; cacheLocalTreeSnapshot writes synchronously at 0ms
+    const localEditedDoc = {
+      id: treeId,
+      title: 'Sharma Family Tree',
+      ownerUid: 'u_friend',
+      isPublic: false,
+      version: 1,
+      data: {
+        people: [
+          { id: 'p_root', name: 'Rohan Sharma', hi: 'रोहन शर्मा', g: 'M' },
+          { id: 'p_wife', name: 'Priya Sharma', hi: 'प्रिया शर्मा', g: 'F' },
+          { id: 'p_kid', name: 'Aarav Sharma', hi: 'आरव शर्मा', g: 'M' }
+        ],
+        couples: [{ h: 'p_root', w: 'p_wife', kids: ['p_kid'] }]
+      },
+      photos: { p_wife: 'data:image/jpeg;base64,/9j/4AAQ' },
+      lang: 'en'
+    };
+
+    const cached = cacheLocalTreeSnapshot(treeId, localEditedDoc, user);
+    assert.ok(cached, 'cacheLocalTreeSnapshot must succeed for tree owner');
+
+    // Simulate page reload where subscribeToTree delivers staleCloudData first
+    const merged = mergeCloudTreeWithLocalHistory(treeId, staleCloudData, {}, 'en');
+    assert.equal(merged.data.people.length, 3, 'All 3 members must be preserved on reload');
+    assert.ok(merged.data.people.some(p => p.id === 'p_wife'));
+    assert.ok(merged.data.people.some(p => p.id === 'p_kid'));
+    assert.equal(merged.data.couples.length, 1);
+    assert.deepEqual(merged.data.couples[0].kids, ['p_kid']);
+    assert.equal(merged.photos.p_wife, 'data:image/jpeg;base64,/9j/4AAQ');
+    assert.equal(merged.viewer, '');
+
+    // Verify intentional deletion is also respected on reload
+    recordDeletedId('p_kid', treeId);
+    const mergedAfterDelete = mergeCloudTreeWithLocalHistory(treeId, staleCloudData, {}, 'en');
+    assert.equal(mergedAfterDelete.data.people.length, 2);
+    assert.ok(!mergedAfterDelete.data.people.some(p => p.id === 'p_kid'));
+    clearDeletedIds(treeId);
+  } finally {
+    globalThis.window = origWindow;
+    globalThis.localStorage = origLocalStorage;
+  }
+});

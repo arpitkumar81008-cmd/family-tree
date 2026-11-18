@@ -40,6 +40,7 @@ import {
   listAvailableTrees,
   createUserTree,
   saveUserTree,
+  cacheLocalTreeSnapshot,
   canUserEditTree,
   isPhotosPayloadWithinLimit,
   findTreeByShareCode,
@@ -360,8 +361,10 @@ export function App() {
             docData.photos || {},
             docData.lang
           );
-          // Cloud snapshot is the source of truth for signed-in / shared trees
-          isLocalMutationRef.current = false;
+          const hasUnsyncedLocalAdditions =
+            merged.data.people.length > (docData.data.people.length || 0) ||
+            (merged.data.couples?.length || 0) > (docData.data.couples?.length || 0);
+          isLocalMutationRef.current = hasUnsyncedLocalAdditions;
           setTreeState(prev => ({
             ...prev,
             data: merged.data,
@@ -398,6 +401,13 @@ export function App() {
   const executeCloudSave = useCallback(async (targetTreeId, payload, targetUser) => {
     try {
       const ok = await saveUserTree(targetTreeId, payload, targetUser);
+      if (ok && activeTreeMetaRef.current && activeTreeMetaRef.current.id === targetTreeId) {
+        const nextVer = (Number(activeTreeMetaRef.current.version) || 0) + 1;
+        activeTreeMetaRef.current = { ...activeTreeMetaRef.current, version: nextVer };
+        setActiveTreeMeta(prev =>
+          prev && prev.id === targetTreeId ? { ...prev, version: nextVer } : prev
+        );
+      }
       setSaveError(!ok);
       return ok;
     } catch {
@@ -405,6 +415,33 @@ export function App() {
       return false;
     }
   }, []);
+
+  // Flush any pending 600ms debounced cloud save immediately when reloading or hiding the page
+  useEffect(() => {
+    const flushOnLeave = () => {
+      const pending = pendingSaveRef.current;
+      if (!pending) return;
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      pendingSaveRef.current = null;
+      executeCloudSave(pending.treeId, pending.payload, pending.user);
+    };
+    const onVisChange = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        flushOnLeave();
+      }
+    };
+    window.addEventListener("pagehide", flushOnLeave);
+    window.addEventListener("beforeunload", flushOnLeave);
+    document.addEventListener("visibilitychange", onVisChange);
+    return () => {
+      window.removeEventListener("pagehide", flushOnLeave);
+      window.removeEventListener("beforeunload", flushOnLeave);
+      document.removeEventListener("visibilitychange", onVisChange);
+    };
+  }, [executeCloudSave]);
 
   const handleRetrySave = async () => {
     if (saveTimerRef.current) {
@@ -454,6 +491,8 @@ export function App() {
         photos: treeState.photos,
         lang: treeState.lang
       };
+      // Write synchronously to localStorage (0ms) so reloading before the 600ms cloud timer never loses edits
+      cacheLocalTreeSnapshot(activeTreeId, payload, user);
       pendingSaveRef.current = { treeId: activeTreeId, payload, user };
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
