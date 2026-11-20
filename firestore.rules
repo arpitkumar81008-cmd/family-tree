@@ -40,7 +40,7 @@ rules_version = '2';
 // Fields:
 //   - requesterUid: string (required, must match document ID, immutable) - UID of the requester
 //   - requesterName: string (optional, 0..120 chars) - display name of the requester
-//   - requesterEmail: string (optional, 0..160 chars) - email of the requester
+//   - requesterEmail: string (optional, 0..160 chars, if non-empty must match auth token email) - email of the requester
 //   - requestedRole: string (required, enum: ['viewer', 'editor']) - requested access role
 //   - approvedRole: string (optional, nullable, enum: ['viewer', 'editor']) - role granted upon approval
 //   - shareCode: string (optional, 0..32 chars) - Family Access Code submitted with the request
@@ -55,7 +55,7 @@ rules_version = '2';
 //   - Any admin metadata (client writes are completely denied)
 //
 // Collection: analytics_daily
-// Document ID: {dayId} (YYYY-MM-DD date string, 10 chars)
+// Document ID: {dayId} (YYYY-MM-DD valid calendar date within ±36h of request.time, 10 chars)
 // Fields:
 //   - date: string (required, must match dayId, 10 chars) - UTC/local day identifier
 //   - pageViews: int (optional, 0..10000000) - daily page view counter
@@ -265,6 +265,17 @@ service cloud.firestore {
         isValidOptionalTime('updatedAt');
     }
 
+    // Validate that a non-empty requesterEmail matches the authenticated user's token email
+    function isValidRequesterEmail(doc) {
+      return !('requesterEmail' in doc) ||
+        doc.requesterEmail == null ||
+        (doc.requesterEmail is string && doc.requesterEmail.size() == 0) ||
+        (doc.requesterEmail is string &&
+         ('email' in request.auth.token) &&
+         (request.auth.token.email is string) &&
+         doc.requesterEmail.lower() == request.auth.token.email.lower());
+    }
+
     function isValidJoinRequestPayload(doc, requesterUid) {
       return hasRequiredFields(['requesterUid', 'requestedRole', 'status']) &&
         hasOnlyAllowedFields([
@@ -332,6 +343,14 @@ service cloud.firestore {
         isValidAnalyticsCounterIncrement('joinRequests');
     }
 
+    // Validate that a YYYY-MM-DD dayId is a real calendar date within ±36h of request.time
+    // (accommodates all global timezones UTC-12 to UTC+14 while blocking far-past/future poisoning)
+    function isAnalyticsDayWithinWindow(dayId) {
+      let dayTs = timestamp.date(int(dayId[0:4]), int(dayId[5:7]), int(dayId[8:10]));
+      return dayTs >= request.time - duration.value(36, 'h') &&
+        dayTs <= request.time + duration.value(36, 'h');
+    }
+
     function isValidAnalyticsDailyPayload(doc, dayId) {
       return hasRequiredFields(['date']) &&
         hasOnlyAllowedFields([
@@ -343,7 +362,8 @@ service cloud.firestore {
           'joinRequests',
           'updatedAt'
         ]) &&
-        dayId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+        dayId.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$') &&
+        isAnalyticsDayWithinWindow(dayId) &&
         (doc.date is string) &&
         doc.date == dayId &&
         doc.date.size() == 10 &&
@@ -435,6 +455,7 @@ service cloud.firestore {
         allow create: if isAuthenticated() &&
           request.auth.uid == requesterUid &&
           isValidJoinRequestPayload(request.resource.data, requesterUid) &&
+          isValidRequesterEmail(request.resource.data) &&
           request.resource.data.status == 'pending' &&
           (!('approvedRole' in request.resource.data) ||
            request.resource.data.approvedRole == null);
@@ -446,8 +467,10 @@ service cloud.firestore {
              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'approvedRole', 'updatedAt'])) ||
             (isAuthenticated() &&
              request.auth.uid == requesterUid &&
+             resource.data.status == 'pending' &&
              request.resource.data.status == 'pending' &&
              request.resource.data.requesterUid == requesterUid &&
+             isValidRequesterEmail(request.resource.data) &&
              (!('approvedRole' in request.resource.data) ||
               request.resource.data.approvedRole == null))
           );

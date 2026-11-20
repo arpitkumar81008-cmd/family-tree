@@ -69,14 +69,25 @@ export function dedup(treeState) {
       .filter(id => validIds.has(id))
       .filter((id, idx, arr) => arr.indexOf(id) === idx);
 
-    const k = `${h}_${w}`;
-    if (!seenCouples.has(k)) {
-      seenCouples.add(k);
-      uniqueCouples.push({ ...c, h, w, kids });
-    } else {
-      const existing = uniqueCouples.find(x => x.h === h && x.w === w);
-      if (existing) {
-        existing.kids = [...new Set([...existing.kids, ...kids])];
+    if (h || w) {
+      const k = `${h}_${w}`;
+      if (!seenCouples.has(k)) {
+        seenCouples.add(k);
+        uniqueCouples.push({ ...c, h, w, kids });
+      } else {
+        const existing = uniqueCouples.find(x => x.h === h && x.w === w);
+        if (existing) {
+          existing.kids = [...new Set([...existing.kids, ...kids])];
+        }
+      }
+    } else if (kids.length > 0) {
+      const overlapping = uniqueCouples.find(
+        x => !x.h && !x.w && x.kids.some(kId => kids.includes(kId))
+      );
+      if (overlapping) {
+        overlapping.kids = [...new Set([...overlapping.kids, ...kids])];
+      } else {
+        uniqueCouples.push({ ...c, h: "", w: "", kids });
       }
     }
   }
@@ -173,9 +184,14 @@ export function deepMergeTree(baseState, overlayState) {
     const h = oc.h || "";
     const w = oc.w || "";
     const ocKids = Array.isArray(oc.kids) ? oc.kids : [];
-    const match = mergedCouples.find(
-      bc => (bc.h === h && bc.w === w) || (h && w && bc.h === w && bc.w === h)
-    );
+    const match =
+      h || w
+        ? mergedCouples.find(
+            bc => (bc.h === h && bc.w === w) || (h && w && bc.h === w && bc.w === h)
+          )
+        : mergedCouples.find(
+            bc => !bc.h && !bc.w && ocKids.some(kId => (bc.kids || []).includes(kId))
+          );
     if (match) {
       match.kids = [...new Set([...(match.kids || []), ...ocKids])];
     } else if (

@@ -967,6 +967,16 @@
   gap: 6px;
 }
 
+:root[data-viewport="mobile"] .onboard-toast {
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 768px) {
+  :root:not([data-viewport="laptop"]) .onboard-toast {
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .onboard-toast-head {
   display: flex;
   align-items: center;

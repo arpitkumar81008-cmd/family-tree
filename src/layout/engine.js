@@ -34,8 +34,12 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
   couples.forEach(c => {
     if (c.h && c.w) { spouse[c.h] = c.w; spouse[c.w] = c.h; }
     const kids = Array.isArray(c.kids) ? c.kids.filter(Boolean) : [];
-    if (c.h) children[c.h] = kids;
-    if (c.w) children[c.w] = kids;
+    if (c.h) {
+      children[c.h] = children[c.h] ? Array.from(new Set([...children[c.h], ...kids])) : kids;
+    }
+    if (c.w) {
+      children[c.w] = children[c.w] ? Array.from(new Set([...children[c.w], ...kids])) : kids;
+    }
     kids.forEach(k => {
       parents[k] = [c.h, c.w].filter(Boolean);
       cok[k] = c;
@@ -147,7 +151,8 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
 
     mainTopCouples.forEach(c => depthMap.set(c, 0));
     let changed = true;
-    for (let iter = 0; iter < 10 && changed; iter++) {
+    const maxDepthIters = Math.max(10, mainCouples.length + 2);
+    for (let iter = 0; iter < maxDepthIters && changed; iter++) {
       changed = false;
       mainCouples.forEach(c => {
         let curD = depthMap.get(c);
@@ -697,10 +702,13 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
       cardsOnRow.sort((a, b) => pos[a.id].x - pos[b.id].x);
       let cumulativeShift = 0;
       for (let i = 0; i < cardsOnRow.length - 1; i++) {
-        let curPos = pos[cardsOnRow[i].id];
-        let nextPos = pos[cardsOnRow[i + 1].id];
+        let curId = cardsOnRow[i].id;
+        let nextId = cardsOnRow[i + 1].id;
+        let curPos = pos[curId];
+        let nextPos = pos[nextId];
         nextPos.x += cumulativeShift;
-        let minNextX = curPos.x + CARD_W + SIBLING_GAP;
+        let requiredGap = spouse[curId] === nextId ? COUPLE_GAP : SIBLING_GAP;
+        let minNextX = curPos.x + CARD_W + requiredGap;
         if (nextPos.x < minNextX) {
           let extra = minNextX - nextPos.x;
           nextPos.x += extra;
@@ -1088,7 +1096,9 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
     let maternalChain = fMomId ? getAncestryChain(fMomId) : [];
     let spouseChain = spouseId ? getAncestryChain(spouseId) : [];
 
-    let maxAncLevels = Math.max(paternalChain.length, maternalChain.length, spouseChain.length, 1);
+    let isUsingMaternalChain = !spouseChain.length && maternalChain.length > 0;
+    let matAncLevels = isUsingMaternalChain ? maternalChain.length + 1 : spouseChain.length;
+    let maxAncLevels = Math.max(paternalChain.length, matAncLevels, 1);
     let focalY = TOP_PAD + maxAncLevels * (cardHeight + ROW_GAP);
 
     // Measure space needed on left for paternal ancestry
@@ -1238,10 +1248,10 @@ export function computeTreeLayout(data, cardHeight = 138, lang = "en", viewerId 
     let matOriginPos = pos[matOriginId] || { x: spouseX, y: focalY };
 
     matChainToUse.forEach((step, idx) => {
-      let level = idx + 1;
+      let level = isUsingMaternalChain ? idx + 2 : idx + 1;
       let rowY = focalY - level * (cardHeight + ROW_GAP);
       let unitW = step.spouseId ? CARD_W * 2 + COUPLE_GAP : CARD_W;
-      let targetX = matOriginPos.x + level * (CARD_W + 60);
+      let targetX = matOriginPos.x + (idx + 1) * (CARD_W + 60);
 
       let guard = 0;
       while (!canPlace(targetX, rowY, unitW, cardHeight) && guard++ < 2000) {

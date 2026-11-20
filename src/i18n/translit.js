@@ -117,7 +117,7 @@ export function translitOffline(input = "") {
   return tokens
     .map(token => {
       const lower = token.toLowerCase();
-      if (OFFLINE_NAMES[lower]) return OFFLINE_NAMES[lower];
+      if (Object.prototype.hasOwnProperty.call(OFFLINE_NAMES, lower)) return OFFLINE_NAMES[lower];
 
       let result = "";
       let i = 0;

@@ -662,12 +662,14 @@
   z-index: 890;
 }
 
-.treewrap-host.is-sidebar-collapsed:not(.is-fullscreen) .subtrees-sidebar {
-  display: none;
-}
+@media (min-width: 901px) {
+  :root:not([data-viewport="mobile"]) .treewrap-host.is-sidebar-collapsed:not(.is-fullscreen) .subtrees-sidebar {
+    display: none;
+  }
 
-.treewrap-host.is-sidebar-collapsed:not(.is-fullscreen) .subtrees-drawer-toggle {
-  display: inline-flex;
+  :root:not([data-viewport="mobile"]) .treewrap-host.is-sidebar-collapsed:not(.is-fullscreen) .subtrees-drawer-toggle {
+    display: inline-flex;
+  }
 }
 
 .subtrees-drawer-backdrop {
@@ -1077,11 +1079,19 @@
   }
 }
 
-:root[data-viewport="mobile"] .subtrees-drawer-toggle {
+:root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .subtrees-drawer-toggle {
   display: inline-flex;
 }
 
-:root[data-viewport="mobile"] .subtrees-sidebar {
+:root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .subtrees-drawer-backdrop.is-open {
+  display: block;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 115;
+}
+
+:root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .subtrees-sidebar {
   position: fixed;
   top: 56px;
   bottom: calc(64px + env(safe-area-inset-bottom, 0px));
@@ -1097,11 +1107,11 @@
   transition: transform var(--transition-fast);
 }
 
-:root[data-viewport="mobile"] .subtrees-sidebar.is-open {
+:root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .subtrees-sidebar.is-open {
   transform: translateX(0);
 }
 
-:root[data-viewport="mobile"] .subtrees-sidebar-close {
+:root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .subtrees-sidebar-close {
   display: inline-flex;
 }
 

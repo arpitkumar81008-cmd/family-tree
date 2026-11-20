@@ -155,6 +155,9 @@ export function parseTreeJoinInput(rawInput, fallbackTreeId = '') {
         return { treeId: treeId || cleanFallback, code };
       }
     } catch {}
+    if (/^https?:\/\//i.test(raw)) {
+      return { treeId: cleanFallback, code: '' };
+    }
   }
 
   if (raw.includes(':')) {
@@ -426,15 +429,26 @@ export function syncUrlWithViewState(view, treeId, options = {}) {
     if (view === 'home') {
       url.searchParams.set('view', 'home');
       url.searchParams.delete('tree');
+      url.searchParams.delete('code');
+      url.searchParams.delete('approve');
     } else if (view === 'admin') {
       url.searchParams.set('view', 'admin');
       url.searchParams.delete('tree');
+      url.searchParams.delete('code');
+      url.searchParams.delete('approve');
     } else {
       url.searchParams.set('view', 'tree');
+      const prevTreeId = url.searchParams.get('tree') || '';
       if (treeId) {
         url.searchParams.set('tree', treeId);
+        if (prevTreeId && prevTreeId !== treeId) {
+          url.searchParams.delete('code');
+          url.searchParams.delete('approve');
+        }
       } else {
         url.searchParams.delete('tree');
+        url.searchParams.delete('code');
+        url.searchParams.delete('approve');
       }
     }
     const nextUrl = url.pathname + url.search + url.hash;
@@ -686,25 +700,28 @@ export async function redeemShareCode(rawCode, fallbackTreeId = '') {
   const { treeId: parsedTreeId, code: cleanCode } = parseTreeJoinInput(rawCode, fallbackTreeId);
   if (!cleanCode && !parsedTreeId) return null;
 
-  const localMap = readLocalTrees();
-  for (const [id, tree] of Object.entries(localMap)) {
-    if (!tree || typeof tree !== 'object') continue;
-    const expectedCode = tree.shareCode ? String(tree.shareCode).trim().toUpperCase() : '';
-    const matchesByCode = Boolean(cleanCode && expectedCode && expectedCode === cleanCode);
-    const matchesByTreeId = Boolean(
-      parsedTreeId &&
-        id === parsedTreeId &&
-        (!expectedCode || !cleanCode || expectedCode === cleanCode)
-    );
-    if (matchesByCode || matchesByTreeId) {
-      if (cleanCode && (!expectedCode || expectedCode === cleanCode)) {
-        recordUnlockedShareCode(id, cleanCode);
+  const { db, auth, functions } = getFirebaseClients();
+  if (!db || !isFirebaseConfigured()) {
+    const localMap = readLocalTrees();
+    for (const [id, tree] of Object.entries(localMap)) {
+      if (!tree || typeof tree !== 'object') continue;
+      const expectedCode = tree.shareCode ? String(tree.shareCode).trim().toUpperCase() : '';
+      const matchesByCode = Boolean(cleanCode && expectedCode && expectedCode === cleanCode);
+      const matchesByTreeId = Boolean(
+        parsedTreeId &&
+          id === parsedTreeId &&
+          (tree.isPublic === true || (expectedCode && cleanCode && expectedCode === cleanCode))
+      );
+      if (matchesByCode || matchesByTreeId) {
+        if (cleanCode && expectedCode && expectedCode === cleanCode) {
+          recordUnlockedShareCode(id, cleanCode);
+        }
+        return { id, ...tree };
       }
-      return { id, ...tree };
     }
+    return null;
   }
 
-  const { db, auth, functions } = getFirebaseClients();
   if (db && isFirebaseConfigured()) {
     if (!auth?.currentUser) {
       const authErr = new Error('Please sign in to access or request access to this Family Tree.');
@@ -845,12 +862,28 @@ export async function updateTreeSharingSettings(treeId, patch, user) {
     cleanPatch.isPublic = patch.isPublic;
     publicPatch.isPublic = patch.isPublic;
   }
+  if (Array.isArray(patch.collaboratorUids)) {
+    const cleanCollabs = Array.from(
+      new Set(patch.collaboratorUids.map(u => String(u || '').trim()).filter(Boolean))
+    ).slice(0, 50);
+    cleanPatch.collaboratorUids = cleanCollabs;
+    publicPatch.collaboratorUids = cleanCollabs;
+  }
+  if (Array.isArray(patch.viewerUids)) {
+    const cleanViewerUids = Array.from(
+      new Set(patch.viewerUids.map(u => String(u || '').trim()).filter(Boolean))
+    ).slice(0, 50);
+    cleanPatch.viewerUids = cleanViewerUids;
+    publicPatch.viewerUids = cleanViewerUids;
+  }
   if (Array.isArray(patch.viewerEmails)) {
     const cleanViewers = Array.from(
       new Set(patch.viewerEmails.map(e => String(e).trim().toLowerCase()).filter(Boolean))
     ).slice(0, 50);
     cleanPatch.viewerEmails = cleanViewers;
     privatePatch.viewerEmails = cleanViewers;
+    // Clear legacy email arrays on parent doc so revoked users cannot retain read access
+    publicPatch.viewerEmails = [];
   }
   if (Array.isArray(patch.editorEmails)) {
     const cleanEditors = Array.from(
@@ -858,6 +891,7 @@ export async function updateTreeSharingSettings(treeId, patch, user) {
     ).slice(0, 50);
     cleanPatch.editorEmails = cleanEditors;
     privatePatch.editorEmails = cleanEditors;
+    publicPatch.editorEmails = [];
   }
   if (typeof patch.shareCode === 'string') {
     const cleanCode = patch.shareCode.trim().toUpperCase().slice(0, 32);
@@ -1053,8 +1087,12 @@ export async function saveTreeData(treeId, treeDoc, user) {
         });
         return bumped;
       });
-      localMap[treeId].version = nextVersion;
-      writeLocalTrees(localMap);
+      const latestMap = readLocalTrees();
+      if (latestMap[treeId]) {
+        latestMap[treeId].version = nextVersion;
+        latestMap[treeId].hasUnsyncedLocalEdits = false;
+        writeLocalTrees(latestMap);
+      }
     } catch (err) {
       console.warn('Cloud tree data update deferred:', err);
       return false;
@@ -1078,8 +1116,8 @@ export async function saveTreePhotos(treeId, photos, user, treeMeta = {}) {
     return false;
   }
   const safePhotos = photos && typeof photos === 'object' && !Array.isArray(photos) ? photos : {};
-  if (!isPhotosPayloadWithinLimit(safePhotos)) {
-    console.warn('Photos payload exceeds 750 KB cloud limit');
+  if (!isPhotosPayloadWithinLimit(safePhotos) || Object.keys(safePhotos).length > 500) {
+    console.warn('Photos payload exceeds cloud limit');
     return false;
   }
 
@@ -1091,6 +1129,7 @@ export async function saveTreePhotos(treeId, photos, user, treeMeta = {}) {
   localMap[treeId] = {
     ...existing,
     photos: safePhotos,
+    hasUnsyncedLocalEdits: true,
     updatedAt: nowIso
   };
   writeLocalTrees(localMap);
@@ -1104,10 +1143,13 @@ export async function saveTreePhotos(treeId, photos, user, treeMeta = {}) {
         if (!snap.exists()) throw new Error('TREE_NOT_FOUND');
         const snapData = snap.data() || {};
         const currentVersion = Number(snapData.version || 0);
-        const photosToSave =
+        let photosToSave =
           expectedVersion !== null && currentVersion > expectedVersion && snapData.photos
             ? { ...snapData.photos, ...safePhotos }
             : safePhotos;
+        if (!isPhotosPayloadWithinLimit(photosToSave) || Object.keys(photosToSave).length > 500) {
+          photosToSave = safePhotos;
+        }
         const bumped = currentVersion + 1;
         tx.update(treeRef, {
           photos: photosToSave,
@@ -1116,8 +1158,12 @@ export async function saveTreePhotos(treeId, photos, user, treeMeta = {}) {
         });
         return bumped;
       });
-      localMap[treeId].version = nextVersion;
-      writeLocalTrees(localMap);
+      const latestMap = readLocalTrees();
+      if (latestMap[treeId]) {
+        latestMap[treeId].version = nextVersion;
+        latestMap[treeId].hasUnsyncedLocalEdits = false;
+        writeLocalTrees(latestMap);
+      }
     } catch (err) {
       console.warn('Cloud tree photos update deferred:', err);
       return false;
@@ -1127,15 +1173,37 @@ export async function saveTreePhotos(treeId, photos, user, treeMeta = {}) {
 }
 
 /**
+ * Overwrites the local cache entry for `treeId` with an authoritative synced cloud snapshot
+ * (`hasUnsyncedLocalEdits: false`) so stale local data never resurrects remote deletions.
+ *
+ * @param {string} treeId
+ * @param {object} docData
+ */
+export function overwriteLocalTreeCache(treeId, docData) {
+  if (!treeId || !docData || typeof docData !== 'object') return;
+  try {
+    const localMap = readLocalTrees();
+    localMap[treeId] = {
+      ...(localMap[treeId] || {}),
+      ...docData,
+      hasUnsyncedLocalEdits: false,
+      updatedAt: new Date().toISOString()
+    };
+    writeLocalTrees(localMap);
+  } catch {}
+}
+
+/**
  * Synchronously caches a user tree snapshot to localStorage (`gupta_multi_trees_v1`)
  * at 0ms latency so page reloads before the 600ms cloud debounce timer never lose added members.
  *
  * @param {string} treeId
  * @param {object} treeDoc
  * @param {object} user
+ * @param {{ markDirty?: boolean }} [options={}]
  * @returns {object | null}
  */
-export function cacheLocalTreeSnapshot(treeId, treeDoc, user) {
+export function cacheLocalTreeSnapshot(treeId, treeDoc, user, options = {}) {
   if (!treeId || !treeDoc || typeof treeDoc !== 'object') return null;
   if (!canUserEditTree({ id: treeId, ...treeDoc }, user)) return null;
   const nowIso = new Date().toISOString();
@@ -1165,6 +1233,7 @@ export function cacheLocalTreeSnapshot(treeId, treeDoc, user) {
         ? treeDoc.photos
         : {},
     lang: treeDoc.lang === 'hi' ? 'hi' : 'en',
+    hasUnsyncedLocalEdits: options.markDirty !== false,
     createdAt: treeDoc.createdAt || existing.createdAt || nowIso,
     updatedAt: nowIso
   };
@@ -1181,6 +1250,7 @@ export function cacheLocalTreeSnapshot(treeId, treeDoc, user) {
 /**
  * Updates an existing tree when the current user is the owner or collaborator.
  * Uses a Firestore transaction with `version` checking and never overwrites sharing/ownership fields.
+ * Falls back to persistent-cache `updateDoc` when offline and replays dirty trees on reconnect.
  *
  * @param {string} treeId
  * @param {object} treeDoc
@@ -1192,8 +1262,8 @@ export async function saveUserTree(treeId, treeDoc, user) {
   if (!canUserEditTree({ id: treeId, ...treeDoc }, user)) {
     return false;
   }
-  if (!isPhotosPayloadWithinLimit(treeDoc.photos)) {
-    console.warn('Photos payload exceeds 750 KB cloud limit');
+  if (!isPhotosPayloadWithinLimit(treeDoc.photos) || Object.keys(treeDoc.photos || {}).length > 500) {
+    console.warn('Photos payload exceeds cloud limit');
     return false;
   }
 
@@ -1205,13 +1275,28 @@ export async function saveUserTree(treeId, treeDoc, user) {
       : typeof existing.version === 'number'
         ? existing.version
         : null;
-  const updated = cacheLocalTreeSnapshot(treeId, treeDoc, user);
+  const updated = cacheLocalTreeSnapshot(treeId, treeDoc, user, { markDirty: true });
   if (!updated) return false;
 
   const { db } = getFirebaseClients();
   if (db && isFirebaseConfigured()) {
+    const treeRef = doc(db, 'trees', treeId);
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+
+    if (isOffline) {
+      // Firestore transactions cannot queue offline; use updateDoc so persistentLocalCache queues it
+      try {
+        updateDoc(treeRef, {
+          data: updated.data,
+          photos: updated.photos,
+          lang: updated.lang,
+          updatedAt: serverTimestamp()
+        }).catch(() => {});
+      } catch {}
+      return false;
+    }
+
     try {
-      const treeRef = doc(db, 'trees', treeId);
       const nextVersion = await runTransaction(db, async tx => {
         const snap = await tx.get(treeRef);
         if (!snap.exists()) throw new Error('TREE_NOT_FOUND');
@@ -1234,7 +1319,12 @@ export async function saveUserTree(treeId, treeDoc, user) {
                 kids: (c.kids || []).filter(k => !deletedSet.has(k))
               }))
           };
-          photosToSave = merged.photos || updated.photos;
+          const candidatePhotos = merged.photos || updated.photos;
+          photosToSave =
+            isPhotosPayloadWithinLimit(candidatePhotos) &&
+            Object.keys(candidatePhotos).length <= 500
+              ? candidatePhotos
+              : updated.photos;
         }
         const bumped = currentVersion + 1;
         tx.update(treeRef, {
@@ -1249,18 +1339,35 @@ export async function saveUserTree(treeId, treeDoc, user) {
       const latestMap = readLocalTrees();
       if (latestMap[treeId]) {
         latestMap[treeId].version = nextVersion;
+        latestMap[treeId].hasUnsyncedLocalEdits = false;
         writeLocalTrees(latestMap);
       }
     } catch (err) {
+      if (err?.code === 'unavailable' || err?.code === 'failed-precondition') {
+        try {
+          updateDoc(treeRef, {
+            data: updated.data,
+            photos: updated.photos,
+            lang: updated.lang,
+            updatedAt: serverTimestamp()
+          }).catch(() => {});
+        } catch {}
+      }
       console.warn('Cloud tree update deferred:', err);
       return false;
+    }
+  } else {
+    const latestMap = readLocalTrees();
+    if (latestMap[treeId]) {
+      latestMap[treeId].hasUnsyncedLocalEdits = false;
+      writeLocalTrees(latestMap);
     }
   }
   return true;
 }
 
 /**
- * Flushes all pending per-tree debounced cloud saves immediately (e.g. on pagehide / visibilitychange).
+ * Flushes all pending per-tree debounced cloud saves immediately (e.g. on pagehide / visibilitychange / online).
  */
 export function flushPendingSaves() {
   for (const [treeId, entry] of pendingSaves.entries()) {
@@ -1270,8 +1377,27 @@ export function flushPendingSaves() {
   }
 }
 
+/**
+ * Replays any locally dirty trees (`hasUnsyncedLocalEdits === true`) when the browser regains connectivity.
+ */
+export function replayDirtyLocalTrees() {
+  const { auth } = getFirebaseClients();
+  const currentUser = auth?.currentUser;
+  if (!currentUser?.uid) return;
+  const localMap = readLocalTrees();
+  for (const [treeId, tree] of Object.entries(localMap)) {
+    if (tree && tree.hasUnsyncedLocalEdits === true && canUserEditTree({ id: treeId, ...tree }, currentUser)) {
+      Promise.resolve(saveUserTree(treeId, tree, currentUser)).catch(() => {});
+    }
+  }
+}
+
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   window.addEventListener('pagehide', flushPendingSaves);
+  window.addEventListener('online', () => {
+    flushPendingSaves();
+    replayDirtyLocalTrees();
+  });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       flushPendingSaves();
@@ -1534,25 +1660,10 @@ export async function respondToJoinRequest(
               ).slice(0, 50)
             : currentViewers.filter(uid => uid !== requesterUid);
 
-        const nextEditorEmails =
-          requesterEmail && approvedRole === 'editor'
-            ? Array.from(new Set([...currentEditorEmails, requesterEmail])).slice(0, 50)
-            : currentEditorEmails.filter(em => em !== requesterEmail);
-        const nextViewerEmails =
-          requesterEmail && approvedRole === 'viewer'
-            ? Array.from(
-                new Set([
-                  ...currentViewerEmails.filter(em => em !== requesterEmail),
-                  requesterEmail
-                ])
-              ).slice(0, 50)
-            : currentViewerEmails.filter(em => em !== requesterEmail);
-
+        // Enforce UID-based access on trees/{treeId} without leaking email PII on the parent document
         tx.update(treeRef, {
           collaboratorUids: nextCollabs,
           viewerUids: nextViewers,
-          editorEmails: nextEditorEmails,
-          viewerEmails: nextViewerEmails,
           updatedAt: serverTimestamp()
         });
         if (reqSnap.exists()) {

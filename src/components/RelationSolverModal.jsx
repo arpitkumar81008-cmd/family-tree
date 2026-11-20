@@ -94,6 +94,15 @@ export function RelationSolverModal({
     return solveComplexRelation(familyIndex, targetId, originId, lang);
   }, [isValid, familyIndex, originId, targetId, lang]);
 
+  const resolvedPath = useMemo(() => {
+    if (!result) return [];
+    if (Array.isArray(result.path) && result.path.length > 0) return result.path;
+    if (result.lineageSide !== null && Array.isArray(result.pathSteps) && result.pathSteps.length > 0) {
+      return [result.pathSteps[0].fromId, ...result.pathSteps.map(s => s.toId)];
+    }
+    return [];
+  }, [result]);
+
   if (!isOpen) return null;
 
   const handleSwap = () => {
@@ -122,15 +131,6 @@ export function RelationSolverModal({
     highlightPath: isHi ? "वृक्ष पर रास्ता दिखाएँ" : "Highlight Path on Tree",
     close: typeof t === "function" ? t("close") : (isHi ? "बंद करें" : "Close")
   };
-
-  const resolvedPath = useMemo(() => {
-    if (!result) return [];
-    if (Array.isArray(result.path) && result.path.length > 0) return result.path;
-    if (result.lineageSide !== null && Array.isArray(result.pathSteps) && result.pathSteps.length > 0) {
-      return [result.pathSteps[0].fromId, ...result.pathSteps.map(s => s.toId)];
-    }
-    return [];
-  }, [result]);
 
   const canHighlightPath = Boolean(
     onHighlightPath &&
@@ -207,15 +207,7 @@ export function RelationSolverModal({
         </div>
 
         {/* Member A & B selectors with quick swap */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr auto 1fr",
-            gap: "10px",
-            alignItems: "end",
-            marginBottom: "16px"
-          }}
-        >
+        <div className="rel-solver-pair" style={{ marginBottom: "16px" }}>
           <div className="field" style={{ display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 }}>
             <label
               htmlFor="solver-member-a"

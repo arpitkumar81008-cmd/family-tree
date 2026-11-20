@@ -33,23 +33,6 @@ const RUNTIME_CONFIG_KEY = 'gupta_firebase_config';
  * @returns {object}
  */
 export function loadFirebaseConfig() {
-  const envConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCMrukS1JDWCudcEuvHlp0nUP2zWrXuxu4',
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'gupta-family-tree-akg.firebaseapp.com',
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'gupta-family-tree-akg',
-    storageBucket:
-      import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'gupta-family-tree-akg.firebasestorage.app',
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '377567252946',
-    appId:
-      import.meta.env.VITE_FIREBASE_APP_ID || '1:377567252946:web:6043388686762243ce380b',
-    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-89GMEHC09H',
-    databaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)'
-  };
-
-  if (envConfig.apiKey && envConfig.projectId) {
-    return envConfig;
-  }
-
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
       const raw = localStorage.getItem(RUNTIME_CONFIG_KEY);
@@ -65,7 +48,18 @@ export function loadFirebaseConfig() {
     } catch {}
   }
 
-  return envConfig;
+  return {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCMrukS1JDWCudcEuvHlp0nUP2zWrXuxu4',
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'gupta-family-tree-akg.firebaseapp.com',
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'gupta-family-tree-akg',
+    storageBucket:
+      import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'gupta-family-tree-akg.firebasestorage.app',
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '377567252946',
+    appId:
+      import.meta.env.VITE_FIREBASE_APP_ID || '1:377567252946:web:6043388686762243ce380b',
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-89GMEHC09H',
+    databaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)'
+  };
 }
 
 /**
@@ -282,6 +276,14 @@ export async function resetPassword(email) {
  */
 export async function signOutUser() {
   const { auth } = getFirebaseClients();
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      localStorage.removeItem('gupta_multi_trees_v1');
+      localStorage.removeItem('gupta_unlocked_tree_codes');
+      localStorage.removeItem('gupta_join_requests_v1');
+      localStorage.removeItem('gupta_last_private_tree_id');
+    } catch {}
+  }
   if (!auth) return;
   await signOut(auth);
 }

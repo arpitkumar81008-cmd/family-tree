@@ -107,6 +107,15 @@ export function AddModal({
       return;
     }
 
+    if (rel === "spouse" && target && familyIndex?.spouse?.[target]) {
+      setErrorMsg(
+        lang === "hi"
+          ? "इस सदस्य के जीवनसाथी पहले से जुड़े हुए हैं"
+          : "This member already has a spouse linked"
+      );
+      return;
+    }
+
     if (rel === "parent" && target && (familyIndex?.parOf?.(target)?.length || 0) >= 2) {
       setErrorMsg(
         lang === "hi"
@@ -146,15 +155,17 @@ export function AddModal({
     close();
   };
 
+  const safePeopleList = Array.isArray(people) ? people : [];
+  const safeCouplesList = Array.isArray(couples) ? couples : [];
   const coupleOptions = [];
-  couples.forEach(c => {
+  safeCouplesList.forEach(c => {
     const h = c.h ? displayName(c.h) : "";
     const w = c.w ? displayName(c.w) : "";
     const label = h && w ? `${h} & ${w}` : h || w;
     if (label) coupleOptions.push({ id: c.h || c.w, label });
   });
-  people.forEach(p => {
-    if (!couples.some(c => c.h === p.id || c.w === p.id)) {
+  safePeopleList.forEach(p => {
+    if (!safeCouplesList.some(c => c.h === p.id || c.w === p.id)) {
       coupleOptions.push({ id: p.id, label: displayName(p.id) });
     }
   });

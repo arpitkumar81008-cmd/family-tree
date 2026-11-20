@@ -1,6 +1,7 @@
-const CACHE_NAME = 'vanshvriksha-static-v12';
+const CACHE_NAME = 'vanshvriksha-static-v13';
 
 const PRECACHE_URLS = [
+  '/',
   '/manifest.webmanifest',
   '/images/tree-logo.png'
 ];
@@ -12,8 +13,16 @@ const BYPASS_HOSTS = new Set([
   'googletagmanager.com',
   'www.googletagmanager.com',
   'google-analytics.com',
-  'www.google-analytics.com'
+  'www.google-analytics.com',
+  'api.emailjs.com'
 ]);
+
+const offlineFallbackResponse = () =>
+  new Response('Offline — please reconnect to load this resource.', {
+    status: 503,
+    statusText: 'Service Unavailable',
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+  });
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -58,7 +67,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Never intercept Firebase, Auth, or Analytics hosts
+  // Never intercept Firebase, Auth, Analytics, or EmailJS hosts
   if (BYPASS_HOSTS.has(url.hostname)) {
     return;
   }
@@ -73,35 +82,55 @@ self.addEventListener('fetch', (event) => {
     (request.headers.get('accept') || '').includes('text/html');
 
   if (isNavigation) {
-    // Network-first for HTML navigations
+    // Network-first for HTML navigations; normalize cache key to '/' so ?code= secrets are never stored in Cache keys
     event.respondWith(
       fetch(request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.ok && networkResponse.type === 'basic') {
             const copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+            caches.open(CACHE_NAME).then((cache) => cache.put('/', copy)).catch(() => {});
           }
           return networkResponse;
         })
         .catch(() =>
-          caches.match(request).then((cached) => cached || caches.match('/'))
+          caches.match('/').then((cached) => cached || offlineFallbackResponse())
         )
     );
     return;
   }
 
-  // Cache-first with background refresh for same-origin static assets
+  // Pure cache-first for immutable Vite hashed assets (/assets/*)
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then((cache) =>
+        cache.match(request).then((cachedResponse) => {
+          if (cachedResponse) return cachedResponse;
+          return fetch(request)
+            .then((networkResponse) => {
+              if (networkResponse && networkResponse.ok && networkResponse.type === 'basic') {
+                cache.put(request, networkResponse.clone()).catch(() => {});
+              }
+              return networkResponse;
+            })
+            .catch(() => offlineFallbackResponse());
+        })
+      )
+    );
+    return;
+  }
+
+  // Cache-first with background refresh for other same-origin static assets
   event.respondWith(
     caches.open(CACHE_NAME).then((cache) =>
       cache.match(request).then((cachedResponse) => {
         const fetchPromise = fetch(request)
           .then((networkResponse) => {
             if (networkResponse && networkResponse.ok && networkResponse.type === 'basic') {
-              cache.put(request, networkResponse.clone());
+              cache.put(request, networkResponse.clone()).catch(() => {});
             }
             return networkResponse;
           })
-          .catch(() => cachedResponse);
+          .catch(() => cachedResponse || offlineFallbackResponse());
 
         return cachedResponse || fetchPromise;
       })

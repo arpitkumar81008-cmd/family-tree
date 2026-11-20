@@ -80,31 +80,57 @@ exports.redeemShareCode = onCall({ region: 'asia-south1', maxInstances: 10 }, as
     throw new HttpsError('not-found', 'Tree reference could not be resolved.');
   }
 
-  const treeSnap = await treeRef.get();
-  if (!treeSnap.exists) {
-    throw new HttpsError('not-found', 'That family tree no longer exists.');
-  }
-
-  const treeData = treeSnap.data() || {};
   const sharingData = sharingDoc.data() || {};
   const role = sharingData.shareCodeRole === 'editor' ? 'editor' : 'viewer';
+  const MAX_ROLE_UIDS = 50;
 
-  if (treeData.ownerUid !== uid) {
+  const resolvedRole = await db.runTransaction(async tx => {
+    const treeSnap = await tx.get(treeRef);
+    if (!treeSnap.exists) {
+      throw new HttpsError('not-found', 'That family tree no longer exists.');
+    }
+    const treeData = treeSnap.data() || {};
+    if (treeData.ownerUid === uid) {
+      return 'owner';
+    }
+
+    const collaborators = Array.isArray(treeData.collaboratorUids) ? [...treeData.collaboratorUids] : [];
+    const viewers = Array.isArray(treeData.viewerUids) ? [...treeData.viewerUids] : [];
+
     if (role === 'editor') {
-      await treeRef.update({
-        collaboratorUids: FieldValue.arrayUnion(uid),
+      if (!collaborators.includes(uid) && collaborators.length >= MAX_ROLE_UIDS) {
+        throw new HttpsError(
+          'resource-exhausted',
+          'This family tree has reached the maximum number of editors.'
+        );
+      }
+      const nextCollaborators = collaborators.includes(uid) ? collaborators : [...collaborators, uid];
+      const nextViewers = viewers.filter(id => id !== uid);
+      tx.update(treeRef, {
+        collaboratorUids: nextCollaborators,
+        viewerUids: nextViewers,
         updatedAt: FieldValue.serverTimestamp()
       });
     } else {
-      await treeRef.update({
-        viewerUids: FieldValue.arrayUnion(uid),
+      if (!viewers.includes(uid) && viewers.length >= MAX_ROLE_UIDS) {
+        throw new HttpsError(
+          'resource-exhausted',
+          'This family tree has reached the maximum number of viewers.'
+        );
+      }
+      const nextViewers = viewers.includes(uid) ? viewers : [...viewers, uid];
+      const nextCollaborators = collaborators.filter(id => id !== uid);
+      tx.update(treeRef, {
+        viewerUids: nextViewers,
+        collaboratorUids: nextCollaborators,
         updatedAt: FieldValue.serverTimestamp()
       });
     }
-  }
+    return role;
+  });
 
   return {
     treeId: treeRef.id,
-    role: treeData.ownerUid === uid ? 'owner' : role
+    role: resolvedRole
   };
 });

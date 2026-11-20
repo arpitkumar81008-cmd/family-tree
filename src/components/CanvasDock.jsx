@@ -36,8 +36,11 @@ export function CanvasDock({
           tabIndex={isExpanded ? 0 : -1}
           title={isHi ? 'मूल वंश वृक्ष पर लौटें और फ़िट करें' : 'Reset to Full Lineage & Fit to Screen'}
           onClick={() => {
-            onReset?.();
-            onFit?.();
+            if (viewerName) {
+              onReset?.();
+            } else {
+              onFit?.();
+            }
           }}
         >
           {viewerName ? `✕ ${translate('dockViewing', viewerName)}` : `⟲ ${translate('dockMode')}`}

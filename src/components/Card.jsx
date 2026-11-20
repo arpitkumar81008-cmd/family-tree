@@ -16,7 +16,7 @@ export function Avatar({ photo, label = '', text = '?', big = false, gender = ''
   );
 }
 
-export function Card({
+export const Card = React.memo(function Card({
   person,
   pos,
   cardHeight = 138,
@@ -87,6 +87,6 @@ export function Card({
       {!isCompact && person.late && <span className="tag">{translate("lateTag")}</span>}
     </div>
   );
-}
+});
 
 export default Card;

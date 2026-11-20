@@ -22,11 +22,21 @@ export function SettingsPopover({
 
   useEffect(() => {
     if (!isOpen || typeof document === 'undefined') return;
+    const firstFocusable = popoverRef.current?.querySelector?.(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled])'
+    );
+    firstFocusable?.focus?.();
     const handleKeyDown = e => {
       if (e.key === "Escape") onClose?.();
     };
     const handleClickOutside = e => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
+      const target = e.target;
+      if (
+        target?.closest?.('.settings-btn, [data-settings-toggle], .mobile-nav-btn[aria-haspopup="dialog"]')
+      ) {
+        return;
+      }
+      if (popoverRef.current && !popoverRef.current.contains(target)) {
         onClose?.();
       }
     };

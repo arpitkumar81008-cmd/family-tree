@@ -310,11 +310,15 @@ export function BackupPanel({ treeState, t, lang = "en", onImport, onReset, canE
       ? treeState.photos
       : {};
 
-  const exportPayload = JSON.stringify({
-    v: 2,
-    data: safeData,
-    ...(includePhotos ? { photos: safePhotosMap } : {})
-  });
+  const exportPayload = useMemo(
+    () =>
+      JSON.stringify({
+        v: 2,
+        data: safeData,
+        ...(includePhotos ? { photos: safePhotosMap } : {})
+      }),
+    [safeData, safePhotosMap, includePhotos]
+  );
 
   const handleDownloadJson = () => {
     try {

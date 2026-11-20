@@ -127,7 +127,7 @@ export function ShareTreeModal({
   }, [handleClose]);
 
   const applySharingPatch = async patch => {
-    if (!isOwner || !activeTreeId) return;
+    if (!isOwner || !activeTreeId) return false;
     setBusy(true);
     setMsg('');
     try {
@@ -135,10 +135,12 @@ export function ShareTreeModal({
       if (updated && mountedRef.current) {
         onUpdateTreeMeta?.(updated);
       }
+      return Boolean(updated);
     } catch (err) {
       if (mountedRef.current) {
         setMsg(err?.message || 'Could not update sharing settings.');
       }
+      return false;
     } finally {
       if (mountedRef.current) {
         setBusy(false);
@@ -147,8 +149,12 @@ export function ShareTreeModal({
   };
 
   const handleToggleVisibility = async nextPublic => {
+    const prevPublic = isPublic;
     setIsPublic(nextPublic);
-    await applySharingPatch({ isPublic: nextPublic });
+    const ok = await applySharingPatch({ isPublic: nextPublic });
+    if (!ok && mountedRef.current) {
+      setIsPublic(prevPublic);
+    }
   };
 
   const handleGenerateCode = () => {
@@ -162,13 +168,17 @@ export function ShareTreeModal({
       setMsg('Access code must be at least 10 characters (or click Generate Code).');
       return;
     }
+    const prevCode = activeTreeMeta?.shareCode || '';
     setShareCode(clean);
-    await applySharingPatch({
+    const ok = await applySharingPatch({
       shareCode: clean,
       shareCodeRole
     });
-    if (mountedRef.current) {
+    if (!mountedRef.current) return;
+    if (ok) {
       setMsg(t('shareCodeSavedMsg'));
+    } else {
+      setShareCode(prevCode);
     }
   };
 
@@ -213,6 +223,8 @@ export function ShareTreeModal({
     const cleanEmail = emailInput.trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@')) return;
 
+    const prevViewers = viewerEmails;
+    const prevEditors = editorEmails;
     let nextViewers = viewerEmails.filter(em => em !== cleanEmail);
     let nextEditors = editorEmails.filter(em => em !== cleanEmail);
 
@@ -225,24 +237,34 @@ export function ShareTreeModal({
     setViewerEmails(nextViewers);
     setEditorEmails(nextEditors);
     setEmailInput('');
-    await applySharingPatch({
+    const ok = await applySharingPatch({
       viewerEmails: nextViewers,
       editorEmails: nextEditors
     });
-    if (mountedRef.current) {
+    if (!mountedRef.current) return;
+    if (ok) {
       setMsg(t('shareInviteAddedMsg'));
+    } else {
+      setViewerEmails(prevViewers);
+      setEditorEmails(prevEditors);
     }
   };
 
   const handleRemoveEmail = async targetEmail => {
+    const prevViewers = viewerEmails;
+    const prevEditors = editorEmails;
     const nextViewers = viewerEmails.filter(em => em !== targetEmail);
     const nextEditors = editorEmails.filter(em => em !== targetEmail);
     setViewerEmails(nextViewers);
     setEditorEmails(nextEditors);
-    await applySharingPatch({
+    const ok = await applySharingPatch({
       viewerEmails: nextViewers,
       editorEmails: nextEditors
     });
+    if (!ok && mountedRef.current) {
+      setViewerEmails(prevViewers);
+      setEditorEmails(prevEditors);
+    }
   };
 
   const handleRespondRequest = async (reqItem, approve, role = 'viewer') => {

@@ -27,7 +27,7 @@ export function createHistoryState() {
 }
 
 export function pushHistorySnapshot(history, snapshot, maxSteps = 25) {
-  const past = Array.isArray(history?.past) ? history.past.map(cloneSnapshot) : [];
+  const past = Array.isArray(history?.past) ? history.past : [];
   const nextPast = [...past, cloneSnapshot(snapshot)];
   const limit = Number.isFinite(maxSteps) ? Math.max(0, Math.floor(maxSteps)) : 25;
   const trimmedPast = limit === 0 ? [] : nextPast.slice(-limit);
@@ -43,8 +43,8 @@ export function stepUndo(history, currentSnapshot) {
   if (past.length === 0) return null;
 
   const restored = cloneSnapshot(past[past.length - 1]);
-  const nextPast = past.slice(0, -1).map(cloneSnapshot);
-  const nextFuture = [cloneSnapshot(currentSnapshot), ...future.map(cloneSnapshot)];
+  const nextPast = past.slice(0, -1);
+  const nextFuture = [cloneSnapshot(currentSnapshot), ...future];
 
   return {
     history: {
@@ -62,8 +62,8 @@ export function stepRedo(history, currentSnapshot) {
 
   const [firstFuture, ...restFuture] = future;
   const restored = cloneSnapshot(firstFuture);
-  const nextFuture = restFuture.map(cloneSnapshot);
-  const nextPast = [...past.map(cloneSnapshot), cloneSnapshot(currentSnapshot)];
+  const nextFuture = restFuture;
+  const nextPast = [...past, cloneSnapshot(currentSnapshot)];
 
   return {
     history: {

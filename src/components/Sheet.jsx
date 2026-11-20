@@ -82,9 +82,14 @@ export function Sheet({
     setEditCity(person?.city || "");
     setEditAnniversary(person?.anniversary || "");
     setEditLate(Boolean(person?.late));
-  }, [id, person?.name, person?.hi, person?.g, person?.dob, person?.city, person?.anniversary, person?.late, person?.note]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   useEffect(() => {
+    const firstFocusable = sheetRef.current?.querySelector?.(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])'
+    );
+    firstFocusable?.focus?.();
     const handleKeyDown = e => {
       if (e.key === "Escape") {
         close();
@@ -97,7 +102,11 @@ export function Sheet({
         if (focusable.length) {
           const first = focusable[0];
           const last = focusable[focusable.length - 1];
-          if (e.shiftKey && document.activeElement === first) {
+          const inside = sheetRef.current.contains(document.activeElement);
+          if (!inside) {
+            e.preventDefault();
+            first.focus();
+          } else if (e.shiftKey && document.activeElement === first) {
             e.preventDefault();
             last.focus();
           } else if (!e.shiftKey && document.activeElement === last) {
@@ -109,7 +118,7 @@ export function Sheet({
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [close]);
+  }, [close, id]);
 
   if (!person) return null;
 
@@ -224,6 +233,7 @@ export function Sheet({
           <div style={{ flex: 1, minWidth: 0 }}>
             {isEditingDetails ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>
+                <h2 id="sh-name" className="sr-only">{name}</h2>
                 <div>
                   <label htmlFor="edit-name" style={{ fontSize: "11px", fontWeight: "bold", color: "var(--muted)" }}>
                     {lang === "hi" ? "पूरा नाम (अंग्रेज़ी)" : "Full Name (English)"}

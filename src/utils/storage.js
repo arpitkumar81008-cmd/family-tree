@@ -201,6 +201,30 @@ export function recordDeletedId(id, scopeKey = "default") {
 }
 
 /**
+ * Removes restored person IDs from the deleted tombstones set (e.g. after Undo).
+ *
+ * @param {string|string[]} ids
+ * @param {string} [scopeKey="default"]
+ */
+export function unrecordDeletedIds(ids, scopeKey = "default") {
+  if (!ids || typeof window === "undefined" || !window.localStorage) return;
+  const toRemove = Array.isArray(ids) ? ids : [ids];
+  if (!toRemove.length) return;
+  try {
+    const raw = readDeletedIdsMap();
+    if (!Array.isArray(raw[scopeKey])) return;
+    const removeSet = new Set(toRemove.filter(Boolean));
+    const next = raw[scopeKey].filter(id => !removeSet.has(id));
+    if (next.length) {
+      raw[scopeKey] = next;
+    } else {
+      delete raw[scopeKey];
+    }
+    localStorage.setItem(DELETED_IDS_KEY, JSON.stringify(raw));
+  } catch {}
+}
+
+/**
  * Clears all deleted person tombstones for the given tree scope.
  *
  * @param {string} [scopeKey="default"]
@@ -295,7 +319,12 @@ export function mergeCloudTreeWithLocalHistory(treeId, cloudData, cloudPhotos = 
     try {
       const multi = JSON.parse(localStorage.getItem("gupta_multi_trees_v1") || "{}") || {};
       const localTree = multi && typeof multi === "object" ? multi[treeId] : null;
-      if (localTree && typeof localTree === "object" && Array.isArray(localTree.data?.people)) {
+      if (
+        localTree &&
+        typeof localTree === "object" &&
+        localTree.hasUnsyncedLocalEdits === true &&
+        Array.isArray(localTree.data?.people)
+      ) {
         state = deepMergeTree(state, {
           data: localTree.data,
           photos: localTree.photos || {},

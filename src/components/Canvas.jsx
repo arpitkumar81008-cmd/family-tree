@@ -426,7 +426,9 @@ export function Canvas({
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const onFullscreenChange = () => {
-      const isDocFullscreen = Boolean(document.fullscreenElement);
+      const isDocFullscreen = Boolean(
+        document.fullscreenElement || document.webkitFullscreenElement
+      );
       if (!isDocFullscreen && isFullscreen) {
         if (isFullscreenProp === undefined) {
           setInternalFullscreen(false);
@@ -910,13 +912,14 @@ export function Canvas({
     const firstMatchId = searchMatchesList[0]?.id;
     const targetPos = firstMatchId ? layout?.pos?.[firstMatchId] : null;
     if (el && targetPos && Number.isFinite(targetPos.x) && Number.isFinite(targetPos.y)) {
+      const curZoom = (Number.isFinite(zoomRef.current) && zoomRef.current > 0) ? zoomRef.current : 1;
       el.scrollTo?.({
-        left: Math.max(0, (targetPos.x + 48) * safeZoom - (el.clientWidth || 0) / 2),
-        top: Math.max(0, (targetPos.y + 60) * safeZoom - (el.clientHeight || 0) / 2),
+        left: Math.max(0, (targetPos.x + 48) * curZoom - (el.clientWidth || 0) / 2),
+        top: Math.max(0, (targetPos.y + 60) * curZoom - (el.clientHeight || 0) / 2),
         behavior: "smooth"
       });
     }
-  }, [searchQuery, searchMatchesList, layout, safeZoom]);
+  }, [searchQuery, searchMatchesList, layout]);
 
   const highlightedPathKey = Array.isArray(highlightedPathIds) ? highlightedPathIds.join('|') : '';
   const hasHighlightedPath = Array.isArray(highlightedPathIds) && highlightedPathIds.length > 0;
@@ -991,7 +994,11 @@ export function Canvas({
     }
 
     const stage = stageRef.current;
-    const cardEl = stage?.querySelector(`.card[data-person-id="${focusedSearchId}"]`);
+    const cardEl = stage
+      ? Array.from(stage.querySelectorAll('.card[data-person-id]')).find(
+          node => node.getAttribute('data-person-id') === focusedSearchId
+        ) || null
+      : null;
     if (cardEl) {
       cardEl.classList.remove('is-search-focus');
       void cardEl.offsetWidth;
@@ -1092,8 +1099,11 @@ export function Canvas({
         }
       });
 
-      if (bestId) {
-        stageRef.current?.querySelector(`[data-person-id="${bestId}"]`)?.focus();
+      if (bestId && stageRef.current) {
+        const targetEl = Array.from(stageRef.current.querySelectorAll('[data-person-id]')).find(
+          node => node.getAttribute('data-person-id') === bestId
+        );
+        targetEl?.focus?.();
       }
     }
   };
@@ -1162,6 +1172,7 @@ export function Canvas({
               (document.documentElement.getAttribute('data-viewport') === 'mobile' ||
                 (typeof window !== 'undefined' && window.innerWidth <= 900));
             if (isFullscreen || isMobileMode) {
+              setIsDesktopSidebarCollapsed(false);
               setIsSidebarOpen(prev => !prev);
             } else {
               setIsDesktopSidebarCollapsed(prev => !prev);
@@ -1221,7 +1232,11 @@ export function Canvas({
           isOpen={isSidebarOpen}
           onClose={() => {
             setIsSidebarOpen(false);
-            if (!isFullscreen) {
+            const isMobileMode =
+              typeof document !== 'undefined' &&
+              (document.documentElement.getAttribute('data-viewport') === 'mobile' ||
+                (typeof window !== 'undefined' && window.innerWidth <= 900));
+            if (!isFullscreen && !isMobileMode) {
               setIsDesktopSidebarCollapsed(true);
             }
           }}

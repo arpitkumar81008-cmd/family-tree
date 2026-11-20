@@ -107,8 +107,18 @@ export function CreateTreeModal({
       } else {
         setMsg(t('joinByCodeNotFound'));
       }
-    } catch {
-      if (mountedRef.current) setMsg(t('joinByCodeNotFound'));
+    } catch (err) {
+      if (!mountedRef.current) return;
+      if (err?.code === 'AUTH_REQUIRED') {
+        setMsg('Please sign in first to request access or open a shared tree.');
+      } else if (err?.code === 'APPROVAL_REQUIRED' && err?.treeId) {
+        onSelectTree?.(err.treeId);
+        handleClose();
+      } else if (err?.code === 'functions/resource-exhausted') {
+        setMsg('Too many attempts. Please wait a few minutes and try again.');
+      } else {
+        setMsg(t('joinByCodeNotFound'));
+      }
     } finally {
       if (mountedRef.current) setBusy(false);
     }

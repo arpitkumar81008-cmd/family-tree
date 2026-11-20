@@ -587,13 +587,8 @@ export async function downloadTreePng(layout, options = {}) {
  * Renders the tree to a PNG dataURL and opens a landscape print poster window.
  */
 export async function printTreePoster(layout, options = {}) {
-  const canvas = await renderTreeToCanvas(layout, options);
-  const dataUrl = canvas.toDataURL('image/png');
-  if (!dataUrl || !dataUrl.startsWith('data:image/png;base64,')) {
-    throw new Error('Failed to render tree poster image.');
-  }
   const title = options.title || 'Family Tree';
-
+  // Open popup synchronously inside user-gesture stack to avoid Safari/iOS/Firefox popup blockers
   const win = window.open('', '_blank');
   if (!win) {
     throw new Error('Popup blocked. Please allow popups to print the family tree poster.');
@@ -601,6 +596,20 @@ export async function printTreePoster(layout, options = {}) {
   try {
     win.opener = null;
   } catch {}
+
+  let dataUrl;
+  try {
+    const canvas = await renderTreeToCanvas(layout, options);
+    dataUrl = canvas.toDataURL('image/png');
+    if (!dataUrl || !dataUrl.startsWith('data:image/png;base64,')) {
+      throw new Error('Failed to render tree poster image.');
+    }
+  } catch (err) {
+    try {
+      win.close();
+    } catch {}
+    throw err;
+  }
 
   const escapedTitle = String(title)
     .replace(/&/g, '&amp;')

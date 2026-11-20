@@ -236,11 +236,13 @@ export function validateTreeData(data) {
       return { valid: false, error: `A person cannot be coupled with themselves: ${h}` };
     }
 
-    const pairKey = `${h}|${w}`;
-    if (couplePairSet.has(pairKey) || (h && w && couplePairSet.has(`${w}|${h}`))) {
-      return { valid: false, error: `Duplicate couple entry for (${h || "none"}, ${w || "none"})` };
+    if (h || w) {
+      const pairKey = `${h}|${w}`;
+      if (couplePairSet.has(pairKey) || (h && w && couplePairSet.has(`${w}|${h}`))) {
+        return { valid: false, error: `Duplicate couple entry for (${h || "none"}, ${w || "none"})` };
+      }
+      couplePairSet.add(pairKey);
     }
-    couplePairSet.add(pairKey);
 
     if (couple.kids !== undefined && couple.kids !== null) {
       if (!Array.isArray(couple.kids)) {

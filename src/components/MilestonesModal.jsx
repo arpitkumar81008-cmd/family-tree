@@ -17,6 +17,10 @@ export function MilestonesModal({
 
   useEffect(() => {
     if (!isOpen) return;
+    const firstFocusable = modalRef.current?.querySelector?.(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])'
+    );
+    firstFocusable?.focus?.();
     const handleKeyDown = e => {
       if (e.key === 'Escape') {
         handleClose();
@@ -29,7 +33,11 @@ export function MilestonesModal({
         if (focusable.length) {
           const first = focusable[0];
           const last = focusable[focusable.length - 1];
-          if (e.shiftKey && document.activeElement === first) {
+          const inside = modalRef.current.contains(document.activeElement);
+          if (!inside) {
+            e.preventDefault();
+            first.focus();
+          } else if (e.shiftKey && document.activeElement === first) {
             e.preventDefault();
             last.focus();
           } else if (!e.shiftKey && document.activeElement === last) {

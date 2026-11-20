@@ -4,6 +4,7 @@ import {
   saveTreeState,
   mergeCloudTreeWithLocalHistory,
   recordDeletedId,
+  unrecordDeletedIds,
   clearDeletedIds,
   getStoredLanguage,
   setStoredLanguage,
@@ -42,6 +43,7 @@ import {
   createUserTree,
   saveUserTree,
   cacheLocalTreeSnapshot,
+  overwriteLocalTreeCache,
   canUserEditTree,
   isPhotosPayloadWithinLimit,
   findTreeByShareCode,
@@ -219,16 +221,13 @@ export function App() {
   }, []);
 
   // Preserve last active private tree ID across view switches
+  const activeTreeIdRef = useRef(activeTreeId);
+  activeTreeIdRef.current = activeTreeId;
   useEffect(() => {
     if (activeTreeId && activeTreeId.trim() !== "") {
       setLastPrivateTreeId(activeTreeId.trim());
     }
   }, [activeTreeId]);
-
-  // Persist canvas zoom level
-  useEffect(() => {
-    saveCanvasZoom(zoom);
-  }, [zoom]);
 
   // Subscribe to Firebase Auth state (single source of truth when Firebase is configured)
   useEffect(() => {
@@ -258,12 +257,12 @@ export function App() {
     setCollapsedSubTrees({});
   }, [activeTreeId]);
 
-  // Guard ?view=demo when user already has a private tree
+  // Guard demo view when user already has a private tree
   useEffect(() => {
-    if (hasPrivateTree && currentView === "demo") {
+    if (hasPrivateTree && currentView === "tree" && !activeTreeId) {
       handleNavigateMyTree();
     }
-  }, [hasPrivateTree, currentView]);
+  }, [hasPrivateTree, currentView, activeTreeId]);
 
   // Automatically load the signed-in user's private or shared family tree ONCE on sign-in
   useEffect(() => {
@@ -275,8 +274,10 @@ export function App() {
     autoLoadedUidRef.current = user.uid;
 
     let cancelled = false;
+    let settled = false;
     listAvailableTrees(user)
       .then(trees => {
+        settled = true;
         if (cancelled) return;
         const emailLower = user.email ? String(user.email).trim().toLowerCase() : "";
         const privateOwnedOrShared =
@@ -321,9 +322,14 @@ export function App() {
           }
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        settled = true;
+      });
     return () => {
       cancelled = true;
+      if (!settled) {
+        autoLoadedUidRef.current = null;
+      }
     };
   }, [user, activeTreeId, currentView]);
 
@@ -369,6 +375,9 @@ export function App() {
           const hasUnsyncedLocalAdditions =
             merged.data.people.length > (docData.data.people.length || 0) ||
             (merged.data.couples?.length || 0) > (docData.data.couples?.length || 0);
+          if (!hasUnsyncedLocalAdditions) {
+            overwriteLocalTreeCache(activeTreeId, docData);
+          }
           isLocalMutationRef.current = hasUnsyncedLocalAdditions;
           setTreeState(prev => ({
             ...prev,
@@ -592,17 +601,14 @@ export function App() {
     } catch {}
   };
 
-  // Keyboard shortcuts (/ for search, ? for help)
+  // Keyboard shortcut (? for help; / and Ctrl+K are handled in handleGlobalKeyDown)
   useEffect(() => {
     const handleGlobalKey = e => {
       const active = document.activeElement;
       const tag = active?.tagName?.toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select" || active?.isContentEditable) return;
 
-      if (e.key === "/") {
-        e.preventDefault();
-        document.getElementById("search-input")?.focus();
-      } else if (e.key === "?") {
+      if (e.key === "?") {
         e.preventDefault();
         setIsHelpModalOpen(prev => !prev);
       }
@@ -630,7 +636,7 @@ export function App() {
     const people = treeState.data?.people || [];
     const couples = treeState.data?.couples || [];
     return (
-      people.map(p => p.id + ":" + (p.g ?? "")).join("|") +
+      people.map(p => `${p.id}:${p.g ?? ""}:${p.name ?? ""}:${p.hi ?? ""}`).join("|") +
       "::" +
       couples.map(c => c.id + ":" + c.h + ":" + c.w + ":" + (c.kids || []).join(",")).join("|")
     );
@@ -810,6 +816,13 @@ export function App() {
       photos: current.photos
     });
     if (!res) return;
+    const currentIds = new Set((current.data?.people || []).map(p => p.id));
+    const restoredIds = (res.snapshot.data?.people || [])
+      .map(p => p.id)
+      .filter(id => id && !currentIds.has(id));
+    if (restoredIds.length > 0) {
+      unrecordDeletedIds(restoredIds, activeTreeIdRef.current || "public_demo");
+    }
     historyRef.current = res.history;
     setHistoryState(res.history);
     isLocalMutationRef.current = true;
@@ -828,6 +841,13 @@ export function App() {
       photos: current.photos
     });
     if (!res) return;
+    const nextIds = new Set((res.snapshot.data?.people || []).map(p => p.id));
+    const scopeKey = activeTreeIdRef.current || "public_demo";
+    for (const p of current.data?.people || []) {
+      if (p?.id && !nextIds.has(p.id)) {
+        recordDeletedId(p.id, scopeKey);
+      }
+    }
     historyRef.current = res.history;
     setHistoryState(res.history);
     isLocalMutationRef.current = true;
@@ -977,6 +997,12 @@ export function App() {
       let couples = prev.data.couples.map(c => ({ ...c, kids: [...(c.kids || [])] }));
 
       if (rel === "spouse" && target) {
+        const alreadyMarried = couples.some(
+          c => (c.h === target && c.w) || (c.w === target && c.h)
+        );
+        if (alreadyMarried) {
+          return prev;
+        }
         const existingCouple = couples.find(
           c => (c.h === target && !c.w) || (c.w === target && !c.h)
         );
@@ -993,17 +1019,12 @@ export function App() {
             existingCouple.h = newId;
           }
         } else {
-          const alreadyMarried = couples.some(
-            c => (c.h === target && c.w) || (c.w === target && c.h)
+          const targetPerson = idx.byId[target];
+          couples.push(
+            (targetPerson?.g || "M") === "F" && newPerson.g === "M"
+              ? { h: newId, w: target, kids: [] }
+              : { h: target, w: newId, kids: [] }
           );
-          if (!alreadyMarried) {
-            const targetPerson = idx.byId[target];
-            couples.push(
-              (targetPerson?.g || "M") === "F" && newPerson.g === "M"
-                ? { h: newId, w: target, kids: [] }
-                : { h: target, w: newId, kids: [] }
-            );
-          }
         }
       } else if (rel === "child" && target) {
         let placed = false;
@@ -1170,7 +1191,8 @@ export function App() {
 
   const handleSetPhoto = async (id, dataUrl) => {
     if (!canEdit) return false;
-    let updatedPhotos = { ...treeState.photos };
+    const targetTreeId = activeTreeIdRef.current;
+    let updatedPhotos = { ...(treeStateRef.current?.photos || {}) };
     if (dataUrl) {
       updatedPhotos[id] = dataUrl;
     } else {
@@ -1185,6 +1207,9 @@ export function App() {
       if (!isPhotosPayloadWithinLimit(updatedPhotos)) {
         return false;
       }
+    }
+    if (activeTreeIdRef.current !== targetTreeId) {
+      return false;
     }
     recordHistorySnapshot();
     isLocalMutationRef.current = true;
@@ -1209,8 +1234,8 @@ export function App() {
     );
   };
 
-  const handleReset = () => {
-    clearDeletedIds(activeTreeId || "public_demo");
+  const handleReset = explicitScope => {
+    clearDeletedIds(explicitScope || activeTreeId || "public_demo");
     isLocalMutationRef.current = true;
     setTreeState(prev => ({
       ...prev,
@@ -1430,7 +1455,7 @@ export function App() {
     setActiveTreeId("");
     setActiveTreeMeta(null);
     setTreeIdInUrl("");
-    handleReset();
+    handleReset("public_demo");
     setIsCreateOpen(false);
     recordAppMetric("treesCreated");
     enterTree();

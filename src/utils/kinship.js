@@ -546,11 +546,11 @@ function resolveBloodTerm(familyIndex, originId, targetId, lca, lang) {
 
   // Grand-nephews / Grand-nieces (up = 1, down >= 3)
   if (upSteps === 1 && downSteps >= 3) {
-    const sib = targetPath[1];
+    const sib = targetPath[targetPath.length - 2] || targetPath[1];
     const greats = downSteps - 3;
     const prefixEn = greats === 0 ? "" : greats === 1 ? "Great-" : `${greats}x Great-`;
     const shortEn = `${prefixEn}${isTargetMale ? "Grand-Nephew" : "Grand-Niece"}`;
-    const descEn = `${male(sib) ? "Brother's" : "Sister's"} ${"great-".repeat(downSteps - 2)}${isTargetMale ? "grandson" : "granddaughter"}`;
+    const descEn = `${male(sib) ? "Brother's" : "Sister's"} ${"great-".repeat(greats)}${isTargetMale ? "grandson" : "granddaughter"}`;
     const shortHi = `${greats > 0 ? `${greats}x पर-` : ""}${isTargetMale ? "ग्रैंड-भतीजा/भांजा" : "ग्रैंड-भतीजी/भांजी"}`;
     const descHi = `${male(sib) ? "भाई" : "बहन"} की ${downSteps - 1}वीं पीढ़ी के ${isTargetMale ? "वंशज (पौत्र)" : "वंशज (पौत्री)"}`;
     return {

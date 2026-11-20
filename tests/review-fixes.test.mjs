@@ -528,3 +528,86 @@ test('History Stack: pushHistorySnapshot, stepUndo, and stepRedo enforce deep sn
   assert.equal(redoRes.snapshot.data.people[0].name, 'Mutated In Place');
   assert.equal(redoRes.snapshot.photos.p1, 'data:image/jpeg;base64,mutated');
 });
+
+test('Audit fixes: cross-device deletion non-resurrection, undo tombstone cleanup, parentless sibling groups, directional maternal row, translit & URL parsing', async () => {
+  const { mergeCloudTreeWithLocalHistory, recordDeletedId, unrecordDeletedIds, clearDeletedIds } =
+    await import('../src/utils/storage.js');
+  const { overwriteLocalTreeCache, parseTreeJoinInput } = await import('../src/services/treeSync.js');
+  const { dedup } = await import('../src/utils/deduplication.js');
+  const { translitOffline } = await import('../src/i18n/translit.js');
+
+  const origWindow = globalThis.window;
+  const origLocalStorage = globalThis.localStorage;
+  const store = new Map();
+  const mockStorage = {
+    getItem: k => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => store.set(k, String(v)),
+    removeItem: k => store.delete(k)
+  };
+  globalThis.localStorage = mockStorage;
+  globalThis.window = { ...(origWindow || {}), localStorage: mockStorage };
+
+  try {
+    // 1. Synced local cache (hasUnsyncedLocalEdits: false) must NOT resurrect remote deletions
+    const treeId = 'tree_sync_del';
+    overwriteLocalTreeCache(treeId, {
+      id: treeId,
+      data: {
+        people: [
+          { id: 'p1', name: 'A', g: 'M' },
+          { id: 'p2', name: 'Deleted Remotely', g: 'F' }
+        ],
+        couples: []
+      },
+      photos: {}
+    });
+    const remoteAfterDelete = { people: [{ id: 'p1', name: 'A', g: 'M' }], couples: [] };
+    const mergedClean = mergeCloudTreeWithLocalHistory(treeId, remoteAfterDelete, {}, 'en');
+    assert.equal(mergedClean.data.people.length, 1, 'Remote deletion must not be resurrected by synced local cache');
+
+    // 2. Undo after delete: unrecordDeletedIds clears tombstone so person stays restored
+    recordDeletedId('p2', treeId);
+    unrecordDeletedIds(['p2'], treeId);
+    const mergedAfterUndo = mergeCloudTreeWithLocalHistory(
+      treeId,
+      { people: [{ id: 'p1', name: 'A', g: 'M' }, { id: 'p2', name: 'Restored', g: 'F' }], couples: [] },
+      {},
+      'en'
+    );
+    assert.equal(mergedAfterUndo.data.people.length, 2);
+    clearDeletedIds(treeId);
+
+    // 3. Multiple distinct parentless sibling groups stay separate in dedup and validateTreeData
+    const multiSibTree = {
+      people: [
+        { id: 'a1', name: 'A1', g: 'M' },
+        { id: 'a2', name: 'A2', g: 'F' },
+        { id: 'b1', name: 'B1', g: 'M' },
+        { id: 'b2', name: 'B2', g: 'F' }
+      ],
+      couples: [
+        { h: '', w: '', kids: ['a1', 'a2'] },
+        { h: '', w: '', kids: ['b1', 'b2'] }
+      ]
+    };
+    assert.equal(validateTreeData(multiSibTree).valid, true);
+    const dedupedSibs = dedup({ data: multiSibTree, photos: {} });
+    assert.equal(dedupedSibs.data.couples.length, 2);
+
+    // 4. Directional layout for Arjun Verma places maternal grandparents strictly above his mother
+    const dirLayout = computeTreeLayout(INITIAL_DATA, 138, 'en', 'arjun');
+    const meeraPos = dirLayout.pos['meera'];
+    const devrajPos = dirLayout.pos['devraj'];
+    if (meeraPos && devrajPos) {
+      assert.ok(devrajPos.y < meeraPos.y, 'Maternal grandfather must sit strictly above mother row');
+    }
+
+    // 5. Prototype-safe offline transliteration & bare URL parsing
+    assert.equal(typeof translitOffline('constructor'), 'string');
+    assert.notEqual(translitOffline('constructor'), Object.prototype.constructor);
+    assert.deepEqual(parseTreeJoinInput('https://vanshvriksha.web.app/'), { treeId: '', code: '' });
+  } finally {
+    globalThis.window = origWindow;
+    globalThis.localStorage = origLocalStorage;
+  }
+});
