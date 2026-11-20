@@ -68,30 +68,30 @@ export function OnboardingToast({
   const copy = {
     home: isHi
       ? {
-          badge: 'नया उपयोगकर्ता सुझाव · 1/3',
-          text: 'शीर्षक या कार्ड पर माउस ले जाने (hover) या स्क्रॉल करने पर विस्तृत विवरण दिखाई देते हैं।'
+          badge: 'सुझाव · 1/3',
+          text: 'अधिक जानकारी के लिए किसी भी कार्ड पर होवर या फ़ोकस करें, या शुरुआत के लिए "डेमो देखें" चुनें।'
         }
       : {
-          badge: 'New User Tip · 1/3',
-          text: 'Hover or focus on any heading or card to reveal its detailed explanation, or click "Explore Demo Tree" to begin.'
+          badge: 'Quick Tip · 1/3',
+          text: 'Hover or focus on any card for details, or select "Explore Demo Tree" to step inside.'
         },
     tree: isHi
       ? {
-          badge: 'नया उपयोगकर्ता सुझाव · 2/3',
-          text: 'माउस खींचकर या नीचे दिए गए तीर बटनों (← ↑ ↓ →) से कैनवास घुमाएँ। किसी भी कार्ड पर क्लिक कर उसका विवरण या दिशात्मक वृक्ष देखें।'
+          badge: 'सुझाव · 2/3',
+          text: 'कैनवास घुमाने के लिए खींचें या नीचे दाएँ ✦ नियंत्रण खोलें। विवरण और रिश्ते देखने के लिए किसी भी कार्ड को चुनें।'
         }
       : {
-          badge: 'New User Tip · 2/3',
-          text: 'Drag, scroll, or use the dock arrows (← ↑ ↓ →) to pan. Click any person card to inspect details, add family, or view their directional tree.'
+          badge: 'Quick Tip · 2/3',
+          text: 'Drag to pan or open the ✦ dock below to zoom and fit. Select any card to view details or add family.'
         },
     backup: isHi
       ? {
-          badge: 'नया उपयोगकर्ता सुझाव · 3/3',
-          text: 'यहाँ से आप एक क्लिक में JSON बैकअप कॉपी, डाउनलोड या आयात कर सकते हैं।'
+          badge: 'सुझाव · 3/3',
+          text: 'किसी भी समय एक क्लिक में अपने वंश का पोर्टेबल बैकअप कॉपी, डाउनलोड या पुनर्स्थापित करें।'
         }
       : {
-          badge: 'New User Tip · 3/3',
-          text: 'Copy or download a portable JSON backup anytime, or paste an existing backup to restore a tree.'
+          badge: 'Quick Tip · 3/3',
+          text: 'Copy or download a portable JSON backup anytime, or paste a saved snapshot to restore.'
         }
   }[visibleStep];
 

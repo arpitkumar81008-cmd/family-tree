@@ -4,13 +4,14 @@
   top: -100px;
   left: 16px;
   z-index: 2000;
-  padding: 8px 16px;
+  padding: 9px 18px;
   background: var(--accent);
   color: #ffffff;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 13px;
   text-decoration: none;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-popover);
   transition: top var(--transition-fast);
 }
 
@@ -24,36 +25,39 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  padding-block: 24px 48px;
-  padding-left: clamp(20px, 3vw, 48px);
-  padding-right: clamp(20px, 3vw, 48px);
+  padding-block: 20px 56px;
+  padding-left: clamp(18px, 3vw, 44px);
+  padding-right: clamp(18px, 3vw, 44px);
   margin: 0;
 }
 
 .eyebrow {
   font-family: var(--deva);
-  color: var(--rel);
-  margin: 0 0 6px;
-  font-size: 18px;
+  color: var(--accent);
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 h1 {
   font-family: var(--display);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.028em;
   text-wrap: balance;
   margin: 0;
-  font-size: clamp(32px, 6vw, 56px);
-  font-weight: 500;
-  line-height: 1.05;
+  font-size: clamp(30px, 5vw, 48px);
+  font-weight: 700;
+  line-height: 1.08;
+  color: var(--ink);
 }
 
 .lede {
   color: var(--muted);
-  max-width: 60ch;
+  max-width: 58ch;
   margin: 8px 0 0;
-  font-size: 14.5px;
+  font-size: 15px;
   line-height: 1.5;
+  letter-spacing: -0.008em;
 }
 
 /* Control Bar */
@@ -61,8 +65,8 @@ h1 {
   display: flex !important;
   flex-wrap: wrap !important;
   align-items: flex-end !important;
-  gap: 12px 16px !important;
-  margin-top: 24px;
+  gap: 12px 14px !important;
+  margin-top: 20px;
 }
 
 .bar .field {
@@ -81,7 +85,7 @@ h1 {
 .bar .field label {
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -96,22 +100,25 @@ h1 {
 .search-wrap input {
   width: 100%;
   height: 40px;
-  padding-right: 36px !important;
+  padding-left: 14px;
+  padding-right: 38px !important;
+  border-radius: var(--radius-pill);
 }
 
 .search-wrap .kbd-hint {
   position: absolute;
-  right: 10px;
+  right: 12px;
   font-size: 11px;
+  font-weight: 600;
   color: var(--muted);
-  border: 1px solid var(--line);
-  padding: 1px 6px;
+  border: 1px solid var(--border-subtle);
+  padding: 2px 6px;
   pointer-events: none;
-  background: var(--bg);
-  font-family: monospace;
-  line-height: 1;
-  box-shadow: 0 1px 0 var(--line);
-  border-radius: var(--radius-xs);
+  background: var(--surface);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  line-height: 1.1;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+  border-radius: 6px;
 }
 
 .viewer-wrap {
@@ -132,7 +139,7 @@ h1 {
 .bar-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex: 0 0 auto;
 }
 
@@ -140,68 +147,100 @@ h1 {
   height: 40px;
 }
 
-/* Buttons and Inputs */
+/* Buttons and Inputs (Apple Quiet-Fill Inputs & Tactile Pill Buttons) */
 input, select, textarea {
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--ink);
-  border-radius: var(--radius-xs);
-  padding: 8px 10px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
   box-sizing: border-box;
   outline: none;
+  transition: background var(--dur-fast) ease,
+    border-color var(--dur-fast) ease,
+    box-shadow var(--dur-fast) ease;
 }
 
-input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+input:hover:not(:disabled),
+select:hover:not(:disabled),
+textarea:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  background: var(--surface);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 0 0 3.5px var(--accent-soft);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3.5px var(--accent-soft);
 }
 
 .btn {
   font-family: inherit;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
-  padding: 8px 16px;
+  letter-spacing: -0.008em;
+  padding: 8px 18px;
   height: 38px;
   background: var(--ink);
-  color: var(--bg);
-  border: 1px solid var(--ink);
-  border-radius: var(--radius-xs);
+  color: var(--surface);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 4px 10px rgba(0, 0, 0, 0.06);
   white-space: nowrap;
   opacity: 1;
-  transition: background var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
+  transition: background var(--dur-fast) var(--ease-apple-spring),
+    color var(--dur-fast) ease,
+    border-color var(--dur-fast) ease,
+    box-shadow var(--dur-fast) var(--ease-apple-spring),
+    opacity var(--dur-fast) ease,
+    transform var(--dur-instant) var(--ease-apple-spring);
 }
 
 .btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ink) 86%, var(--bg));
-  border-color: color-mix(in srgb, var(--ink) 86%, var(--bg));
+  background: color-mix(in srgb, var(--ink) 86%, var(--surface));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12), 0 8px 18px rgba(0, 0, 0, 0.08);
+  transform: translateY(-0.5px);
 }
 
 .btn:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 .btn:disabled {
-  opacity: 0.55;
+  opacity: 0.45;
   cursor: not-allowed;
   box-shadow: none;
+  transform: none;
 }
 
 .btn.ghost {
-  background: transparent;
+  background: var(--surface-elevated);
   color: var(--ink);
+  border-color: var(--border-subtle);
   box-shadow: none;
 }
 
 .btn.ghost:hover:not(:disabled) {
-  background: var(--line);
+  background: color-mix(in srgb, var(--surface-elevated) 68%, var(--ink) 8%);
+  border-color: var(--line-strong);
+  box-shadow: var(--primitive-shadow-sm);
 }
 
 .reset-btn {
@@ -209,56 +248,65 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   padding: 0 16px !important;
   font-size: 13px !important;
   font-weight: 600 !important;
-  border: 1px solid var(--accent) !important;
-  color: #fff !important;
+  border: 1px solid transparent !important;
+  color: #ffffff !important;
   background: var(--accent) !important;
-  border-radius: var(--radius-xs) !important;
+  border-radius: var(--radius-pill) !important;
   cursor: pointer !important;
   display: inline-flex !important;
   align-items: center !important;
   gap: 6px !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 28%, transparent) !important;
   white-space: nowrap !important;
+  transition: background var(--dur-fast) ease, transform var(--dur-instant) var(--ease-apple-spring), box-shadow var(--dur-fast) ease !important;
 }
 
 .reset-btn:hover {
-  background: #b80023 !important;
-  border-color: #b80023 !important;
+  background: var(--accent-hover) !important;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 36%, transparent) !important;
+}
+
+.reset-btn:active {
+  transform: scale(0.97) !important;
 }
 
 .focus-tree-btn {
   background: var(--accent) !important;
   color: #ffffff !important;
-  border: 1px solid var(--accent) !important;
+  border: 1px solid transparent !important;
   font-weight: 600 !important;
   font-size: 13px !important;
-  padding: 0 16px !important;
+  padding: 0 18px !important;
   height: 38px !important;
-  border-radius: var(--radius-xs) !important;
+  border-radius: var(--radius-pill) !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 26%, transparent) !important;
   cursor: pointer !important;
+  transition: background var(--dur-fast) ease, transform var(--dur-instant) var(--ease-apple-spring) !important;
 }
 
 .focus-tree-btn:hover {
-  background: #b80023 !important;
-  border-color: #b80023 !important;
+  background: var(--accent-hover) !important;
+}
+
+.focus-tree-btn:active {
+  transform: scale(0.97) !important;
 }
 
 :root[data-theme="dark"] .reset-btn,
 :root[data-theme="dark"] .focus-tree-btn {
-  background: #c81e3d !important;
-  border-color: #c81e3d !important;
+  background: #e12b4a !important;
+  border-color: transparent !important;
   color: #ffffff !important;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .reset-btn,
   :root:not([data-theme="light"]) .focus-tree-btn {
-    background: #c81e3d !important;
-    border-color: #c81e3d !important;
+    background: #e12b4a !important;
+    border-color: transparent !important;
     color: #ffffff !important;
   }
 }
@@ -269,16 +317,17 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
-  padding: 8px 14px;
+  background: var(--glass-regular);
+  backdrop-filter: var(--blur-glass-sm);
+  -webkit-backdrop-filter: var(--blur-glass-sm);
+  border: 1px solid var(--border-subtle);
+  padding: 10px 16px;
   margin: 12px 0 16px;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--muted);
-  line-height: 1.4;
-  border-radius: var(--radius-xs);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  line-height: 1.45;
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-highlight), var(--shadow-card);
 }
 
 .guide-text {
@@ -297,44 +346,52 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .guide-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
 .guide-btn {
-  background: transparent;
-  border: 1px solid var(--line);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
   color: var(--ink);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 4px 8px;
-  border-radius: var(--radius-xs);
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
 }
 
 .guide-btn:hover {
-  border-color: var(--accent);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
   color: var(--accent);
 }
 
 .guide-close {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-pill);
   background: transparent;
   border: none;
   color: var(--muted);
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
-  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .guide-close:hover {
   color: var(--ink);
+  background: var(--surface-hover);
 }
 
-/* Settings Popover */
+/* Settings Popover (Apple Liquid Glass Popover) */
 .settings-wrap {
   position: relative;
   display: inline-flex;
@@ -342,48 +399,57 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 .settings-btn {
-  min-width: 38px;
-  height: 38px;
-  font-size: 20px;
+  min-width: 36px;
+  height: 36px;
+  font-size: 19px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border: 1px solid var(--ink);
-  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-elevated);
   color: var(--ink);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-pill);
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease, transform var(--dur-instant) var(--ease-apple-spring);
 }
 
 .settings-btn:hover {
-  background: var(--line);
+  background: var(--surface);
+  border-color: var(--line-strong);
+}
+
+.settings-btn:active {
+  transform: scale(0.95);
 }
 
 .settings-popover {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 10px);
   right: 0;
-  width: min(352px, calc(100vw - 24px));
+  width: min(356px, calc(100vw - 24px));
   max-height: calc(100dvh - 88px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: var(--surface);
-  border: 1px solid var(--ink);
-  border-radius: var(--radius-md);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.16);
+  background: var(--glass-thick);
+  backdrop-filter: var(--blur-glass-lg);
+  -webkit-backdrop-filter: var(--blur-glass-lg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-highlight), var(--shadow-popover);
   padding: 16px;
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  animation: sheetSpringRise var(--dur-fast) var(--ease-apple-spring);
 }
 
 .settings-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border-subtle);
   padding-bottom: 10px;
 }
 
@@ -401,57 +467,60 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 .settings-head h3 {
   margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 13.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   color: var(--ink);
 }
 
 .settings-close {
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
+  background: var(--surface-elevated);
   border: 1px solid transparent;
   color: var(--muted);
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1;
   cursor: pointer;
   padding: 0;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-instant) ease;
 }
 
 .settings-close:hover {
   color: var(--ink);
-  background: var(--bg);
-  border-color: var(--line);
+  background: color-mix(in srgb, var(--surface-elevated) 75%, var(--ink) 10%);
+}
+
+.settings-close:active {
+  transform: scale(0.94);
 }
 
 .settings-section {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 10px 12px;
-  background: color-mix(in srgb, var(--bg) 55%, var(--surface));
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: color-mix(in srgb, var(--surface-elevated) 55%, var(--surface));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
 }
 
 .settings-section-title {
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--ink);
+  color: var(--muted);
 }
 
 .settings-group {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .settings-a11y-pair {
@@ -461,29 +530,28 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 .settings-group .lbl {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: var(--muted);
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--ink);
 }
 
 .settings-seg {
   display: flex;
-  gap: 3px;
+  gap: 2px;
   padding: 3px;
-  background: var(--bg);
-  border: 1px solid var(--line);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
 }
 
 .settings-seg .zbtn {
   flex: 1;
   min-width: 0;
-  height: 34px;
+  height: 32px;
   font-size: 12px;
   font-weight: 600;
   padding: 0 6px;
-  border-radius: var(--radius-xs);
+  border-radius: 7px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
@@ -492,15 +560,21 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: background var(--dur-fast) var(--ease-apple-spring),
+    color var(--dur-fast) ease,
+    box-shadow var(--dur-fast) var(--ease-apple-spring);
+}
+
+.settings-seg .zbtn:hover:not([aria-pressed="true"]) {
+  color: var(--ink);
 }
 
 .settings-seg .zbtn[aria-pressed="true"] {
   background: var(--surface);
   color: var(--ink);
-  border-color: var(--ink);
-  font-weight: 700;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  border-color: var(--border-subtle);
+  font-weight: 650;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10), 0 0.5px 1px rgba(0, 0, 0, 0.05);
 }
 
 .settings-foot {
@@ -510,25 +584,25 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 .settings-reset-btn {
-  background: transparent;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
   color: var(--muted);
   font-family: inherit;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 6px 10px;
+  padding: 6px 12px;
   cursor: pointer;
-  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease;
 }
 
 .settings-reset-btn:hover {
   color: var(--ink);
-  border-color: var(--ink);
-  background: var(--bg);
+  border-color: var(--line-strong);
+  background: var(--surface);
 }
 
-/* Modals & Slide-out Sheet */
+/* Modals & Slide-out Sheet (Apple Thick Glass Sheet) */
 .overlay {
   position: fixed;
   inset: 0;
@@ -536,54 +610,79 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 18px;
   z-index: 999;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: var(--scrim-blur);
+  -webkit-backdrop-filter: var(--scrim-blur);
 }
 
 .sheet {
   position: relative;
   width: 100%;
-  max-width: 480px;
+  max-width: 500px;
   max-height: calc(100vh - 48px);
   overflow-y: auto;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-modal, 0 16px 36px rgba(0, 0, 0, 0.22));
-  padding: 24px;
+  background: var(--glass-thick);
+  backdrop-filter: var(--blur-glass-lg);
+  -webkit-backdrop-filter: var(--blur-glass-lg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-highlight), var(--shadow-modal);
+  padding: 26px;
   box-sizing: border-box;
 }
 
 .sheet .x {
   position: absolute;
-  top: 14px;
-  right: 14px;
-  background: transparent;
-  border: none;
-  font-size: 24px;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-elevated);
+  border: 1px solid transparent;
+  font-size: 20px;
   line-height: 1;
   color: var(--muted);
   cursor: pointer;
-  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-instant) ease;
 }
 
 .sheet .x:hover {
   color: var(--ink);
+  background: color-mix(in srgb, var(--surface-elevated) 75%, var(--ink) 10%);
+}
+
+.sheet .x:active {
+  transform: scale(0.94);
+}
+
+.sheet h2 {
+  font-family: var(--display);
+  letter-spacing: -0.02em;
+  font-weight: 650;
+  margin-top: 0;
+  padding-right: 36px;
 }
 
 .sh-head {
   display: flex;
   gap: 16px;
   align-items: center;
+  margin-top: 24px;
   margin-bottom: 20px;
 }
 
 .sh-head h2 {
   margin: 0;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  padding-right: 28px;
 }
 
 .sh-head .rel {
@@ -596,26 +695,26 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .newform {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .newform .field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .newform .field label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .hi-field-wrap {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: stretch;
   width: 100%;
 }
@@ -626,22 +725,24 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 .hi-btn {
-  min-width: 38px;
-  padding: 0 8px;
+  min-width: 40px;
+  padding: 0 12px;
   font-size: 13px;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--ink);
-  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-elevated);
   color: var(--ink);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   cursor: pointer;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease;
 }
 
 .hi-btn:hover {
-  background: var(--line);
+  background: var(--surface);
+  border-color: var(--line-strong);
 }
 
 .seg {
@@ -653,50 +754,69 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
-  padding: 6px 12px;
+  letter-spacing: -0.008em;
+  padding: 6px 14px;
   height: 36px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border-subtle);
   background: var(--surface);
   color: var(--ink);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-pill);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--transition-fast);
+  gap: 5px;
+  box-shadow: var(--primitive-shadow-sm);
+  transition: background var(--dur-fast) ease,
+    border-color var(--dur-fast) ease,
+    color var(--dur-fast) ease,
+    box-shadow var(--dur-fast) ease,
+    transform var(--dur-instant) var(--ease-apple-spring);
 }
 
-.zbtn[aria-pressed="true"], .zbtn.active {
-  border-color: var(--ink);
+.zbtn:hover:not(:disabled) {
+  background: var(--surface-elevated);
+  border-color: var(--line-strong);
+}
+
+.zbtn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.zbtn[aria-pressed="true"],
+.zbtn.active {
+  border-color: transparent;
   background: var(--ink);
-  color: var(--bg);
+  color: var(--surface);
 }
 
 .check {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--ink);
   cursor: pointer;
 }
 
 .msg {
   font-size: 13px;
+  font-weight: 500;
   color: var(--accent);
   margin: 6px 0 0;
 }
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-top: 14px;
 }
 
 .danger {
   margin-top: 24px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
 }
 
 /* Help Shortcuts Table */
@@ -704,40 +824,42 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   width: 100%;
   border-collapse: collapse;
   margin: 16px 0;
-  font-size: 13px;
+  font-size: 13.5px;
 }
 
 .help-table th, .help-table td {
-  padding: 8px 12px;
+  padding: 10px 12px;
   text-align: left;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .help-table th {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   color: var(--muted);
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .help-table kbd {
-  font-family: monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
-  padding: 2px 6px;
-  border: 1px solid var(--line);
-  background: var(--bg);
+  font-weight: 600;
+  padding: 3px 7px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-elevated);
   color: var(--ink);
-  box-shadow: 0 1px 0 var(--line);
-  border-radius: var(--radius-xs);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+  border-radius: 6px;
 }
 
-/* Bottom Tools Tabs */
+/* Bottom Tools Tabs (Apple Grouped Card) */
 .tools {
-  margin-top: 32px;
+  margin-top: 28px;
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
   padding: 0;
   overflow: hidden;
   box-sizing: border-box;
@@ -746,12 +868,13 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .tabs {
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border-subtle);
   gap: 6px;
-  padding: 12px 24px 0;
+  padding: 12px 20px;
   margin-bottom: 0;
   overflow-x: auto;
   scrollbar-width: none;
+  background: color-mix(in srgb, var(--surface-elevated) 40%, var(--surface));
 }
 
 .tabs::-webkit-scrollbar {
@@ -760,29 +883,33 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 .tab {
   background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  padding: 7px 16px;
   font-size: 13.5px;
   font-weight: 600;
   color: var(--muted);
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
 
 .tab:hover {
   color: var(--ink);
+  background: var(--surface-hover);
 }
 
 .tab[aria-selected="true"] {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--border-subtle);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .panel {
   outline: none;
-  padding: 20px 24px 24px;
+  padding: 22px 24px 26px;
   box-sizing: border-box;
   width: 100%;
 }
@@ -818,8 +945,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 .finder-grid .field label {
   font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-weight: 650;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -853,23 +980,23 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 .finder .res {
   list-style: none;
-  padding: 16px 18px;
+  padding: 18px 20px;
   margin: 4px 0 0;
-  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
-  border-left: 4px solid var(--accent);
-  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface-elevated));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border-subtle));
+  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   font-size: 14px;
 }
 
 .finder-highlight-card {
-  padding: 10px 12px;
+  padding: 12px 16px;
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--primitive-shadow-sm);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -885,6 +1012,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .finder-highlight-term {
   font-size: 18px;
   font-weight: 700;
+  letter-spacing: -0.015em;
   color: var(--ink);
 }
 
@@ -909,7 +1037,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .backup-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 20px;
+  gap: 18px;
   align-items: stretch;
 }
 
@@ -918,10 +1046,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   flex-direction: column;
   justify-content: space-between;
   gap: 14px;
-  padding: 16px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  padding: 18px;
+  background: color-mix(in srgb, var(--surface-elevated) 55%, var(--surface));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
 }
 
 .backup-section .field {
@@ -933,8 +1061,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 .backup-section .field label {
   font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-weight: 650;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -944,17 +1072,18 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   min-height: 160px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.5;
   resize: vertical;
-  padding: 10px 12px;
+  padding: 12px;
+  background: var(--surface);
 }
 
 .backup-file-input {
   width: 100%;
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: var(--surface);
-  border: 1px dashed var(--line);
-  border-radius: var(--radius-xs);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
   font-size: 13px;
   cursor: pointer;
 }
@@ -977,8 +1106,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .blist li:last-child {
@@ -987,29 +1116,38 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 .chip {
-  padding: 4px 10px;
-  font-size: 12px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  border-radius: var(--radius-xs);
+  padding: 5px 12px;
+  font-size: 12.5px;
+  font-weight: 550;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-elevated);
+  color: var(--ink);
+  border-radius: var(--radius-pill);
   cursor: pointer;
+  transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-instant) ease;
 }
 
 .chip:hover {
+  background: var(--surface);
   border-color: var(--accent);
+  color: var(--accent);
+}
+
+.chip:active {
+  transform: scale(0.97);
 }
 
 .foot {
   text-align: center;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--muted);
   margin-top: 36px;
 }
 
 .site-footer {
-  margin-top: 44px;
-  padding-top: 20px;
-  border-top: 1px solid var(--line);
+  margin-top: 48px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border-subtle);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1022,16 +1160,16 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .footer-links {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-weight: 600;
+  gap: 12px;
+  font-weight: 550;
 }
 
 .footer-links a {
   color: var(--ink);
   text-decoration: none;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid transparent;
   padding-bottom: 1px;
-  transition: color var(--transition-fast), border-color var(--transition-fast);
+  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease;
 }
 
 .footer-links a:hover {
@@ -1040,46 +1178,51 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 /* =========================================================================
-   Feature 1: 3-Way Navigation View Switcher (.nav-view-switcher, .nav-tab)
+   Feature 1: 3-Way Navigation View Switcher (Apple Pill Segmented Control)
    ========================================================================= */
 .nav-view-switcher {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  background: var(--bg);
+  gap: 2px;
+  background: var(--surface-elevated);
   padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
 }
 
 .nav-tab {
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
-  padding: 6px 14px;
+  letter-spacing: -0.008em;
+  height: 30px;
+  padding: 0 14px;
   background: transparent;
   color: var(--muted);
   border: 1px solid transparent;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-pill);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background var(--dur-fast) var(--ease-apple-spring),
+    color var(--dur-fast) ease,
+    box-shadow var(--dur-fast) var(--ease-apple-spring);
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   white-space: nowrap;
 }
 
 .nav-tab:hover {
   color: var(--ink);
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(0, 0, 0, 0.035);
 }
 
 .nav-tab[aria-selected="true"],
 .nav-tab.active {
   color: var(--ink);
   background: var(--surface);
-  border-color: var(--line);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border-color: var(--border-subtle);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0.5px 1px rgba(0, 0, 0, 0.04);
 }
 
 :root[data-theme="dark"] .nav-tab:hover {
@@ -1090,8 +1233,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 :root[data-theme="dark"] .nav-tab.active {
   color: var(--ink);
   background: var(--surface);
-  border-color: var(--line);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  border-color: var(--border-subtle);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
 
 /* =========================================================================
@@ -1100,21 +1243,21 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .nav-status-badge,
 .active-tree-badge,
 .stats-badge {
-  height: 36px;
+  height: 34px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 550;
   color: var(--muted);
   padding: 0 12px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   max-width: 440px;
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
 }
 
 .nav-status-badge .badge-stats {
@@ -1133,7 +1276,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 .nav-status-badge .badge-access {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 /* =========================================================================
@@ -1142,10 +1285,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .workspace-breadcrumbs {
   display: flex;
   align-items: center;
-  margin: 0 0 16px 0;
-  padding: 4px 0;
+  margin: 0 0 14px 0;
+  padding: 2px 0;
   font-family: var(--body);
-  font-size: 13.5px;
+  font-size: 13px;
   line-height: 1.4;
 }
 
@@ -1156,28 +1299,28 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   list-style: none;
   margin: 0;
   padding: 0;
-  gap: 6px;
+  gap: 4px;
 }
 
 .breadcrumb-item {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   color: var(--muted);
 }
 
 .breadcrumb-link {
   background: none;
   border: none;
-  padding: 2px 6px;
+  padding: 3px 8px;
   margin: 0;
   font-family: inherit;
   font-size: inherit;
   font-weight: 500;
   color: var(--muted);
   cursor: pointer;
-  border-radius: var(--radius-xs);
-  transition: color var(--transition-fast), background var(--transition-fast);
+  border-radius: var(--radius-pill);
+  transition: color var(--dur-fast) ease, background var(--dur-fast) ease;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -1186,13 +1329,13 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .breadcrumb-link:hover,
 .breadcrumb-link:focus-visible {
   color: var(--ink);
-  background: var(--surface);
-  text-decoration: underline;
+  background: var(--surface-elevated);
+  text-decoration: none;
   outline: none;
 }
 
 .breadcrumb-separator {
-  color: var(--line);
+  color: var(--line-strong);
   user-select: none;
   font-size: 11px;
 }
@@ -1200,8 +1343,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .breadcrumb-current {
   font-weight: 600;
   color: var(--ink);
-  padding: 2px 6px;
-  border-radius: var(--radius-xs);
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
   max-width: 280px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1210,11 +1353,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   vertical-align: middle;
 }
 
-/* Mobile responsive ergonomics */
 @media (max-width: 768px) {
   .workspace-breadcrumbs {
     font-size: 12.5px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
   }
   .breadcrumb-current {
     max-width: 160px;
@@ -1223,7 +1365,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 :root[data-viewport="mobile"] .workspace-breadcrumbs {
   font-size: 12.5px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 :root[data-viewport="mobile"] .breadcrumb-current {
@@ -1231,7 +1373,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 /* =========================================================================
-   Feature 6: Responsive Mobile Navigation & Viewport Ergonomics (.mobile-bottom-nav)
+   Feature 6: Responsive Mobile Navigation (iOS Frosted Glass Tab Bar)
    ========================================================================= */
 .mobile-bottom-nav {
   display: none;
@@ -1240,13 +1382,15 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   left: 0;
   right: 0;
   z-index: 95;
-  background: var(--surface);
-  border-top: 1px solid var(--line);
-  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  background: var(--glass-regular);
+  backdrop-filter: var(--blur-glass-md);
+  -webkit-backdrop-filter: var(--blur-glass-md);
+  border-top: 1px solid var(--border-subtle);
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px));
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
-  gap: 4px;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+  gap: 6px;
+  box-shadow: var(--glass-highlight), 0 -4px 20px rgba(0, 0, 0, 0.06);
 }
 
 .mobile-nav-btn {
@@ -1257,38 +1401,43 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   background: transparent;
   color: var(--muted);
   border: 1px solid transparent;
-  border-radius: var(--radius-xs);
+  border-radius: 12px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  transition: all var(--transition-fast);
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-instant) var(--ease-apple-spring);
 }
 
 .mobile-nav-btn:hover,
 .mobile-nav-btn:focus-visible {
   color: var(--ink);
-  background: var(--bg);
+  background: var(--surface-hover);
   outline: none;
+}
+
+.mobile-nav-btn:active {
+  transform: scale(0.95);
 }
 
 .mobile-nav-btn.active,
 .mobile-nav-btn[aria-current="page"] {
   color: var(--accent);
-  background: var(--bg);
-  border-color: var(--line);
-  font-weight: 700;
+  background: var(--accent-soft);
+  border-color: transparent;
+  font-weight: 650;
 }
 
 .mobile-nav-icon {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1;
 }
 
 .mobile-nav-label {
-  font-size: 11px;
+  font-size: 10.5px;
+  font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -1341,10 +1490,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 .rel-solver-swap-btn {
   height: 40px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
-  background: var(--bg);
+  padding: 0 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-elevated);
   color: var(--ink);
   font-family: inherit;
   font-size: 13px;
@@ -1354,27 +1503,32 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  transition: border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+  transition: border-color var(--dur-fast) ease, color var(--dur-fast) ease, background var(--dur-fast) ease, transform var(--dur-instant) var(--ease-apple-spring);
 }
 
 .rel-solver-swap-btn:hover {
-  border-color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: var(--accent-soft);
   color: var(--accent);
-  transform: scale(1.03);
+}
+
+.rel-solver-swap-btn:active {
+  transform: scale(0.96);
 }
 
 .rel-solver-result-card {
   margin-top: 18px;
-  padding: 16px;
+  padding: 18px;
   border-radius: var(--radius-md);
-  border: 1px solid var(--line);
-  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-elevated) 55%, var(--surface));
 }
 
 .rel-solver-headline {
   font-family: var(--display);
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 650;
+  letter-spacing: -0.02em;
   color: var(--ink);
   margin: 0 0 6px;
 }
@@ -1397,29 +1551,29 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 10px;
-  border-radius: 999px;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
   font-size: 11.5px;
   font-weight: 600;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border-subtle);
   background: var(--surface);
   color: var(--ink);
 }
 
 .rel-badge-blood {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  background: var(--accent-soft);
 }
 
 .rel-badge-marriage {
-  border-color: color-mix(in srgb, var(--rel, #8a5a44) 55%, var(--line));
-  color: var(--rel, #8a5a44);
-  background: color-mix(in srgb, var(--rel, #8a5a44) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--rel) 35%, transparent);
+  color: var(--rel);
+  background: color-mix(in srgb, var(--rel) 10%, var(--surface));
 }
 
 .rel-badge-side {
-  border-color: var(--line);
+  border-color: var(--border-subtle);
   color: var(--ink);
 }
 
@@ -1430,14 +1584,14 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .rel-path-section {
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .rel-path-title {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 650;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   color: var(--muted);
   margin: 0 0 8px;
 }
@@ -1453,9 +1607,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 9px;
-  border-radius: var(--radius-xs);
-  border: 1px solid var(--line);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
   background: var(--surface);
   font-size: 12.5px;
   font-weight: 600;
@@ -1489,37 +1643,38 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   width: 100%;
   max-width: 480px;
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  padding: 32px 28px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 34px 28px;
   text-align: center;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-modal);
 }
 
 .private-locked-icon {
   width: 56px;
   height: 56px;
-  margin: 0 auto 14px;
+  margin: 0 auto 16px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
-  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  font-size: 24px;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
 .private-locked-title {
   margin: 0 0 8px;
   font-family: var(--display);
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 650;
+  letter-spacing: -0.02em;
   color: var(--ink);
 }
 
 .private-locked-body {
-  margin: 0 0 20px;
-  font-size: 14px;
+  margin: 0 0 22px;
+  font-size: 14.5px;
   line-height: 1.55;
   color: var(--muted);
 }
@@ -1535,9 +1690,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .private-locked-code-form {
   display: flex;
   gap: 8px;
-  margin-top: 12px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
+  margin-top: 14px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .private-locked-code-form input {
@@ -1559,7 +1714,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .bar-primary-row {
   display: flex;
   align-items: flex-end;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
   min-width: 0;
 }
@@ -1592,9 +1747,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .search-match-count {
   font-size: 12px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
   white-space: nowrap;
-  padding: 0 2px;
+  padding: 0 4px;
 }
 
 .toolbar-search-prev-btn,
@@ -1611,7 +1767,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   flex: 0 0 auto;
 }
 
-.bar-quick-actions .btn {
+.bar-quick-actions .btn,
+.bar-quick-actions .zbtn {
   height: 40px;
   white-space: nowrap;
 }
@@ -1625,18 +1782,19 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 0 12px;
+  padding: 0 14px;
 }
 
 .toolbar-more-btn.is-open {
-  background: var(--bg);
-  border-color: var(--ink);
+  background: var(--surface);
+  border-color: var(--line-strong);
+  box-shadow: var(--primitive-shadow-sm);
 }
 
 .toolbar-filter-dot {
   width: 7px;
   height: 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--accent);
 }
 
@@ -1645,13 +1803,13 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  background: var(--surface);
-  border: 1px solid var(--line);
+  padding: 12px 14px;
+  background: var(--glass-regular);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md, 0 4px 14px rgba(0, 0, 0, 0.06));
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--glass-highlight), var(--shadow-card);
+  backdrop-filter: var(--blur-glass-md);
+  -webkit-backdrop-filter: var(--blur-glass-md);
 }
 
 .toolbar-more-drawer.is-open {
@@ -1692,7 +1850,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 :root[data-viewport="mobile"] .page h1 {
-  font-size: 20px;
+  font-size: 21px;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -1705,8 +1863,27 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 :root[data-viewport="mobile"] .bar-primary-row {
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+:root[data-viewport="mobile"] .bar-search-field {
+  flex: 1 1 100% !important;
+}
+
+:root[data-viewport="mobile"] .bar-quick-actions {
+  width: 100%;
+  justify-content: space-between;
+}
+
+:root[data-viewport="mobile"] .bar-quick-actions .btn,
+:root[data-viewport="mobile"] .bar-quick-actions .zbtn {
+  flex: 1 1 auto;
+}
+
+:root[data-viewport="mobile"] .bar-quick-actions .toolbar-more-btn {
+  flex: 0 0 44px;
 }
 
 :root[data-viewport="mobile"] .bar-perspective-desktop,
@@ -1725,7 +1902,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   padding-right: 12px !important;
 }
 
-:root[data-viewport="mobile"] .bar-quick-actions .btn {
+:root[data-viewport="mobile"] .bar-quick-actions .btn,
+:root[data-viewport="mobile"] .bar-quick-actions .zbtn {
   height: 44px !important;
   min-width: 44px;
   padding: 0 12px;
@@ -1774,11 +1952,17 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 
 :root[data-viewport="mobile"] .tools {
-  margin-top: 8px;
+  margin-top: 12px;
 }
 
 :root[data-viewport="mobile"] .tabs {
-  padding: 10px 16px 0;
+  padding: 8px 10px;
+  gap: 4px;
+}
+
+:root[data-viewport="mobile"] .tab {
+  padding: 6px 11px;
+  font-size: 12.5px;
 }
 
 :root[data-viewport="mobile"] .panel {
@@ -1793,7 +1977,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
 :root[data-viewport="mobile"] .finder-grid .field select,
 :root[data-viewport="mobile"] .finder-swap-btn {
-  height: 42px;
+  height: 44px;
 }
 
 @media (max-width: 768px) {
@@ -1808,7 +1992,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   }
 
   :root:not([data-viewport="laptop"]) .page h1 {
-    font-size: 20px;
+    font-size: 21px;
     line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
@@ -1821,8 +2005,27 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   }
 
   :root:not([data-viewport="laptop"]) .bar-primary-row {
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
+  }
+
+  :root:not([data-viewport="laptop"]) .bar-search-field {
+    flex: 1 1 100% !important;
+  }
+
+  :root:not([data-viewport="laptop"]) .bar-quick-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  :root:not([data-viewport="laptop"]) .bar-quick-actions .btn,
+  :root:not([data-viewport="laptop"]) .bar-quick-actions .zbtn {
+    flex: 1 1 auto;
+  }
+
+  :root:not([data-viewport="laptop"]) .bar-quick-actions .toolbar-more-btn {
+    flex: 0 0 44px;
   }
 
   :root:not([data-viewport="laptop"]) .bar-perspective-desktop,
@@ -1841,7 +2044,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
     padding-right: 12px !important;
   }
 
-  :root:not([data-viewport="laptop"]) .bar-quick-actions .btn {
+  :root:not([data-viewport="laptop"]) .bar-quick-actions .btn,
+  :root:not([data-viewport="laptop"]) .bar-quick-actions .zbtn {
     height: 44px !important;
     min-width: 44px;
     padding: 0 12px;
@@ -1890,11 +2094,17 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   }
 
   :root:not([data-viewport="laptop"]) .tools {
-    margin-top: 8px;
+    margin-top: 12px;
   }
 
   :root:not([data-viewport="laptop"]) .tabs {
-    padding: 10px 16px 0;
+    padding: 8px 10px;
+    gap: 4px;
+  }
+
+  :root:not([data-viewport="laptop"]) .tab {
+    padding: 6px 11px;
+    font-size: 12.5px;
   }
 
   :root:not([data-viewport="laptop"]) .panel {
@@ -1909,7 +2119,6 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 
   :root:not([data-viewport="laptop"]) .finder-grid .field select,
   :root:not([data-viewport="laptop"]) .finder-swap-btn {
-    height: 42px;
+    height: 44px;
   }
 }
-

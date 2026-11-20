@@ -1,18 +1,18 @@
-/* Tree Canvas, SVG Connectors, Cards, and Spatial Layout */
+/* Tree Canvas, SVG Connectors, Cards, and Spatial Layout (Apple HIG / Freeform Craft) */
 
 .treewrap {
   position: relative;
   width: 100%;
-  background: var(--surface);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  border-left: none;
-  border-right: none;
-  border-radius: 0;
+  background-color: var(--surface);
+  background-image: radial-gradient(circle, var(--border-subtle) 1px, transparent 1px);
+  background-size: 24px 24px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
+  scrollbar-color: var(--line-strong) transparent;
   height: calc(100dvh - 210px - env(safe-area-inset-bottom, 0px));
   min-height: 540px;
   margin-block: 0;
@@ -30,8 +30,8 @@
 }
 
 .treewrap::-webkit-scrollbar-thumb {
-  background: var(--line);
-  border-radius: 4px;
+  background: var(--line-strong);
+  border-radius: 9999px;
 }
 
 .treewrap::-webkit-scrollbar-thumb:hover {
@@ -68,7 +68,7 @@
 }
 
 .guide-line {
-  stroke: var(--line);
+  stroke: var(--line-strong);
   stroke-width: 1px;
   stroke-dasharray: 4 6;
   opacity: 0.45;
@@ -76,7 +76,7 @@
 
 .main-branch-line {
   stroke: var(--main-branch);
-  stroke-width: 2px;
+  stroke-width: 1.75px;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
@@ -99,25 +99,27 @@
   stroke-linejoin: round;
   stroke-dasharray: 3 3;
   fill: none;
-  opacity: 0.7;
+  opacity: 0.72;
 }
 
-/* Branch & Generation Pills */
+/* Branch & Generation Pills (Ultra-Thin Liquid Glass) */
 .branch-pill {
   position: absolute;
-  padding: 4px 10px;
+  padding: 4px 12px;
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-weight: 650;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  border-radius: var(--radius-xs);
-  background: var(--surface);
+  border-radius: var(--radius-pill);
+  background: var(--glass-regular);
+  backdrop-filter: var(--blur-glass-sm);
+  -webkit-backdrop-filter: var(--blur-glass-sm);
   color: var(--accent);
-  border: 1px solid var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border-subtle));
   pointer-events: none;
   z-index: 2;
   white-space: nowrap;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--glass-highlight), var(--shadow-card);
 }
 
 .gen-rail {
@@ -130,66 +132,72 @@
 .gen-pill {
   position: absolute;
   left: 0;
-  padding: 3px 8px;
+  padding: 4px 10px;
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-weight: 650;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  background: var(--surface);
+  background: var(--glass-regular);
+  backdrop-filter: var(--blur-glass-sm);
+  -webkit-backdrop-filter: var(--blur-glass-sm);
   color: var(--muted);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
   white-space: nowrap;
+  box-shadow: var(--primitive-shadow-sm);
 }
 
-/* Family Member Cards */
+/* Family Member Cards (Strict 96x138 layout geometry preserved for SVG engine) */
 .card {
   position: absolute;
   width: 96px;
   height: 138px;
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm); /* Exact 5px requested by user & CLAUDE.md */
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 8px 6px;
+  padding: 9px 6px 8px;
   box-sizing: border-box;
   text-align: center;
   cursor: pointer;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  transition: transform var(--dur-fast) var(--ease-apple-spring),
+    box-shadow var(--dur-fast) var(--ease-apple-spring),
+    border-color var(--dur-fast) ease,
+    opacity var(--dur-fast) ease;
   z-index: 3;
   color: var(--ink);
   outline: none;
 }
 
 .card:hover {
-  transform: translateY(-2px);
-  border-color: var(--ink);
+  transform: translateY(-2.5px) scale(1.015);
+  border-color: var(--line-strong);
   box-shadow: var(--shadow-card-hover);
   z-index: 5;
 }
 
 .card:active {
-  transform: translateY(0) scale(0.98);
+  transform: translateY(0) scale(0.97);
 }
 
 .card:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2.5px solid var(--accent);
   outline-offset: 2px;
   z-index: 6;
 }
 
 .card.me {
   border: 2px solid var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow-card);
 }
 
 .card.hit {
-  border-color: #f59e0b;
-  box-shadow: 0 0 0 2px #f59e0b;
+  border-color: var(--color-warning);
+  box-shadow: 0 0 0 3px rgba(255, 149, 0, 0.28), var(--shadow-card);
 }
 
 .card.dim {
@@ -197,13 +205,13 @@
 }
 
 .card.is-male {
-  background: var(--card-male-bg, #eff6ff);
-  border-color: var(--card-male-border, #93c5fd);
+  background: var(--card-male-bg, #f4f8ff);
+  border-color: var(--card-male-border, rgba(59, 130, 246, 0.28));
 }
 
 .card.is-female {
-  background: var(--card-female-bg, #fdf2f8);
-  border-color: var(--card-female-border, #f9a8d4);
+  background: var(--card-female-bg, #fff5f9);
+  border-color: var(--card-female-border, rgba(236, 72, 153, 0.26));
 }
 
 .card.is-late {
@@ -211,31 +219,33 @@
 }
 
 .av.is-male {
-  background: var(--av-male-bg, #dbeafe);
-  color: var(--av-male-ink, #1e40af);
+  background: var(--av-male-bg, #e0edff);
+  color: var(--av-male-ink, #1d4ed8);
 }
 
 .av.is-female {
   background: var(--av-female-bg, #fce7f3);
-  color: var(--av-female-ink, #9d174d);
+  color: var(--av-female-ink, #be185d);
 }
 
 .card .nm {
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.22;
   margin-top: 6px;
+  padding-inline: 1px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
-  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .card .rl {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 10.5px;
+  font-weight: 650;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--rel);
@@ -244,22 +254,22 @@
 }
 
 .card .tag {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   color: #92400e;
   margin-top: 3px;
-  padding: 1px 6px;
+  padding: 1px 7px;
   background: #fef3c7;
-  border: 1px solid #f59e0b;
-  border-radius: var(--radius-xs);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-radius: var(--radius-pill);
 }
 
 :root[data-theme="dark"] .card .tag {
   color: #fde68a;
   background: rgba(245, 158, 11, 0.22);
-  border-color: rgba(245, 158, 11, 0.5);
+  border-color: rgba(245, 158, 11, 0.45);
 }
 
 .card.is-compact {
@@ -270,23 +280,25 @@
 .card.is-compact .av {
   width: 56px;
   height: 56px;
-  font-size: 22px;
+  font-size: 21px;
 }
 
-/* Avatar inside Card */
+/* Avatar inside Card (Apple Contacts-style circular portrait) */
 .av {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-xs);
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-pill);
   background: var(--av);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  font-size: 16px;
+  font-weight: 650;
+  font-size: 15.5px;
+  letter-spacing: -0.02em;
   color: var(--ink);
   overflow: hidden;
   flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
 .av img {
@@ -299,7 +311,7 @@
   width: 72px;
   height: 72px;
   font-size: 24px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
 }
 
 /* =========================================================================
@@ -340,6 +352,7 @@
   margin: 0 !important;
   border: none !important;
   border-radius: 0 !important;
+  box-shadow: none !important;
   flex: 1;
 }
 
@@ -352,33 +365,35 @@
   margin-bottom: 10px;
 }
 
-/* Full-Screen Toggle Button */
+/* Full-Screen Toggle Button (Liquid Glass Capsule) */
 .canvas-fullscreen-toggle {
   position: static;
   z-index: 25;
   min-width: 38px;
-  height: 38px;
-  padding: 0 12px;
+  height: 36px;
+  padding: 0 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background: var(--surface);
+  background: var(--glass-regular);
+  backdrop-filter: var(--blur-glass-sm);
+  -webkit-backdrop-filter: var(--blur-glass-sm);
   color: var(--ink);
-  border: 1px solid color-mix(in srgb, var(--ink) 28%, var(--line));
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
   font-family: inherit;
   font-size: 12.5px;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
-    background 0.16s ease,
-    color 0.16s ease,
-    border-color 0.16s ease,
-    box-shadow 0.18s ease;
+  box-shadow: var(--glass-highlight), var(--shadow-card);
+  transition: transform var(--dur-fast) var(--ease-apple-spring),
+    background var(--dur-fast) ease,
+    color var(--dur-fast) ease,
+    border-color var(--dur-fast) ease,
+    box-shadow var(--dur-fast) ease;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -403,9 +418,10 @@
 
 .canvas-fullscreen-toggle:hover {
   background: var(--ink);
-  color: var(--bg);
+  color: var(--surface);
+  border-color: transparent;
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .canvas-fullscreen-toggle:active {
@@ -413,7 +429,7 @@
 }
 
 .canvas-fullscreen-toggle:focus-visible {
-  outline: 2px solid var(--accent) !important;
+  outline: 2.5px solid var(--accent) !important;
   outline-offset: 2px !important;
 }
 
@@ -422,23 +438,23 @@
 .canvas-fullscreen-toggle.is-active {
   top: calc(14px + env(safe-area-inset-top, 0px));
   right: calc(14px + env(safe-area-inset-right, 0px));
-  background: var(--surface);
+  background: var(--glass-thick);
   color: var(--accent);
-  border-color: var(--accent);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border-subtle));
+  box-shadow: var(--glass-highlight), var(--shadow-dock);
 }
 
 .treewrap-host.is-fullscreen .canvas-fullscreen-toggle:hover,
 .canvas-fullscreen-toggle.is-active:hover {
   background: var(--accent);
   color: #ffffff;
-  border-color: var(--accent);
+  border-color: transparent;
 }
 
 /* Position adjustment for canvas dock in fullscreen mode to honor safe-area */
 .treewrap-host.is-fullscreen .canvas-dock {
-  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-  right: calc(12px + env(safe-area-inset-right, 0px));
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  right: calc(14px + env(safe-area-inset-right, 0px));
 }
 
 /* Mobile touch target sizing & balanced canvas proportions */
@@ -447,7 +463,7 @@
   :root:not([data-viewport="laptop"]) .subtrees-drawer-toggle {
     min-width: 40px;
     height: 40px;
-    padding: 0 12px;
+    padding: 0 14px;
     font-size: 12.5px;
     max-width: calc(50% - 18px);
     overflow: hidden;
@@ -457,9 +473,9 @@
   :root:not([data-viewport="laptop"]) .canvas-layout .treewrap {
     height: clamp(360px, 56vh, 520px);
     min-height: 360px;
+    border-radius: var(--radius-md);
   }
 
-  /* Fix non-fullscreen mobile CanvasDock clipping ("Full lineage" & "+" hidden) */
   :root:not([data-viewport="laptop"]) .treewrap-host:not(.is-fullscreen) .canvas-dock {
     right: 8px;
     bottom: 8px;
@@ -503,7 +519,7 @@
 :root[data-viewport="mobile"] .subtrees-drawer-toggle {
   min-width: 40px;
   height: 40px;
-  padding: 0 12px;
+  padding: 0 14px;
   font-size: 12.5px;
   max-width: calc(50% - 18px);
   overflow: hidden;
@@ -513,6 +529,7 @@
 :root[data-viewport="mobile"] .canvas-layout .treewrap {
   height: clamp(360px, 56vh, 520px);
   min-height: 360px;
+  border-radius: var(--radius-md);
 }
 
 :root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .canvas-dock {
@@ -569,13 +586,17 @@
 }
 
 /* =========================================================================
-   Sub-Trees Sidebar & Collapsible Canvas Sub-Tree Containers
+   Sub-Trees Sidebar (macOS Finder Frosted Sidebar) & Collapsible Canvas Sub-Trees
    ========================================================================= */
 .canvas-layout {
   position: relative;
   display: flex;
   align-items: stretch;
   width: 100%;
+  gap: 12px;
+}
+
+.treewrap-host.is-fullscreen .canvas-layout {
   gap: 0;
 }
 
@@ -592,34 +613,40 @@
   justify-content: center;
   gap: 6px;
   min-width: 38px;
-  height: 38px;
-  padding: 0 12px;
-  background: var(--surface);
+  height: 36px;
+  padding: 0 14px;
+  background: var(--glass-regular);
+  backdrop-filter: var(--blur-glass-sm);
+  -webkit-backdrop-filter: var(--blur-glass-sm);
   color: var(--ink);
-  border: 1px solid color-mix(in srgb, var(--ink) 28%, var(--line));
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
   font-family: inherit;
   font-size: 12.5px;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
-    background 0.16s ease,
-    color 0.16s ease,
-    border-color 0.16s ease,
-    box-shadow 0.18s ease;
+  box-shadow: var(--glass-highlight), var(--shadow-card);
+  transition: transform var(--dur-fast) var(--ease-apple-spring),
+    background var(--dur-fast) ease,
+    color var(--dur-fast) ease,
+    border-color var(--dur-fast) ease,
+    box-shadow var(--dur-fast) ease;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
 .subtrees-drawer-toggle:hover {
   background: var(--ink);
-  color: var(--bg);
-  border-color: var(--ink);
+  color: var(--surface);
+  border-color: transparent;
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.subtrees-drawer-toggle:active {
+  transform: scale(0.97);
 }
 
 .treewrap-host.is-fullscreen .canvas-layout {
@@ -643,11 +670,12 @@
   height: 100%;
   max-height: 100%;
   min-height: 0;
-  width: min(300px, 86vw);
-  box-shadow: 8px 0 28px rgba(0, 0, 0, 0.22);
+  width: min(304px, 86vw);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  box-shadow: 10px 0 36px rgba(0, 0, 0, 0.24);
   z-index: 900;
   transform: translateX(-105%);
-  transition: transform var(--transition-fast);
+  transition: transform var(--dur-normal) var(--ease-apple-sheet);
 }
 
 .treewrap-host.is-fullscreen .subtrees-sidebar.is-open {
@@ -658,7 +686,9 @@
   display: block;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--scrim);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 890;
 }
 
@@ -679,10 +709,12 @@
 .subtrees-sidebar {
   width: 276px;
   flex: 0 0 276px;
-  background: var(--surface);
-  border-right: 1px solid var(--line);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  background: var(--glass-thick);
+  backdrop-filter: var(--blur-glass-md);
+  -webkit-backdrop-filter: var(--blur-glass-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-highlight), var(--shadow-card);
   margin-block: 0;
   display: flex;
   flex-direction: column;
@@ -699,9 +731,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 11px 13px;
-  border-bottom: 1px solid var(--line);
-  background: var(--bg);
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-elevated) 45%, transparent);
 }
 
 .subtrees-sidebar-title-wrap {
@@ -714,8 +746,8 @@
 .subtrees-sidebar-title {
   margin: 0;
   font-size: 12.5px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: 650;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--ink);
 }
@@ -723,11 +755,12 @@
 .subtrees-sidebar-count {
   font-size: 11px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
-  border-radius: 999px;
-  padding: 1px 7px;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
 }
 
 .subtrees-sidebar-close {
@@ -736,11 +769,17 @@
   height: 28px;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
-  background: var(--surface);
-  color: var(--ink);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--surface-elevated);
+  color: var(--muted);
   cursor: pointer;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+
+.subtrees-sidebar-close:hover {
+  color: var(--ink);
+  background: var(--surface-hover);
 }
 
 .subtrees-empty {
@@ -757,7 +796,7 @@
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--muted) 45%, var(--line)) transparent;
+  scrollbar-color: var(--line-strong) transparent;
   padding: 10px 12px 16px;
   display: flex;
   flex-direction: column;
@@ -773,7 +812,7 @@
 }
 
 .subtrees-list::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--muted) 45%, var(--line));
+  background: var(--line-strong);
   border-radius: 999px;
 }
 
@@ -784,24 +823,24 @@
 /* Header-on-top sub-tree group card */
 .subtree-group {
   flex-shrink: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-elevated) 55%, var(--surface));
   overflow: hidden;
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--dur-fast) ease;
 }
 
 .subtree-group.is-main {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border-subtle));
 }
 
 .subtree-group-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 10px;
+  padding: 9px 10px;
   background: var(--surface);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .subtree-group.is-collapsed {
@@ -825,18 +864,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 12px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: var(--surface-elevated);
+  color: var(--muted);
+  font-size: 11px;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
 }
 
 .subtree-toggle-btn:hover {
-  border-color: var(--accent);
+  background: var(--accent-soft);
   color: var(--accent);
 }
 
@@ -852,7 +891,7 @@
   text-align: left;
   font-family: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 650;
   color: var(--ink);
   cursor: pointer;
 }
@@ -876,19 +915,19 @@
 .subtree-count {
   font-size: 11px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 1px 7px;
+  background: var(--surface-elevated);
+  border-radius: var(--radius-pill);
+  padding: 2px 7px;
   flex-shrink: 0;
 }
 
 .subtree-members {
-  padding: 8px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
 }
 
 .subtree-member-btn {
@@ -896,24 +935,23 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 8px;
+  padding: 6px 8px;
   font-family: inherit;
   font-size: 12.5px;
   font-weight: 500;
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
   cursor: pointer;
   text-align: left;
-  transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
 }
 
 .subtree-member-btn:hover,
 .subtree-member-btn.is-active {
-  border-color: var(--accent);
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  background: var(--accent-soft);
 }
 
 .subtree-member-avatar {
@@ -923,16 +961,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
-  color: var(--accent);
+  background: var(--av-male-bg);
+  color: var(--av-male-ink);
   flex-shrink: 0;
 }
 
 .subtree-member-avatar.is-female {
-  background: color-mix(in srgb, var(--rel, #8a5a44) 14%, var(--bg));
-  color: var(--rel, #8a5a44);
+  background: var(--av-female-bg);
+  color: var(--av-female-ink);
 }
 
 .subtree-member-name {
@@ -949,18 +987,18 @@
   flex-shrink: 0;
 }
 
-/* Canvas-side collapsible sub-tree containers (header sits cleanly on top) */
+/* Canvas-side collapsible sub-tree containers */
 .canvas-subtree-box {
   position: absolute;
-  border: 1px dashed color-mix(in srgb, var(--line) 85%, var(--ink));
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--surface) 38%, transparent);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-elevated) 32%, transparent);
   pointer-events: none;
   z-index: 1;
 }
 
 .canvas-subtree-box.is-main {
-  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border-subtle));
 }
 
 .canvas-collapsed-dock {
@@ -982,9 +1020,11 @@
 
 .canvas-subtree-box.is-collapsed {
   border-style: solid;
-  border-radius: 999px;
-  background: var(--surface);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-pill);
+  background: var(--glass-regular);
+  backdrop-filter: var(--blur-glass-sm);
+  -webkit-backdrop-filter: var(--blur-glass-sm);
+  box-shadow: var(--glass-highlight), var(--shadow-card);
   pointer-events: auto;
   overflow: hidden;
   width: auto !important;
@@ -997,29 +1037,32 @@
   left: 0;
   border: none;
   box-shadow: none;
+  background: transparent;
 }
 
 .canvas-subtree-header {
   position: absolute;
-  top: -15px;
+  top: 8px;
   left: 12px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  padding: 4px 12px;
+  background: var(--glass-regular);
+  backdrop-filter: var(--blur-glass-sm);
+  -webkit-backdrop-filter: var(--blur-glass-sm);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 650;
   color: var(--ink);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--glass-highlight), var(--shadow-card);
   pointer-events: auto;
   z-index: 5;
 }
 
 .canvas-subtree-box.is-main .canvas-subtree-header {
-  border-color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--border-subtle));
   color: var(--accent);
 }
 
@@ -1042,10 +1085,14 @@
 .canvas-subtree-count {
   font-size: 10.5px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
 
 @media (max-width: 900px) {
+  .canvas-layout {
+    gap: 0;
+  }
   .subtrees-drawer-toggle {
     display: inline-flex;
   }
@@ -1053,23 +1100,26 @@
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.35);
+    background: var(--scrim);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     z-index: 115;
   }
   .subtrees-sidebar {
     position: fixed;
-    top: 56px;
+    top: 58px;
     bottom: calc(64px + env(safe-area-inset-bottom, 0px));
     left: 0;
     margin-block: 0;
     height: auto;
-    max-height: calc(100dvh - 120px - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 122px - env(safe-area-inset-bottom, 0px));
     min-height: 0;
-    width: min(300px, 86vw);
-    box-shadow: 8px 0 28px rgba(0, 0, 0, 0.2);
+    width: min(304px, 86vw);
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+    box-shadow: 10px 0 32px rgba(0, 0, 0, 0.2);
     z-index: 120;
     transform: translateX(-105%);
-    transition: transform var(--transition-fast);
+    transition: transform var(--dur-normal) var(--ease-apple-sheet);
   }
   .subtrees-sidebar.is-open {
     transform: translateX(0);
@@ -1077,6 +1127,10 @@
   .subtrees-sidebar-close {
     display: inline-flex;
   }
+}
+
+:root[data-viewport="mobile"] .canvas-layout {
+  gap: 0;
 }
 
 :root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .subtrees-drawer-toggle {
@@ -1087,24 +1141,27 @@
   display: block;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--scrim);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 115;
 }
 
 :root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .subtrees-sidebar {
   position: fixed;
-  top: 56px;
+  top: 58px;
   bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   left: 0;
   margin-block: 0;
   height: auto;
-  max-height: calc(100dvh - 120px - env(safe-area-inset-bottom, 0px));
+  max-height: calc(100dvh - 122px - env(safe-area-inset-bottom, 0px));
   min-height: 0;
-  width: min(300px, 86vw);
-  box-shadow: 8px 0 28px rgba(0, 0, 0, 0.2);
+  width: min(304px, 86vw);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  box-shadow: 10px 0 32px rgba(0, 0, 0, 0.2);
   z-index: 120;
   transform: translateX(-105%);
-  transition: transform var(--transition-fast);
+  transition: transform var(--dur-normal) var(--ease-apple-sheet);
 }
 
 :root[data-viewport="mobile"] .treewrap-host:not(.is-fullscreen) .subtrees-sidebar.is-open {
@@ -1117,28 +1174,28 @@
 
 /* Relation Path Highlight & Search Focus */
 .card.is-path-dimmed {
-  opacity: 0.32;
-  transition: opacity 0.2s ease, transform var(--transition-fast), box-shadow var(--transition-fast);
+  opacity: 0.30;
+  transition: opacity 0.2s ease, transform var(--dur-fast) var(--ease-apple-spring), box-shadow var(--dur-fast) ease;
 }
 
 .card.is-path-active {
   border: 2px solid var(--accent);
-  box-shadow: 0 0 0 3px #f59e0b, 0 8px 20px color-mix(in srgb, var(--accent) 28%, transparent);
+  box-shadow: 0 0 0 3.5px rgba(255, 149, 0, 0.38), 0 10px 24px color-mix(in srgb, var(--accent) 26%, transparent);
   z-index: 7;
-  transform: translateY(-2px);
+  transform: translateY(-2.5px);
 }
 
 @keyframes searchFocusPulse {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 65%, transparent), 0 0 0 2px #f59e0b;
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent), 0 0 0 2.5px var(--color-warning);
     transform: scale(1);
   }
   45% {
     box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent), 0 0 0 3px var(--accent);
-    transform: scale(1.04);
+    transform: scale(1.045);
   }
   100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent), 0 0 0 2px #f59e0b;
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent), 0 0 0 2.5px var(--color-warning);
     transform: scale(1);
   }
 }
@@ -1146,7 +1203,7 @@
 .card.is-search-focus {
   border-color: var(--accent);
   z-index: 8;
-  animation: searchFocusPulse 0.8s ease-out 2;
+  animation: searchFocusPulse 0.8s var(--ease-apple-spring) 2;
 }
 
 .lines.is-path-dimmed .guide-line,
@@ -1159,11 +1216,11 @@
 
 .relation-highlight-line {
   stroke: var(--accent);
-  stroke-width: 3.5px;
+  stroke-width: 3.25px;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
-  filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.55));
+  filter: drop-shadow(0 0 4px rgba(255, 149, 0, 0.45));
 }
 
 .canvas-path-banner {
@@ -1176,12 +1233,14 @@
   align-items: center;
   gap: 10px;
   max-width: calc(100% - 32px);
-  padding: 6px 12px 6px 14px;
-  background: var(--surface);
+  padding: 6px 10px 6px 16px;
+  background: var(--glass-thick);
+  backdrop-filter: var(--blur-glass-md);
+  -webkit-backdrop-filter: var(--blur-glass-md);
   color: var(--ink);
-  border: 1.5px solid var(--accent);
-  border-radius: 999px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border-subtle));
+  border-radius: var(--radius-pill);
+  box-shadow: var(--glass-highlight), var(--shadow-dock);
   font-size: 12.5px;
   font-weight: 600;
 }
@@ -1194,17 +1253,21 @@
 
 .canvas-path-banner-clear {
   background: var(--accent);
-  color: #fff;
+  color: #ffffff;
   border: none;
-  border-radius: 999px;
-  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 650;
   cursor: pointer;
   flex-shrink: 0;
-  transition: opacity var(--transition-fast);
+  transition: opacity var(--dur-fast) ease, transform var(--dur-instant) ease;
 }
 
 .canvas-path-banner-clear:hover {
-  opacity: 0.9;
+  opacity: 0.92;
+}
+
+.canvas-path-banner-clear:active {
+  transform: scale(0.96);
 }

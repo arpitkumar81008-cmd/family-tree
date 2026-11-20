@@ -225,8 +225,8 @@ export function Sheet({
                 : person.g === "F"
                   ? "1px solid var(--card-female-border, #f9a8d4)"
                   : undefined,
-            borderRadius: "12px",
-            padding: "12px"
+            borderRadius: "16px",
+            padding: "14px"
           }}
         >
           <Avatar photo={photo} label={t("photoOf", name)} text={initials} big gender={person.g} />

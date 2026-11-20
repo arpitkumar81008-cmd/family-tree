@@ -307,81 +307,81 @@ export function LandingPage({
           label: 'कैनवास',
           items: [
             { title: 'पारिवारिक शाखाएँ', desc: 'मुख्य व ससुराल शाखाओं पर तुरंत ध्यान दें' },
-            { title: 'पिंच और फुल स्क्रीन', desc: 'ज़ूम नियंत्रण और पूरा स्क्रीन दृश्य' },
-            { title: 'लैपटॉप और मोबाइल', desc: 'किसी भी स्क्रीन के लिए उपयुक्त लेआउट' },
-            { title: 'स्पष्ट वंशावली रेखाएँ', desc: 'बिना किसी ओवरलैप के पीढ़ियों का जुड़ाव' }
+            { title: 'पिंच और फुल स्क्रीन', desc: 'सहज ज़ूम नियंत्रण और पूरा स्क्रीन दृश्य' },
+            { title: 'लैपटॉप और मोबाइल', desc: 'हर स्क्रीन के लिए संतुलित और स्पष्ट लेआउट' },
+            { title: 'स्पष्ट वंशावली रेखाएँ', desc: 'बिना किसी उलझाव के पीढ़ियों का जुड़ाव' }
           ]
         },
         {
           id: 'kinship',
           label: 'रिश्ते व खोज',
           items: [
-            { title: '40+ भारतीय रिश्ते', desc: 'चाचा, बुआ, मामा, मौसी सहित सटीक नाम' },
-            { title: 'रिश्ता मार्ग', desc: 'किन्हीं दो सदस्यों का सीधा संबंध देखें' },
-            { title: 'दृष्टिकोण बदलें', desc: 'किसी भी व्यक्ति के नजरिये से वृक्ष देखें' },
-            { title: 'त्वरित नाम खोज', desc: 'मिलते-जुलते नामों के बीच तुरंत जाएँ' }
+            { title: '40+ भारतीय रिश्ते', desc: 'चाचा, बुआ, मामा, मौसी सहित सटीक संबंध' },
+            { title: 'रिश्ता मार्ग', desc: 'किन्हीं दो सदस्यों का सटीक जुड़ाव देखें' },
+            { title: 'दृष्टिकोण बदलें', desc: 'किसी भी सदस्य की नजर से पूरा वृक्ष देखें' },
+            { title: 'त्वरित नाम खोज', desc: 'मिलते-जुलते नामों पर तुरंत पहुँचें' }
           ]
         },
         {
           id: 'bilingual',
           label: 'द्विभाषी व यादें',
           items: [
-            { title: 'अंग्रेज़ी और हिन्दी', desc: 'लिखते ही स्वतः हिन्दी नाम तैयार' },
-            { title: 'फ़ोटो और HEIC', desc: 'स्वतः संपीड़न के साथ सदस्य फ़ोटो जोड़ें' },
-            { title: 'जन्मदिन व मील के पत्थर', desc: 'आने वाले जन्मदिन और आयु विवरण' },
-            { title: 'नोट्स और स्मृतियाँ', desc: 'पैतृक स्थान, यादें और स्व. चिह्न' }
+            { title: 'अंग्रेज़ी और हिन्दी', desc: 'लिखते ही स्वतः देवनागरी हिन्दी तैयार' },
+            { title: 'पोर्ट्रेट व HEIC', desc: 'स्वतः संपीड़न के साथ स्पष्ट सदस्य फ़ोटो' },
+            { title: 'जन्मदिन व मील के पत्थर', desc: 'आने वाले जन्मदिन और आयु का सरल विवरण' },
+            { title: 'नोट्स और स्मृतियाँ', desc: 'पैतृक स्थान, यादें और सम्मानजनक स्व. चिह्न' }
           ]
         },
         {
           id: 'share',
           label: 'निजी व बैकअप',
           items: [
-            { title: 'क्लाउड सिंक', desc: 'Google या ईमेल से सुरक्षित निजी वृक्ष' },
-            { title: 'पारिवारिक कोड', desc: 'एक्सेस कोड व अनुमति से रिश्तेदार जोड़ें' },
-            { title: 'PNG व PDF पोस्टर', desc: 'प्रिंट करने योग्य वंश पोस्टर डाउनलोड करें' },
-            { title: 'Undo और JSON बैकअप', desc: 'बदलाव पूर्ववत करें व बैकअप सहेजें' }
+            { title: 'निजी क्लाउड सिंक', desc: 'Google या ईमेल से सभी डिवाइस पर सुरक्षित सिंक' },
+            { title: 'पारिवारिक कोड', desc: 'एक्सेस कोड व स्वीकृति से रिश्तेदारों को जोड़ें' },
+            { title: 'PNG व PDF पोस्टर', desc: 'प्रिंट करने योग्य स्पष्ट वंश पोस्टर सहेजें' },
+            { title: 'Undo और बैकअप', desc: 'बदलाव पूर्ववत करें और पोर्टेबल बैकअप रखें' }
           ]
         }
       ]
     : [
         {
           id: 'canvas',
-          label: 'Tree & Canvas',
+          label: 'Canvas',
           items: [
-            { title: 'Family Branches', desc: 'Filter main or in-law branches anytime' },
-            { title: 'Pinch & Full Screen', desc: 'Smooth zoom controls & full-screen canvas' },
-            { title: 'Laptop & Mobile Views', desc: 'Switch display modes cleanly on any device' },
-            { title: 'Zero-Overlap Lines', desc: 'Clear generations and couple connectors' }
+            { title: 'Family Branches', desc: 'Focus main or in-law lineages in one tap' },
+            { title: 'Pinch & Full Screen', desc: 'Fluid zoom, pan, and edge-to-edge canvas' },
+            { title: 'Adaptive Layout', desc: 'Crafted for desktop, tablet, and mobile' },
+            { title: 'Crisp Connectors', desc: 'Clean generation lines with zero overlap' }
           ]
         },
         {
           id: 'kinship',
-          label: 'Kinship & Search',
+          label: 'Kinship',
           items: [
-            { title: '40+ Indian Relations', desc: 'Chacha, Bua, Mama, Mausi, Jethani & more' },
-            { title: 'Relation Path', desc: 'Trace exact connections between any two people' },
-            { title: 'See Relations From', desc: 'View the lineage from anyone\'s perspective' },
-            { title: 'Instant Search', desc: 'Find and cycle through matching relatives' }
+            { title: '40+ Indian Terms', desc: 'Chacha, Bua, Mama, Mausi, Jethani, and more' },
+            { title: 'Relation Path', desc: 'Trace the exact bridge between any two people' },
+            { title: 'Any Perspective', desc: 'View every relationship from anyone’s point of view' },
+            { title: 'Instant Search', desc: 'Find and step through matching relatives fast' }
           ]
         },
         {
           id: 'bilingual',
-          label: 'Bilingual & Photos',
+          label: 'Bilingual',
           items: [
-            { title: 'English & Hindi', desc: 'Auto Devanagari transliteration as you type' },
-            { title: 'Photos & HEIC', desc: 'Upload portraits with automatic compression' },
-            { title: 'Birthdays & Milestones', desc: 'Upcoming family birthdays and age tracker' },
-            { title: 'Notes & Legacy', desc: 'Hometowns, memories & late-ancestor tags' }
+            { title: 'English & Hindi', desc: 'Real-time Devanagari transliteration as you type' },
+            { title: 'Portraits & HEIC', desc: 'Add crisp member photos with instant compression' },
+            { title: 'Milestones', desc: 'Upcoming family birthdays and age reminders' },
+            { title: 'Memories & Notes', desc: 'Hometowns, stories, and respectful late tags' }
           ]
         },
         {
           id: 'share',
-          label: 'Private & Export',
+          label: 'Privacy & Export',
           items: [
-            { title: 'Private Cloud Sync', desc: 'Sign in with Google or email to sync safely' },
-            { title: 'Family Access Code', desc: 'Invite relatives by code or join requests' },
-            { title: 'PNG & PDF Posters', desc: 'Download high-res images or print posters' },
-            { title: 'Undo & JSON Backup', desc: 'Step backward/forward or export a backup' }
+            { title: 'Private Cloud Sync', desc: 'Stay safely synced across devices with Google or email' },
+            { title: 'Family Access Code', desc: 'Invite relatives by code or owner approval' },
+            { title: 'Print Posters', desc: 'Export high-resolution PNG and PDF keepsakes' },
+            { title: 'Undo & Backup', desc: 'Step backward anytime or keep a JSON archive' }
           ]
         }
       ];

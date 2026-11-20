@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vanshvriksha-static-v13';
+const CACHE_NAME = 'vanshvriksha-static-v14';
 
 const PRECACHE_URLS = [
   '/',
