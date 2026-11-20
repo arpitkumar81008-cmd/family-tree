@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vanshvriksha-static-v15';
+const CACHE_NAME = 'vanshvriksha-static-v16';
 
 const PRECACHE_URLS = [
   '/',
@@ -77,11 +77,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Never intercept crawler, sitemap, analytics init, or Search Console verification files
+  // Never intercept crawler, sitemap, analytics init, IndexNow, AI crawler, or Search Console verification files
   if (
     url.pathname === '/robots.txt' ||
     url.pathname === '/sitemap.xml' ||
+    url.pathname === '/llms.txt' ||
     url.pathname === '/gtag-init.js' ||
+    url.pathname === '/a7e4c9b218f64d0395e1a8c4b7d260f9.txt' ||
     url.pathname.startsWith('/.well-known/') ||
     /^\/google[a-z0-9]+\.html$/i.test(url.pathname)
   ) {

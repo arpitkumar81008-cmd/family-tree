@@ -1,0 +1,17 @@
+# VanshVriksha (वंशवृक्ष)
+
+> Bilingual (English & Hindi) family tree web application with authentic Indian kinship resolution, interactive spatial canvas, and default-private cloud sync.
+
+## Canonical URLs
+- Home: https://vanshvriksha.web.app/
+- Interactive Demo Tree (Verma Family Lineage): https://vanshvriksha.web.app/?view=tree
+- Sitemap: https://vanshvriksha.web.app/sitemap.xml
+
+## Key Capabilities
+- **Interactive Spatial Canvas**: Multi-generational family tree visualization with zero-overlap orthogonal connectors, Family Branches sidebar (main and in-law lineages), pinch-to-zoom, pan controls, and full-screen mode.
+- **40+ Authentic Indian Kinship Terms**: Calculates exact blood and marital relationships in both English and Hindi (such as Chacha, Tau, Bua, Mama, Mausi, Jija, Sala, Bhabhi, Samdhi, Pota/Poti vs. Nati/Natin, and Tayera/Chachera/Mamera/Mausera cousins) and traces the shortest connection path between any two members.
+- **Naturally Bilingual (English & Devanagari Hindi)**: Real-time English-to-Hindi transliteration as you type names or hometowns, with offline fallback and full UI language switching.
+- **Private by Default**: Personal family trees default to private in Cloud Firestore with Family Access Codes, owner-approved Join Requests, Undo/Redo history, portrait compression (including HEIC), high-resolution PNG/PDF poster export, and portable JSON backups.
+
+## Source & Contact
+- GitHub Repository: https://github.com/arpitkumar81008-cmd/family-tree

@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "push": "node scripts/push.mjs",
-    "test": "node --test tests/*.mjs"
+    "test": "node --test tests/*.mjs",
+    "indexnow": "node scripts/submit-indexnow.mjs"
   },
   "repository": {
     "type": "git",
