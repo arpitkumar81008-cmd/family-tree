@@ -611,3 +611,33 @@ test('Audit fixes: cross-device deletion non-resurrection, undo tombstone cleanu
     globalThis.localStorage = origLocalStorage;
   }
 });
+
+test('SEO & Post-Launch readiness: robots.txt, sitemap.xml, OG cover, GA4 init, and JSON-LD', () => {
+  const robots = readFileSync(resolve(process.cwd(), 'public/robots.txt'), 'utf8');
+  assert.match(robots, /Sitemap:\s*https:\/\/vanshvriksha\.web\.app\/sitemap\.xml/);
+  assert.match(robots, /Disallow:\s*\/\*code=/);
+
+  const sitemap = readFileSync(resolve(process.cwd(), 'public/sitemap.xml'), 'utf8');
+  assert.match(sitemap, /<loc>https:\/\/vanshvriksha\.web\.app\/<\/loc>/);
+  assert.match(sitemap, /<loc>https:\/\/vanshvriksha\.web\.app\/\?view=tree<\/loc>/);
+
+  const securityTxt = readFileSync(resolve(process.cwd(), 'public/.well-known/security.txt'), 'utf8');
+  assert.match(securityTxt, /^Contact:/m);
+
+  const gtagInit = readFileSync(resolve(process.cwd(), 'public/gtag-init.js'), 'utf8');
+  assert.match(gtagInit, /G-89GMEHC09H/);
+
+  const ogBytes = readFileSync(resolve(process.cwd(), 'public/images/og-cover.jpg'));
+  assert.ok(ogBytes.length > 10_000 && ogBytes.length < 300_000, 'OG banner should be optimized under 300KB');
+
+  const html = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
+  assert.match(html, /rel="canonical"\s+href="https:\/\/vanshvriksha\.web\.app\/"/);
+  assert.match(html, /property="og:image"\s+content="https:\/\/vanshvriksha\.web\.app\/images\/og-cover\.jpg"/);
+  assert.match(html, /googletagmanager\.com\/gtag\/js\?id=G-89GMEHC09H/);
+
+  const ldMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  assert.ok(ldMatch, 'index.html must include JSON-LD structured data');
+  const parsedLd = JSON.parse(ldMatch[1]);
+  assert.equal(parsedLd['@context'], 'https://schema.org');
+  assert.ok(Array.isArray(parsedLd['@graph']) && parsedLd['@graph'].length >= 3);
+});

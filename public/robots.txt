@@ -1,0 +1,9 @@
+# VanshVriksha — Crawl directives for search engines
+User-agent: *
+Allow: /
+Disallow: /*code=
+Disallow: /*approve=
+Disallow: /*tree=
+Disallow: /*admin=
+
+Sitemap: https://vanshvriksha.web.app/sitemap.xml

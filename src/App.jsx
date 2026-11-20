@@ -211,6 +211,41 @@ export function App() {
     syncUrlWithViewState(currentView, activeTreeId);
   }, [currentView, activeTreeId]);
 
+  // Dynamic document title & search-engine privacy guard (noindex private trees)
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const activeLang = treeState.lang;
+    const brand = activeLang === "hi" ? "वंशवृक्ष (VanshVriksha)" : "VanshVriksha";
+    if (currentView === "home") {
+      document.title =
+        activeLang === "hi"
+          ? "वंशवृक्ष — द्विभाषी पारिवारिक वंश वृक्ष"
+          : "VanshVriksha — Bilingual Family Tree";
+    } else if (activeTreeId) {
+      const treeTitle = (activeTreeMeta?.title || "").trim();
+      document.title = treeTitle ? `${treeTitle} — ${brand}` : brand;
+    } else {
+      document.title =
+        activeLang === "hi"
+          ? `वर्मा परिवार वंश (डेमो) — ${brand}`
+          : `The Verma Family Lineage — ${brand}`;
+    }
+
+    const isPrivateOrShared = Boolean(
+      activeTreeId && (activeTreeMeta?.isPublic === false || (typeof window !== "undefined" && /[?&](code|approve)=/i.test(window.location.search)))
+    );
+    let robotsMeta = document.querySelector('meta[name="robots"]');
+    if (!robotsMeta) {
+      robotsMeta = document.createElement("meta");
+      robotsMeta.setAttribute("name", "robots");
+      document.head.appendChild(robotsMeta);
+    }
+    robotsMeta.setAttribute(
+      "content",
+      isPrivateOrShared ? "noindex, nofollow" : "index, follow, max-image-preview:large, max-snippet:-1"
+    );
+  }, [currentView, activeTreeId, activeTreeMeta?.title, activeTreeMeta?.isPublic, treeState.lang]);
+
   // Record a page view once per browser session for aggregate analytics
   useEffect(() => {
     try {

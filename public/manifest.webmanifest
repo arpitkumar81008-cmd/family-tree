@@ -1,11 +1,17 @@
 {
-  "name": "VanshVriksha — Bilingual Family Tree Platform",
+  "id": "/",
+  "name": "VanshVriksha — Bilingual Family Tree",
   "short_name": "VanshVriksha",
-  "description": "Interactive bilingual (English & Hindi) family tree platform with authentic Indian kinship terms and dual-mode spatial flowcharts.",
+  "description": "Map your family lineage, preserve portraits and milestones, and discover authentic Indian kinship in English and Hindi.",
+  "lang": "en",
+  "dir": "ltr",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f6f4ef",
+  "orientation": "any",
+  "background_color": "#f6f5f2",
   "theme_color": "#b91c3b",
+  "categories": ["lifestyle", "utilities", "social"],
   "icons": [
     {
       "src": "/images/tree-logo.png",
@@ -23,7 +29,7 @@
       "src": "/images/tree-logo-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ]
 }

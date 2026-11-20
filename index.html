@@ -8,8 +8,23 @@
       name="description"
       content="Every generation, beautifully connected. Map your family lineage, preserve portraits and milestones, and explore authentic Indian kinship in English and Hindi."
     />
+    <meta
+      name="keywords"
+      content="VanshVriksha, वंशवृक्ष, Indian family tree, bilingual family tree, Hindi family tree maker, Indian kinship calculator, chacha bua mama mausi, private genealogy app"
+    />
+    <meta name="author" content="VanshVriksha" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+    <link rel="canonical" href="https://vanshvriksha.web.app/" />
+
+    <!-- Adaptive Theme Colors & Apple Web App Metadata -->
     <meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0b0c0e" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="VanshVriksha" />
+
+    <!-- Open Graph / WhatsApp / LinkedIn / iMessage Preview -->
+    <meta property="og:site_name" content="VanshVriksha" />
     <meta property="og:title" content="VanshVriksha — Bilingual Family Tree" />
     <meta
       property="og:description"
@@ -17,23 +32,122 @@
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://vanshvriksha.web.app/" />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:locale:alternate" content="hi_IN" />
+    <meta property="og:image" content="https://vanshvriksha.web.app/images/og-cover.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="VanshVriksha — Bilingual English and Hindi Family Tree Platform" />
+
+    <!-- Twitter / X Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="VanshVriksha — Bilingual Family Tree" />
     <meta
       name="twitter:description"
       content="Every generation, beautifully connected. Map your family lineage and explore authentic Indian kinship in English and Hindi."
     />
+    <meta name="twitter:image" content="https://vanshvriksha.web.app/images/og-cover.jpg" />
+    <meta name="twitter:image:alt" content="VanshVriksha — Bilingual English and Hindi Family Tree Platform" />
+
+    <!-- Icons & PWA Manifest -->
     <link rel="icon" type="image/png" href="/images/tree-logo.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/images/tree-logo-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Google Analytics 4 (also enables 1-click Google Search Console ownership verification) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-89GMEHC09H"></script>
+    <script defer src="/gtag-init.js"></script>
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,500;0,6..96,700;1,6..96,400&family=Familjen+Grotesk:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Hind:wght@400;500;600&family=Tiro+Devanagari+Hindi:ital@0;1&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Schema.org Structured Data (Google Rich Results) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://vanshvriksha.web.app/#website",
+            "url": "https://vanshvriksha.web.app/",
+            "name": "VanshVriksha",
+            "alternateName": "वंशवृक्ष",
+            "description": "Bilingual English and Hindi family tree platform with authentic Indian kinship resolution and private cloud sync.",
+            "inLanguage": ["en", "hi"]
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://vanshvriksha.web.app/#app",
+            "name": "VanshVriksha",
+            "alternateName": "वंशवृक्ष",
+            "url": "https://vanshvriksha.web.app/",
+            "applicationCategory": "LifestyleApplication",
+            "operatingSystem": "Any",
+            "browserRequirements": "Requires a modern web browser with JavaScript enabled.",
+            "inLanguage": ["en", "hi"],
+            "image": "https://vanshvriksha.web.app/images/og-cover.jpg",
+            "description": "Build, explore, and preserve your family lineage in English and Hindi with 40+ Indian blood and marital kinship terms, interactive spatial canvas, private Family Access Codes, and print-ready posters.",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "INR"
+            },
+            "featureList": [
+              "Interactive multi-generational spatial family canvas",
+              "40+ authentic Indian blood and marital kinship terms",
+              "Real-time English-to-Hindi Devanagari transliteration",
+              "Default-private Cloud Firestore sync with Family Access Codes",
+              "High-resolution PNG, PDF poster export, and JSON backup"
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Is my personal family tree private on VanshVriksha?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. New family trees default to Private in Cloud Firestore. Only you and relatives you approve via Join Requests or Family Access Codes can view or edit them."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How does English-to-Hindi transliteration work?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Names typed in English are automatically transliterated into Devanagari Hindi in real time (with an offline fallback), and you can fine-tune the Hindi spelling anytime."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I calculate Indian family relationships like Chacha, Bua, Mama, and Mausi?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. VanshVriksha resolves 40+ authentic Indian blood and marital kinship terms in both English and Hindi between any two members and traces their exact connection path."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <main style="max-width:720px;margin:48px auto;padding:24px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#1d1d1f;line-height:1.6;">
+        <h1>VanshVriksha (वंशवृक्ष) — Bilingual Family Tree</h1>
+        <p>Every generation, beautifully connected. Map your family lineage, preserve portraits and milestones, and discover 40+ authentic Indian kinship terms in English and Hindi.</p>
+        <p>Please enable JavaScript to open the interactive family tree canvas.</p>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

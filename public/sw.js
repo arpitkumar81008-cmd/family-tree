@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vanshvriksha-static-v14';
+const CACHE_NAME = 'vanshvriksha-static-v15';
 
 const PRECACHE_URLS = [
   '/',
@@ -74,6 +74,17 @@ self.addEventListener('fetch', (event) => {
 
   // Only cache same-origin requests
   if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // Never intercept crawler, sitemap, analytics init, or Search Console verification files
+  if (
+    url.pathname === '/robots.txt' ||
+    url.pathname === '/sitemap.xml' ||
+    url.pathname === '/gtag-init.js' ||
+    url.pathname.startsWith('/.well-known/') ||
+    /^\/google[a-z0-9]+\.html$/i.test(url.pathname)
+  ) {
     return;
   }
 
